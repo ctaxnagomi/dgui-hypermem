@@ -1,0 +1,24 @@
+NOTICE
+======
+
+DGUI-HyperMem (DeckerGUI HyperMemory)
+Copyright (c) 2026 DeckerGUI (https://deckergui.my). MIT licensed (see LICENSE).
+
+Third-party notices
+-------------------
+- Jev, System One, and the Choice / Noul / Score primitives are the work of
+  TypeSafe AI (https://typesafe.ai) and are used under their MIT-licensed public
+  documentation at https://docs.typesafe.ai.
+- Cloudflare Workers, D1, Vectorize and Workers AI are provided by Cloudflare, Inc.
+  (https://cloudflare.com).
+- The Model Context Protocol and its SDK are provided by Anthropic and contributors
+  (https://modelcontextprotocol.io).
+
+Credits
+-------
+- TypeSafe AI  — Jev / System One, Choice / Noul / Score primitives
+- DeckerGUI    — design, implementation and operation (https://deckergui.my)
+- KrackedDevs  — community credit and support
+- CTECX        — knowledge / corpus partner
+
+See README.md ("Credits") and CONTRIBUTORS.md for the full list.
