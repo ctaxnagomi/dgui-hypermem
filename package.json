@@ -1,0 +1,23 @@
+{
+  "name": "dgui-hypermem",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "DGUI-HyperMem (DeckerGUI HyperMemory) - self-hosted hybrid memory MCP server on Cloudflare Workers, with a JEV (Choice/Noul/Score) reasoning layer.",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "typecheck": "tsc --noEmit",
+    "migrate:local": "wrangler d1 migrations apply dgui-hypermem --local",
+    "migrate:remote": "wrangler d1 migrations apply dgui-hypermem --remote"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260919.1",
+    "typescript": "^5.8.3",
+    "wrangler": "^4.131.1"
+  }
+}

@@ -1,0 +1,22 @@
+# Secrets & local state — never commit
+.dev.vars
+.token
+.hftoken
+*.token
+.env
+.env.*
+
+# Dependencies & build
+node_modules/
+dist/
+.wrangler/
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

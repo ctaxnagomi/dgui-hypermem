@@ -1,0 +1,38 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "dgui-hypermem",
+  "main": "src/index.ts",
+  "compatibility_date": "2025-05-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": {
+    "enabled": true
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "dgui-hypermem",
+      "database_id": "597bf456-2700-4345-8d9f-eb952891d4e7"
+    }
+  ],
+  "vectorize": [
+    {
+      "binding": "VECTORIZE",
+      "index_name": "dgui-hypermem"
+    }
+  ],
+  "ai": {
+    "binding": "AI"
+  },
+  "triggers": {
+    "crons": ["17 * * * *"]
+  },
+  "vars": {
+    "JEV_MODE": "auto",
+    "JEV_MODEL": "jev-latest",
+    "JEV_ENDPOINT": "https://api.typesafe.ai",
+    "EMBED_MODEL": "@cf/baai/bge-base-en-v1.5",
+    "FALLBACK_MODEL": "@cf/meta/llama-3.1-8b-fast-v2",
+    "DEFAULT_SCOPE": "default",
+    "HF_DATASET": "ctaxnagomi/DGUI_HYPERMEM-JEV"
+  }
+}

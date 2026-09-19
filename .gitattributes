@@ -1,0 +1,11 @@
+* text=auto eol=lf
+
+# Documentation
+*.md text eol=lf
+*.jsonc text eol=lf
+*.sql text eol=lf
+
+# Binary
+*.png binary
+*.jpg binary
+*.webp binary
