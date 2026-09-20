@@ -339,13 +339,18 @@ async function handleRequestToken(env: Env, body: Record<string, any>): Promise<
   const { email, github_username, passkey } = body;
   if (!email || !github_username || !passkey) return { error: "email, github_username and passkey are required" };
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { error: "invalid email" };
-  const expected = env.PASSKEY || "0866";
-  if (passkey !== expected) return { error: "invalid passkey" };
+  const userPasskey = env.PASSKEY || "0866";
+  const masterPasskey = env.MASTER_PASSKEY;
+  const isMaster = masterPasskey && passkey === masterPasskey;
+  if (passkey !== userPasskey && !isMaster) return { error: "invalid passkey" };
   const existing = await env.DB.prepare("SELECT id, status, token FROM tokens WHERE email = ?").bind(email).first<{ id: string; status: string; token: string | null }>();
   if (existing) return { id: existing.id, status: existing.status, has_token: !!existing.token };
   const id = uuid();
-  await env.DB.prepare("INSERT INTO tokens (id, email, github_username, status, created_at, updated_at) VALUES (?, ?, ?, 'pending', ?, ?)")
-    .bind(id, email, github_username, now(), now()).run();
+  const status = isMaster ? "active" : "pending";
+  const token = isMaster ? uuid() : null;
+  await env.DB.prepare("INSERT INTO tokens (id, email, github_username, status, token, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)")
+    .bind(id, email, github_username, status, token, now(), now()).run();
+  if (isMaster) return { status: "active", token, master: true };
   return { status: "pending", id };
 }
 
@@ -375,8 +380,10 @@ async function handleCheckStar(env: Env, body: Record<string, any>): Promise<Rec
 async function handleDisableToken(env: Env, body: Record<string, any>): Promise<Record<string, any>> {
   const { email, passkey } = body;
   if (!email || !passkey) return { error: "email and passkey are required" };
-  const expected = env.PASSKEY || "0866";
-  if (passkey !== expected) return { error: "invalid passkey" };
+  const userPasskey = env.PASSKEY || "0866";
+  const masterPasskey = env.MASTER_PASSKEY;
+  const isMaster = masterPasskey && passkey === masterPasskey;
+  if (passkey !== userPasskey && !isMaster) return { error: "invalid passkey" };
   const row = await env.DB.prepare("SELECT id, status FROM tokens WHERE email = ?").bind(email).first<{ id: string; status: string }>();
   if (!row) return { error: "no token found" };
   if (row.status === "disabled") return { status: "disabled" };
