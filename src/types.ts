@@ -12,6 +12,7 @@ export interface Env {
   MCP_TOKEN?: string;
   HF_TOKEN?: string;
   HF_DATASET?: string;
+  PASSKEY?: string;
 }
 
 export type MemoryStatus = "active" | "superseded" | "deleted";

@@ -16,7 +16,7 @@ import type { Env } from "./types";
 import { addMemory, forgetMemories, listMemories, profile, searchMemories } from "./store";
 import { MEMORY_TYPES, resolveMode } from "./jev";
 import { flushJevExamples, jevQueueStats } from "./dataset";
-import { json, timeSafeEqual } from "./util";
+import { json, now, timeSafeEqual, uuid } from "./util";
 
 const SERVER_NAME = "dgui-hypermem";
 const SERVER_VERSION = "1.0.0";
@@ -323,9 +323,64 @@ async function handleRest(request: Request, env: Env, path: string): Promise<Res
       return json(await flushJevExamples(env, body.limit ? Number(body.limit) : undefined), { headers: CORS });
     case "/api/jev_queue_stats":
       return json(await jevQueueStats(env, scope), { headers: CORS });
+    case "/api/request-token":
+      return json(await handleRequestToken(env, body), { headers: CORS });
+    case "/api/check-star":
+      return json(await handleCheckStar(env, body), { headers: CORS });
+    case "/api/disable-token":
+      return json(await handleDisableToken(env, body), { headers: CORS });
     default:
       return json({ error: "not found" }, { status: 404, headers: CORS });
   }
+}
+
+async function handleRequestToken(env: Env, body: Record<string, any>): Promise<Record<string, any>> {
+  const { email, github_username, passkey } = body;
+  if (!email || !github_username || !passkey) return { error: "email, github_username and passkey are required" };
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { error: "invalid email" };
+  const expected = env.PASSKEY || "0866";
+  if (passkey !== expected) return { error: "invalid passkey" };
+  const existing = await env.DB.prepare("SELECT id, status, token FROM tokens WHERE email = ?").bind(email).first<{ id: string; status: string; token: string | null }>();
+  if (existing) return { id: existing.id, status: existing.status, has_token: !!existing.token };
+  const id = uuid();
+  await env.DB.prepare("INSERT INTO tokens (id, email, github_username, status, created_at, updated_at) VALUES (?, ?, ?, 'pending', ?, ?)")
+    .bind(id, email, github_username, now(), now()).run();
+  return { status: "pending", id };
+}
+
+async function handleCheckStar(env: Env, body: Record<string, any>): Promise<Record<string, any>> {
+  const { email } = body;
+  if (!email) return { error: "email is required" };
+  const row = await env.DB.prepare("SELECT id, github_username, status, token FROM tokens WHERE email = ?").bind(email).first<{ id: string; github_username: string; status: string; token: string | null }>();
+  if (!row) return { error: "no pending request found" };
+  if (row.status === "active" && row.token) return { starred: true, token: row.token };
+  if (row.status !== "pending") return { error: `request is ${row.status}` };
+  try {
+    const res = await fetch(`https://api.github.com/repos/ctaxnagomi/dgui-hypermem/stargazers?per_page=100`, {
+      headers: { "user-agent": "dgui-hypermem", accept: "application/vnd.github+json" },
+    });
+    if (!res.ok) return { error: "github api error", starred: false };
+    const stargazers = await res.json() as { login: string }[];
+    const starred = stargazers.some((u: any) => u.login === row.github_username);
+    if (!starred) return { starred: false, url: "https://github.com/ctaxnagomi/dgui-hypermem" };
+    const token = uuid();
+    await env.DB.prepare("UPDATE tokens SET status = 'active', token = ?, updated_at = ? WHERE id = ?").bind(token, now(), row.id).run();
+    return { starred: true, token };
+  } catch (err) {
+    return { error: String(err), starred: false };
+  }
+}
+
+async function handleDisableToken(env: Env, body: Record<string, any>): Promise<Record<string, any>> {
+  const { email, passkey } = body;
+  if (!email || !passkey) return { error: "email and passkey are required" };
+  const expected = env.PASSKEY || "0866";
+  if (passkey !== expected) return { error: "invalid passkey" };
+  const row = await env.DB.prepare("SELECT id, status FROM tokens WHERE email = ?").bind(email).first<{ id: string; status: string }>();
+  if (!row) return { error: "no token found" };
+  if (row.status === "disabled") return { status: "disabled" };
+  await env.DB.prepare("UPDATE tokens SET status = 'disabled', updated_at = ? WHERE id = ?").bind(now(), row.id).run();
+  return { status: "disabled" };
 }
 
 export default {
@@ -345,12 +400,13 @@ export default {
         dataset: env.HF_TOKEN ? (env.HF_DATASET || "ctaxnagomi/DGUI_HYPERMEM-JEV") : null,
         endpoints: {
           mcp: "/mcp",
-          rest: ["/api/add", "/api/search", "/api/list", "/api/profile", "/api/forget", "/api/sync_jev", "/api/jev_queue_stats"],
+          rest: ["/api/add", "/api/search", "/api/list", "/api/profile", "/api/forget", "/api/sync_jev", "/api/jev_queue_stats", "/api/request-token", "/api/check-star", "/api/disable-token"],
         },
       });
     }
 
-    if (path === "/mcp" || path.startsWith("/api/")) {
+    const CRM_ROUTES = ["/api/request-token", "/api/check-star", "/api/disable-token"];
+    if (path === "/mcp" || (path.startsWith("/api/") && !CRM_ROUTES.includes(path))) {
       if (!authorized(request, env)) {
         return json({ error: "unauthorized" }, { status: 401, headers: CORS });
       }
