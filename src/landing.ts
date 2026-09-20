@@ -106,6 +106,7 @@ footer p{font-size:14px;color:var(--text-muted)}footer a{color:var(--accent-cyan
 <line x1="390" y1="445" x2="390" y2="470" stroke="#00f0ff" stroke-width="1.5" class="dash-anim"/>
 <rect x="265" y="470" width="250" height="40" rx="12" stroke="#00f0ff" stroke-width="2" fill="none" transform="rotate(0.4 390 490)"/>
 <text x="390" y="495" text-anchor="middle" fill="#00f0ff" font-family="JetBrains Mono,monospace" font-size="12">🤗 DGUI_HYPERMEM-JEV</text>
+<line x1="390" y1="510" x2="390" y2="520" stroke="#00f0ff" stroke-width="1.5" class="dash-anim"/>
 </svg>
 </div>
 </section>
@@ -144,7 +145,7 @@ footer p{font-size:14px;color:var(--text-muted)}footer a{color:var(--accent-cyan
 </div>
 </footer>
 <script>
-const SD=[{i:"🏠",d:"deckergui.my",u:"https://deckergui.my"},{i:"📊",d:"app.deckergui.my",u:"https://app.deckergui.my"},{i:"📚",d:"corpuslib-ui.deckergui.my",u:"https://corpuslib-ui.deckergui.my"},{i:"🧠",d:"dguihymem.deckergui.my",u:"https://dguihymem.ctaxnagomi.workers.dev"},{i:"🤖",d:"agent.deckergui.my",u:"https://agent.deckergui.my"},{i:"🔌",d:"hub.deckergui.my",u:"https://hub.deckergui.my"},{i:"🔬",d:"ctecx.deckergui.my",u:"https://ctecx.deckergui.my"},{i:"🌐",d:"api.deckergui.my",u:"https://api.deckergui.my"},{i:"🖥",d:"landing.deckergui.my",u:"https://landing.deckergui.my"},{i:"🌍",d:"www.deckergui.my",u:"https://www.deckergui.my"},{i:"📦",d:"kd-c2p.deckergui.my",u:"https://kd-c2p.deckergui.my"},{i:"📋",d:"ctecex.deckergui.my",u:"https://ctecex.deckergui.my"}];
+const SD=[{i:"🏠",d:"deckergui.my",u:"https://deckergui.my"},{i:"📊",d:"app.deckergui.my",u:"https://app.deckergui.my"},{i:"📚",d:"corpuslib-ui.deckergui.my",u:"https://corpuslib-ui.deckergui.my"},{i:"🧠",d:"dguihymem.deckergui.my",u:"https://dgui-hypermem.ctaxnagomi.workers.dev"},{i:"🔬",d:"ctecx.deckergui.my",u:"https://ctecx.deckergui.my"},{i:"🖥",d:"landing.deckergui.my",u:"https://landing.deckergui.my"}];
 const t=document.getElementById('carousel-track');
 t.innerHTML=SD.map(s=>'<div class="wallet-card" onclick="window.open(\\''+s.u+'\\',\\'_blank\\')"><div style="font-size:28px;margin-bottom:6px">'+s.i+'</div><div style="font-size:13px;font-family:JetBrains Mono,monospace;color:#fff">'+s.d+'</div></div>').join('')+SD.map(s=>'<div class="wallet-card" onclick="window.open(\\''+s.u+'\\',\\'_blank\\')"><div style="font-size:28px;margin-bottom:6px">'+s.i+'</div><div style="font-size:13px;font-family:JetBrains Mono,monospace;color:#fff">'+s.d+'</div></div>').join('');
 let pt=null;
