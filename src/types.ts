@@ -13,6 +13,7 @@ export interface Env {
   HF_TOKEN?: string;
   HF_DATASET?: string;
   PASSKEY?: string;
+  GITHUB_TOKEN?: string;
 }
 
 export type MemoryStatus = "active" | "superseded" | "deleted";

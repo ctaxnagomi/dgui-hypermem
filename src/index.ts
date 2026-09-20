@@ -357,10 +357,10 @@ async function handleCheckStar(env: Env, body: Record<string, any>): Promise<Rec
   if (row.status === "active" && row.token) return { starred: true, token: row.token };
   if (row.status !== "pending") return { error: `request is ${row.status}` };
   try {
-    const res = await fetch(`https://api.github.com/repos/ctaxnagomi/dgui-hypermem/stargazers?per_page=100`, {
-      headers: { "user-agent": "dgui-hypermem", accept: "application/vnd.github+json" },
-    });
-    if (!res.ok) return { error: "github api error", starred: false };
+    const headers: Record<string, string> = { "user-agent": "dgui-hypermem", accept: "application/vnd.github+json" };
+    if (env.GITHUB_TOKEN) headers.authorization = `Bearer ${env.GITHUB_TOKEN}`;
+    const res = await fetch(`https://api.github.com/repos/ctaxnagomi/dgui-hypermem/stargazers?per_page=100`, { headers });
+    if (!res.ok) return { error: `github api: ${res.status}`, starred: false };
     const stargazers = await res.json() as { login: string }[];
     const starred = stargazers.some((u: any) => u.login === row.github_username);
     if (!starred) return { starred: false, url: "https://github.com/ctaxnagomi/dgui-hypermem" };

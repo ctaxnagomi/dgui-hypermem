@@ -40,13 +40,7 @@ nav{display:flex;align-items:center;justify-content:space-between;padding:16px 2
 .arch-section{padding:30px 24px 60px}
 .arch-wrapper{display:flex;justify-content:center;overflow-x:auto;margin-top:32px}
 .dash-anim{animation:dash 1.2s linear infinite}@keyframes dash{to{stroke-dashoffset:-24}}
-.carousel-section{padding:30px 24px}
-.carousel-wrap{overflow:hidden;mask-image:linear-gradient(90deg,transparent,#000 5%,#000 95%,transparent)}
-.carousel-track{display:flex;gap:12px;width:max-content;animation:scroll 40s linear infinite}
-.carousel-track:hover{animation-play-state:paused}
-@keyframes scroll{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
-.wallet-card{display:inline-flex;flex-direction:column;align-items:center;justify-content:center;min-width:170px;padding:20px 16px;background:rgba(255,255,255,0.05);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,0.1);border-radius:16px;cursor:pointer;transition:transform .25s;user-select:none}
-.wallet-card:hover{transform:scale(1.06);background:rgba(255,255,255,0.09);border-color:rgba(255,255,255,0.2)}
+.arch-section{padding:30px 24px 60px}
 .crm-section{padding:30px 24px 60px}
 .crm-card{max-width:520px;margin:24px auto;padding:32px;border:1px solid var(--border-glass);border-radius:12px;background:var(--bg-surface)}
 .crm-card input{width:100%;padding:12px 16px;margin-bottom:12px;background:var(--bg-primary);border:1px solid var(--border-glass);border-radius:8px;color:var(--accent);font-family:Inter,sans-serif;font-size:14px;outline:none;transition:border-color .2s}
@@ -78,12 +72,12 @@ footer p{font-size:14px;color:var(--text-muted)}footer a{color:var(--accent-cyan
 <section id="arch" class="arch-section">
 <div class="section-header"><div class="caption-mono"><i class="fas fa-sitemap"></i> Architecture</div><h2>How it works.</h2></div>
 <div class="arch-wrapper">
-<svg viewBox="0 0 780 500" xmlns="http://www.w3.org/2000/svg">
+<svg viewBox="0 0 780 540" xmlns="http://www.w3.org/2000/svg">
 <rect x="290" y="5" width="200" height="55" rx="12" stroke="#00f0ff" stroke-width="2" fill="none" transform="rotate(-0.5 390 32)"/>
 <text x="390" y="40" text-anchor="middle" fill="#fff" font-family="JetBrains Mono,monospace" font-size="13">MCP Client</text>
 <line x1="390" y1="60" x2="390" y2="95" stroke="#00f0ff" stroke-width="2" stroke-dasharray="6 4" class="dash-anim"/>
 <rect x="270" y="95" width="240" height="55" rx="12" stroke="#00f0ff" stroke-width="2" fill="none" transform="rotate(0.3 390 122)"/>
-<text x="390" y="130" text-anchor="middle" fill="#fff" font-family="JetBrains Mono,monospace" font-size="12">dguihymem.deckergui.my</text>
+<text x="390" y="130" text-anchor="middle" fill="#fff" font-family="JetBrains Mono,monospace" font-size="12">dgui-hypermem.workers.dev</text>
 <line x1="390" y1="150" x2="390" y2="185" stroke="#00f0ff" stroke-width="2" stroke-dasharray="6 4" class="dash-anim"/>
 <rect x="290" y="185" width="200" height="50" rx="12" stroke="#fff" stroke-width="2" fill="none" transform="rotate(-0.4 390 210)"/>
 <text x="390" y="215" text-anchor="middle" fill="#fff" font-family="JetBrains Mono,monospace" font-size="11">JEV Layer (Choice/Noul/Score)</text>
@@ -106,14 +100,9 @@ footer p{font-size:14px;color:var(--text-muted)}footer a{color:var(--accent-cyan
 <line x1="390" y1="445" x2="390" y2="470" stroke="#00f0ff" stroke-width="1.5" class="dash-anim"/>
 <rect x="265" y="470" width="250" height="40" rx="12" stroke="#00f0ff" stroke-width="2" fill="none" transform="rotate(0.4 390 490)"/>
 <text x="390" y="495" text-anchor="middle" fill="#00f0ff" font-family="JetBrains Mono,monospace" font-size="12">🤗 DGUI_HYPERMEM-JEV</text>
-<line x1="390" y1="510" x2="390" y2="520" stroke="#00f0ff" stroke-width="1.5" class="dash-anim"/>
+<line x1="390" y1="510" x2="390" y2="530" stroke="#00f0ff" stroke-width="1.5" class="dash-anim"/>
 </svg>
 </div>
-</section>
-<section class="carousel-section">
-<div class="section-header"><div class="caption-mono"><i class="fas fa-globe"></i> Ecosystem</div><h2>deckergui.my subdomains.</h2></div>
-<div class="carousel-wrap"><div class="carousel-track" id="carousel-track"></div></div>
-</section>
 <section id="crm" class="crm-section">
 <div class="section-header"><div class="caption-mono"><i class="fas fa-key"></i> Access</div><h2>Get your bearer token.</h2><p>Star the repo on GitHub, verify with passkey, get your token instantly.</p></div>
 <div class="crm-card" id="crm-form">
@@ -145,9 +134,6 @@ footer p{font-size:14px;color:var(--text-muted)}footer a{color:var(--accent-cyan
 </div>
 </footer>
 <script>
-const SD=[{i:"🏠",d:"deckergui.my",u:"https://deckergui.my"},{i:"📊",d:"app.deckergui.my",u:"https://app.deckergui.my"},{i:"📚",d:"corpuslib-ui.deckergui.my",u:"https://corpuslib-ui.deckergui.my"},{i:"🧠",d:"dguihymem.deckergui.my",u:"https://dgui-hypermem.ctaxnagomi.workers.dev"},{i:"🔬",d:"ctecx.deckergui.my",u:"https://ctecx.deckergui.my"},{i:"🖥",d:"landing.deckergui.my",u:"https://landing.deckergui.my"}];
-const t=document.getElementById('carousel-track');
-t.innerHTML=SD.map(s=>'<div class="wallet-card" onclick="window.open(\\''+s.u+'\\',\\'_blank\\')"><div style="font-size:28px;margin-bottom:6px">'+s.i+'</div><div style="font-size:13px;font-family:JetBrains Mono,monospace;color:#fff">'+s.d+'</div></div>').join('')+SD.map(s=>'<div class="wallet-card" onclick="window.open(\\''+s.u+'\\',\\'_blank\\')"><div style="font-size:28px;margin-bottom:6px">'+s.i+'</div><div style="font-size:13px;font-family:JetBrains Mono,monospace;color:#fff">'+s.d+'</div></div>').join('');
 let pt=null;
 async function requestToken(){
   const e=document.getElementById('crm-email').value.trim(),g=document.getElementById('crm-github').value.trim(),p=document.getElementById('crm-passkey').value.trim();
