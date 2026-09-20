@@ -17,6 +17,7 @@ import { addMemory, forgetMemories, listMemories, profile, searchMemories } from
 import { MEMORY_TYPES, resolveMode } from "./jev";
 import { flushJevExamples, jevQueueStats } from "./dataset";
 import { json, now, timeSafeEqual, uuid } from "./util";
+import { LANDING_HTML } from "./landing";
 
 const SERVER_NAME = "dgui-hypermem";
 const SERVER_VERSION = "1.0.0";
@@ -390,7 +391,7 @@ export default {
 
     if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
 
-    if (path === "/" || path === "/health") {
+    if (path === "/health") {
       return json({
         name: SERVER_NAME,
         version: SERVER_VERSION,
@@ -402,6 +403,12 @@ export default {
           mcp: "/mcp",
           rest: ["/api/add", "/api/search", "/api/list", "/api/profile", "/api/forget", "/api/sync_jev", "/api/jev_queue_stats", "/api/request-token", "/api/check-star", "/api/disable-token"],
         },
+      });
+    }
+
+    if (path === "/") {
+      return new Response(LANDING_HTML, {
+        headers: { "content-type": "text/html;charset=UTF-8" },
       });
     }
 

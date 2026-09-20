@@ -4,282 +4,289 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>DGUI-HyperMem — Hybrid Memory MCP Server</title>
-<link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIiBmaWxsPSJub25lIj4KICA8cGF0aCBkPSJNIDUwIDEwIEwgOTAgMzAgTCA1MCA1MCBMIDEwIDMwIFoiIGZpbGw9IiMwMGYwZmYiIHN0cm9rZT0iIzAwZjBmZiIgc3Ryb2tlLXdpZHRoPSIxIi8+CiAgPHBhdGggZD0iTSA1MCAzMCBMIDkwIDUwIEwgNTAgNzAgTCAxMCA1MCBaIiBmaWxsPSJyZ2JhKDM2LDM2LDM2LDAuOCkiIHN0cm9rZT0iIzAwZjBmZiIgc3Ryb2tlLXdpZHRoPSIxIi8+CiAgPHBhdGggZD0iTSA1MCA1MCBMIDkwIDcwIEwgNTAgOTAgTCAxMCA3MCBaIiBmaWxsPSIjMWExYTFhIiBzdHJva2U9IiMwMGYwZmYiIHN0cm9rZS13aWR0aD0iMSIvPgo8L3N2Zz4=">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIiBmaWxsPSJub25lIj48cGF0aCBkPSJNIDUwIDEwIEwgOTAgMzAgTCA1MCA1MCBMIDEwIDMwIFoiIGZpbGw9IiMwMGYwZmYiIHN0cm9rZT0iIzAwZjBmZiIgc3Ryb2tlLXdpZHRoPSIxIi8+PHBhdGggZD0iTSA1MCAzMCBMIDkwIDUwIEwgNTAgNzAgTCAxMCA1MCBaIiBmaWxsPSJyZ2JhKDM2LDM2LDM2LDAuOCkiIHN0cm9rZT0iIzAwZjBmZiIgc3Ryb2tlLXdpZHRoPSIxIi8+PHBhdGggZD0iTSA1MCA1MCBMIDkwIDcwIEwgNTAgOTAgTCAxMCA3MCBaIiBmaWxsPSIjMWExYTFhIiBzdHJva2U9IiMwMGYwZmYiIHN0cm9rZS13aWR0aD0iMSIvPjwvc3ZnPg==">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;800&family=JetBrains+Mono:wght@300;400;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 <style>
-:root {
-  --bg-primary: #0a0a0a;
-  --bg-surface: #1a1c20;
-  --bg-elevated: #191919;
-  --border-glass: #212327;
-  --border-accent: rgba(255,255,255,0.25);
-  --accent: #ffffff;
-  --accent-dim: #dadbdf;
-  --accent-cyan: #00f0ff;
-  --text-primary: #ffffff;
-  --text-secondary: #dadbdf;
-  --text-muted: #7d8187;
-}
+:root{--bg-primary:#0a0a0a;--bg-surface:#1a1c20;--bg-elevated:#191919;--border-glass:#212327;--border-accent:rgba(255,255,255,0.25);--accent:#ffffff;--accent-dim:#dadbdf;--accent-cyan:#00f0ff;--text-primary:#ffffff;--text-secondary:#dadbdf;--text-muted:#7d8187}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%;width:100%;background:var(--bg-primary);font-family:'Inter',-apple-system,BlinkMacSystemFont,system-ui,sans-serif;font-weight:400;color:var(--text-primary);-webkit-font-smoothing:antialiased;overflow-x:hidden}
 ::-webkit-scrollbar{width:4px}
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:var(--border-glass);border-radius:10px}
-
-/* Layout */
 .container{max-width:1200px;margin:0 auto;padding:0 24px}
-
-/* Nav */
 nav{display:flex;align-items:center;justify-content:space-between;padding:16px 24px;border-bottom:1px solid var(--border-glass)}
 .nav-brand{display:flex;align-items:center;gap:12px;text-decoration:none;color:var(--accent)}
 .nav-brand svg{width:28px;height:28px}
 .nav-brand span{font-size:16px;font-weight:500;letter-spacing:-0.3px}
 .nav-links{display:flex;align-items:center;gap:24px}
-.nav-links a{color:var(--text-muted);text-decoration:none;font-size:14px;transition:color 0.2s}
+.nav-links a{color:var(--text-muted);text-decoration:none;font-size:14px;transition:color .2s}
 .nav-links a:hover{color:var(--accent)}
-.nav-links .btn-accent{color:var(--accent);border:1px solid var(--border-accent);border-radius:9999px;padding:8px 20px;font-size:14px;font-weight:400;background:transparent;cursor:pointer;transition:all 0.2s;text-decoration:none}
+.nav-links .btn-accent{color:var(--accent);border:1px solid var(--border-accent);border-radius:9999px;padding:8px 20px;font-size:14px;background:transparent;cursor:pointer;transition:all .2s;text-decoration:none}
 .nav-links .btn-accent:hover{background:rgba(255,255,255,0.06);border-color:var(--accent)}
-
-/* Hero */
-.hero{padding:120px 24px 80px;text-align:center}
-.hero .caption-mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,monospace;font-size:14px;font-weight:400;line-height:20px;letter-spacing:1.4px;text-transform:uppercase;color:var(--accent-cyan);margin-bottom:24px}
+.hero{padding:120px 24px 60px;text-align:center}
+.hero .caption-mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,monospace;font-size:14px;line-height:20px;letter-spacing:1.4px;text-transform:uppercase;color:var(--accent-cyan);margin-bottom:24px}
 .hero h1{font-size:72px;line-height:72px;font-weight:300;letter-spacing:-1.8px;margin-bottom:24px;color:var(--accent)}
 .hero p{font-size:18px;line-height:28px;color:var(--text-secondary);max-width:640px;margin:0 auto 48px}
 .hero-actions{display:flex;gap:16px;justify-content:center;flex-wrap:wrap}
-.btn-primary{background:var(--accent);color:#0a0a0a;border:none;font-weight:400;border-radius:9999px;padding:10px 24px;font-size:15px;cursor:pointer;transition:all 0.2s;text-decoration:none;display:inline-flex;align-items:center;gap:8px}
-.btn-primary:hover{opacity:0.9}
-.btn-primary:active{transform:scale(0.97)}
-.btn-outline{background:transparent;color:var(--accent);border:1px solid var(--border-accent);font-weight:400;border-radius:9999px;padding:10px 24px;font-size:15px;cursor:pointer;transition:all 0.2s;text-decoration:none;display:inline-flex;align-items:center;gap:8px}
+.btn-primary{background:var(--accent);color:#0a0a0a;border:none;font-weight:400;border-radius:9999px;padding:10px 24px;font-size:15px;cursor:pointer;transition:all .2s;text-decoration:none;display:inline-flex;align-items:center;gap:8px}
+.btn-primary:hover{opacity:.9}
+.btn-primary:active{transform:scale(.97)}
+.btn-outline{background:transparent;color:var(--accent);border:1px solid var(--border-accent);border-radius:9999px;padding:10px 24px;font-size:15px;cursor:pointer;transition:all .2s;text-decoration:none;display:inline-flex;align-items:center;gap:8px}
 .btn-outline:hover{background:rgba(255,255,255,0.06);border-color:var(--accent)}
-
-/* Feature cards */
-.features{padding:80px 24px}
+.features{padding:60px 24px}
 .features-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px;margin-top:48px}
-.feature-card{background:var(--bg-surface);border:1px solid var(--border-glass);border-radius:8px;padding:32px;transition:border-color 0.2s}
+.feature-card{background:var(--bg-surface);border:1px solid var(--border-glass);border-radius:8px;padding:32px;transition:border-color .2s}
 .feature-card:hover{border-color:var(--border-accent)}
 .feature-card .icon{font-size:24px;margin-bottom:16px;color:var(--accent-cyan)}
 .feature-card h3{font-size:18px;font-weight:500;margin-bottom:8px;color:var(--accent)}
 .feature-card p{font-size:14px;line-height:22px;color:var(--text-secondary)}
-
-/* Architecture diagram */
-.arch{padding:60px 24px 80px}
-.arch-diagram{background:var(--bg-surface);border:1px solid var(--border-glass);border-radius:8px;padding:40px;margin-top:32px;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,monospace;font-size:13px;line-height:22px;color:var(--text-muted);white-space:pre;overflow-x:auto}
-.arch-diagram .hl{color:var(--accent-cyan)}
-.arch-diagram .hl2{color:var(--accent)}
-
-/* Config block */
-.config{padding:40px 24px 80px}
-.config-block{background:var(--bg-surface);border:1px solid var(--border-glass);border-radius:8px;padding:32px;margin-top:24px}
-.config-block code{display:block;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,monospace;font-size:13px;line-height:22px;color:var(--text-secondary);white-space:pre;overflow-x:auto}
-
-/* Section headers */
 .section-header{text-align:center;margin-bottom:16px}
-.section-header .caption-mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,monospace;font-size:14px;font-weight:400;letter-spacing:1.4px;text-transform:uppercase;color:var(--accent-cyan);margin-bottom:12px}
+.section-header .caption-mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,monospace;font-size:14px;line-height:20px;letter-spacing:1.4px;text-transform:uppercase;color:var(--accent-cyan);margin-bottom:12px}
 .section-header h2{font-size:48px;line-height:48px;font-weight:300;letter-spacing:-1.2px;color:var(--accent);margin-bottom:12px}
 .section-header p{font-size:16px;color:var(--text-secondary);max-width:560px;margin:0 auto}
-
-/* Footer */
 footer{border-top:1px solid var(--border-glass);padding:48px 24px;text-align:center}
 footer p{font-size:14px;color:var(--text-muted)}
 footer a{color:var(--accent-cyan);text-decoration:none}
 footer a:hover{text-decoration:underline}
 
-/* Responsive */
-@media(max-width:768px){
-  .hero h1{font-size:40px;line-height:44px;letter-spacing:-1px}
-  .hero{padding:80px 16px 60px}
-  .section-header h2{font-size:32px;line-height:36px}
-  nav .nav-links a:not(.btn-accent){display:none}
-}
+/* Doodle Arch SVG */
+.arch-section{padding:60px 24px 80px}
+.arch-wrapper{display:flex;justify-content:center;margin-top:32px;overflow-x:auto}
+.arch-wrapper svg{max-width:100%;height:auto}
+.dash-anim{animation:dash 1.2s linear infinite}
+@keyframes dash{to{stroke-dashoffset:-24}}
+
+/* Carousel */
+.carousel-section{padding:60px 24px}
+.carousel-wrap{overflow:hidden;margin-top:32px;mask-image:linear-gradient(90deg,transparent,#000 5%,#000 95%,transparent);-webkit-mask-image:linear-gradient(90deg,transparent,#000 5%,#000 95%,transparent)}
+.carousel-track{display:flex;gap:12px;width:max-content;animation:scroll 40s linear infinite}
+.carousel-track:hover{animation-play-state:paused}
+@keyframes scroll{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+.wallet-card{display:inline-flex;flex-direction:column;align-items:center;justify-content:center;min-width:170px;padding:20px 16px;background:rgba(255,255,255,0.05);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,0.1);border-radius:16px;cursor:pointer;transition:transform .25s,background .25s,border-color .25s;user-select:none}
+.wallet-card:hover{transform:scale(1.06);background:rgba(255,255,255,0.09);border-color:rgba(255,255,255,0.2)}
+.wallet-card .card-icon{font-size:28px;margin-bottom:6px}
+.wallet-card .card-domain{font-size:13px;font-weight:500;color:var(--accent);font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,monospace}
+.wallet-card .card-desc{font-size:11px;color:var(--text-muted);margin-top:2px;text-align:center;line-height:14px}
+
+/* CRM */
+.crm-section{padding:60px 24px 80px}
+.crm-card{background:var(--bg-surface);border:1px solid var(--border-glass);border-radius:12px;padding:32px;max-width:520px;margin:24px auto 0}
+.crm-card input{display:block;width:100%;padding:12px 16px;margin-bottom:12px;background:var(--bg-primary);border:1px solid var(--border-glass);border-radius:8px;color:var(--accent);font-family:'Inter',sans-serif;font-size:14px;outline:none;transition:border-color .2s}
+.crm-card input:focus{border-color:var(--accent-cyan)}
+.crm-card input::placeholder{color:var(--text-muted)}
+.crm-card .btn-primary{width:100%;margin-top:4px}
+.status-line{padding:12px 16px;background:var(--bg-primary);border:1px solid var(--border-glass);border-radius:8px;font-size:14px;color:var(--text-secondary);margin-bottom:16px;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,monospace}
+.token-display{display:block;padding:16px;background:var(--bg-primary);border:1px solid var(--accent-cyan);border-radius:8px;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,monospace;font-size:13px;color:var(--accent-cyan);word-break:break-all;margin-bottom:16px}
+.config-block{background:var(--bg-primary);border:1px solid var(--border-glass);border-radius:8px;padding:16px;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,monospace;font-size:12px;line-height:20px;color:var(--text-secondary);overflow-x:auto;white-space:pre}
+
+@media(max-width:768px){.hero h1{font-size:40px;line-height:44px;letter-spacing:-1px}.hero{padding:80px 16px 40px}.section-header h2{font-size:32px;line-height:36px}nav .nav-links a:not(.btn-accent){display:none}}
 </style>
 </head>
 <body>
-
 <nav>
-  <a href="/" class="nav-brand">
-    <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M 50 10 L 90 30 L 50 50 L 10 30 Z" fill="#00f0ff" stroke="#00f0ff" stroke-width="1"/>
-      <path d="M 50 30 L 90 50 L 50 70 L 10 50 Z" fill="rgba(36,36,36,0.8)" stroke="#00f0ff" stroke-width="1"/>
-      <path d="M 50 50 L 90 70 L 50 90 L 10 70 Z" fill="#1a1a1a" stroke="#00f0ff" stroke-width="1"/>
-    </svg>
-    <span>DECKER GUI</span>
-  </a>
-  <div class="nav-links">
-    <a href="#features">Features</a>
-    <a href="#arch">Architecture</a>
-    <a href="#connect">Connect</a>
-    <a href="https://github.com/ctaxnagomi/dgui-hypermem" target="_blank" class="btn-accent"><i class="fab fa-github"></i> GitHub</a>
-  </div>
+<a href="/" class="nav-brand">
+<svg viewBox="0 0 100 100" fill="none"><path d="M 50 10 L 90 30 L 50 50 L 10 30 Z" fill="#00f0ff" stroke="#00f0ff" stroke-width="1"/><path d="M 50 30 L 90 50 L 50 70 L 10 50 Z" fill="rgba(36,36,36,0.8)" stroke="#00f0ff" stroke-width="1"/><path d="M 50 50 L 90 70 L 50 90 L 10 70 Z" fill="#1a1a1a" stroke="#00f0ff" stroke-width="1"/></svg>
+<span>DECKER GUI</span>
+</a>
+<div class="nav-links">
+<a href="#features">Features</a><a href="#arch">Architecture</a><a href="#crm">Get Token</a>
+<a href="https://github.com/ctaxnagomi/dgui-hypermem" target="_blank" class="btn-accent"><i class="fab fa-github"></i> GitHub</a>
+</div>
 </nav>
-
 <section class="hero">
-  <div class="caption-mono"><i class="fas fa-brain"></i> DGUI-HYPERMEM</div>
-  <h1>Memory that<br>remembers right.</h1>
-  <p>A self-hosted hybrid memory MCP server for AI agents — fusing vector search, full-text search, and a JEV reasoning layer that curates what gets remembered.</p>
-  <div class="hero-actions">
-    <a href="#connect" class="btn-primary">Connect Agent <i class="fas fa-arrow-right"></i></a>
-    <a href="https://github.com/ctaxnagomi/dgui-hypermem#deploy" class="btn-outline"><i class="fas fa-cloud-upload-alt"></i> Self-Host</a>
-  </div>
+<div class="caption-mono"><i class="fas fa-brain"></i> DGUI-HYPERMEM</div>
+<h1>Memory that<br>remembers right.</h1>
+<p>A self-hosted hybrid memory MCP server for AI agents — fusing vector search, full-text search, and a JEV reasoning layer that curates what gets remembered.</p>
+<div class="hero-actions">
+<a href="#crm" class="btn-primary"><i class="fas fa-key"></i> Get Token</a>
+<a href="https://github.com/ctaxnagomi/dgui-hypermem#deploy" class="btn-outline"><i class="fas fa-cloud-upload-alt"></i> Self-Host</a>
+</div>
+</section>
+
+<section id="arch" class="arch-section">
+<div class="section-header"><div class="caption-mono"><i class="fas fa-sitemap"></i> Architecture</div><h2>How it works.</h2></div>
+<div class="arch-wrapper">
+<svg viewBox="0 0 780 500" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect x="290" y="5" width="200" height="55" rx="12" stroke="#00f0ff" stroke-width="2" fill="none" transform="rotate(-0.5 390 32)"/>
+  <text x="390" y="40" text-anchor="middle" fill="#fff" font-family="JetBrains Mono,monospace" font-size="13">MCP Client</text>
+
+  <line x1="390" y1="60" x2="390" y2="95" stroke="#00f0ff" stroke-width="2" stroke-dasharray="6 4" class="dash-anim"/>
+
+  <rect x="270" y="95" width="240" height="55" rx="12" stroke="#00f0ff" stroke-width="2" fill="none" transform="rotate(0.3 390 122)"/>
+  <text x="390" y="130" text-anchor="middle" fill="#fff" font-family="JetBrains Mono,monospace" font-size="12">dguihymem.deckergui.my</text>
+
+  <line x1="390" y1="150" x2="390" y2="185" stroke="#00f0ff" stroke-width="2" stroke-dasharray="6 4" class="dash-anim"/>
+
+  <rect x="290" y="185" width="200" height="50" rx="12" stroke="#fff" stroke-width="2" fill="none" transform="rotate(-0.4 390 210)"/>
+  <text x="390" y="215" text-anchor="middle" fill="#fff" font-family="JetBrains Mono,monospace" font-size="11">JEV Layer (Choice/Noul/Score)</text>
+
+  <line x1="325" y1="235" x2="195" y2="290" stroke="#7d8187" stroke-width="2" stroke-dasharray="6 4" class="dash-anim"/>
+  <line x1="390" y1="235" x2="390" y2="290" stroke="#7d8187" stroke-width="2" stroke-dasharray="6 4" class="dash-anim"/>
+  <line x1="455" y1="235" x2="585" y2="290" stroke="#7d8187" stroke-width="2" stroke-dasharray="6 4" class="dash-anim"/>
+
+  <rect x="95" y="290" width="200" height="50" rx="12" stroke="#7d8187" stroke-width="1.5" fill="none" transform="rotate(0.5 195 315)"/>
+  <text x="195" y="320" text-anchor="middle" fill="#7d8187" font-family="JetBrains Mono,monospace" font-size="11">D1 (SQLite + FTS5)</text>
+
+  <rect x="290" y="290" width="200" height="50" rx="12" stroke="#7d8187" stroke-width="1.5" fill="none" transform="rotate(-0.3 390 315)"/>
+  <text x="390" y="320" text-anchor="middle" fill="#7d8187" font-family="JetBrains Mono,monospace" font-size="11">Vectorize (768d cosine)</text>
+
+  <rect x="485" y="290" width="200" height="50" rx="12" stroke="#7d8187" stroke-width="1.5" fill="none" transform="rotate(0.4 585 315)"/>
+  <text x="585" y="320" text-anchor="middle" fill="#7d8187" font-family="JetBrains Mono,monospace" font-size="11">Workers AI (fallback)</text>
+
+  <line x1="195" y1="340" x2="195" y2="375" stroke="#7d8187" stroke-width="1.5" class="dash-anim"/>
+  <line x1="390" y1="340" x2="390" y2="375" stroke="#7d8187" stroke-width="1.5" class="dash-anim"/>
+  <line x1="585" y1="340" x2="585" y2="375" stroke="#7d8187" stroke-width="1.5" class="dash-anim"/>
+  <line x1="195" y1="375" x2="585" y2="375" stroke="#7d8187" stroke-width="1" class="dash-anim"/>
+  <line x1="390" y1="375" x2="390" y2="405" stroke="#7d8187" stroke-width="1.5" class="dash-anim"/>
+
+  <rect x="285" y="405" width="210" height="40" rx="12" stroke="#fff" stroke-width="1.5" fill="none" opacity="0.6" transform="rotate(-0.2 390 425)"/>
+  <text x="390" y="430" text-anchor="middle" fill="#fff" opacity="0.6" font-family="JetBrains Mono,monospace" font-size="11">jev_examples queue</text>
+
+  <line x1="390" y1="445" x2="390" y2="470" stroke="#00f0ff" stroke-width="1.5" class="dash-anim"/>
+
+  <rect x="265" y="470" width="250" height="40" rx="12" stroke="#00f0ff" stroke-width="2" fill="none" transform="rotate(0.4 390 490)"/>
+  <text x="390" y="495" text-anchor="middle" fill="#00f0ff" font-family="JetBrains Mono,monospace" font-size="12">🤗 DGUI_HYPERMEM-JEV</text>
+</svg>
+</div>
+</section>
+
+<section class="carousel-section">
+<div class="section-header"><div class="caption-mono"><i class="fas fa-globe"></i> Ecosystem</div><h2>deckergui.my subdomains.</h2></div>
+<div class="carousel-wrap"><div class="carousel-track" id="carousel-track"></div></div>
 </section>
 
 <section id="features" class="features">
-  <div class="section-header">
-    <div class="caption-mono"><i class="fas fa-cubes"></i> Features</div>
-    <h2>What it does.</h2>
-  </div>
-  <div class="container">
-    <div class="features-grid">
-      <div class="feature-card">
-        <div class="icon"><i class="fas fa-database"></i></div>
-        <h3>Hybrid Recall</h3>
-        <p>Vectorize ANN + D1 FTS5 BM25 candidates fused by reciprocal rank, then JEV re-ranked. Best memory wins even when wording differs.</p>
-      </div>
-      <div class="feature-card">
-        <div class="icon"><i class="fas fa-filter"></i></div>
-        <h3>JEV Reasoning</h3>
-        <p>A TypeSafe System One layer (Choice / Noul / Score) types each memory, scores salience, judges durability — and drops non-durable chatter.</p>
-      </div>
-      <div class="feature-card">
-        <div class="icon"><i class="fas fa-sync-alt"></i></div>
-        <h3>Self-Maintaining</h3>
-        <p>Near-duplicate and contradicting memories are superseded automatically. The corpus stays clean without manual curation.</p>
-      </div>
-      <div class="feature-card">
-        <div class="icon"><i class="fas fa-robot"></i></div>
-        <h3>MCP Native</h3>
-        <p>Streamable HTTP MCP protocol — works with opencode, Claude Desktop, Cursor, and any MCP client out of the box.</p>
-      </div>
-      <div class="feature-card">
-        <div class="icon"><i class="fas fa-chart-line"></i></div>
-        <h3>Training Brain</h3>
-        <p>Every JEV decision is logged and flushed to the DGUI_HYPERMEM-JEV HuggingFace dataset. Your AI gets better with use.</p>
-      </div>
-      <div class="feature-card">
-        <div class="icon"><i class="fas fa-server"></i></div>
-        <h3>Serverless</h3>
-        <p>Built entirely on Cloudflare Workers — D1, Vectorize, Workers AI, and scheduled cron. No infrastructure to manage.</p>
-      </div>
-    </div>
-  </div>
+<div class="section-header"><div class="caption-mono"><i class="fas fa-cubes"></i> Features</div><h2>What it does.</h2></div>
+<div class="container"><div class="features-grid">
+<div class="feature-card"><div class="icon"><i class="fas fa-database"></i></div><h3>Hybrid Recall</h3><p>Vectorize ANN + D1 FTS5 BM25 candidates fused by reciprocal rank, then JEV re-ranked.</p></div>
+<div class="feature-card"><div class="icon"><i class="fas fa-filter"></i></div><h3>JEV Reasoning</h3><p>TypeSafe System One (Choice / Noul / Score) types each memory, scores salience, drops non-durable chatter.</p></div>
+<div class="feature-card"><div class="icon"><i class="fas fa-sync-alt"></i></div><h3>Self-Maintaining</h3><p>Near-duplicate and contradicting memories superseded automatically.</p></div>
+<div class="feature-card"><div class="icon"><i class="fas fa-robot"></i></div><h3>MCP Native</h3><p>Streamable HTTP MCP protocol — works with opencode, Claude Desktop, Cursor, any MCP client.</p></div>
+<div class="feature-card"><div class="icon"><i class="fas fa-chart-line"></i></div><h3>Training Brain</h3><p>Every JEV decision logged to DGUI_HYPERMEM-JEV on HuggingFace. Your AI gets better with use.</p></div>
+<div class="feature-card"><div class="icon"><i class="fas fa-server"></i></div><h3>Serverless</h3><p>Built on Cloudflare Workers — D1, Vectorize, Workers AI, scheduled cron. No infrastructure.</p></div>
+</div></div>
 </section>
 
-<section id="arch" class="arch">
-  <div class="section-header">
-    <div class="caption-mono"><i class="fas fa-sitemap"></i> Architecture</div>
-    <h2>How it works.</h2>
-  </div>
-  <div class="container">
-    <div class="arch-diagram">
-        <span class="hl">┌───────────────────────────────────────────────────┐</span>
-        <span class="hl">│               MCP Client (opencode etc.)          │</span>
-        <span class="hl">└──────────────────────┬────────────────────────────┘</span>
-        <span class="hl">                       │ POST /mcp (Streamable HTTP)</span>
-        <span class="hl">                       ▼</span>
-        <span class="hl">┌───────────────────────────────────────────────────┐</span>
-        <span class="hl">│               dguihymem.deckergui.my            │</span>
-        <span class="hl">│     add · search · list · profile · forget       │</span>
-        <span class="hl">│     sync_jev_dataset · jev_queue_stats           │</span>
-        <span class="hl2">└──────────────────────┬────────────────────────────┘</span>
-        <span class="hl2">              ┌───────┴───────┐</span>
-        <span class="hl2">              │   JEV Layer    │</span>
-        <span class="hl2">              │ Choice / Noul │</span>
-        <span class="hl2">              │     / Score    │</span>
-        <span class="hl2">              └───────┬───────┘</span>
-        <span class="hl">         ┌──────────┼──────────┐</span>
-        <span class="hl">         ▼          ▼          ▼</span>
-        <span class="hl">   ┌────────┐ ┌──────────┐ ┌───────────┐</span>
-        <span class="hl">   │   D1   │ │Vectorize │ │Workers AI │</span>
-        <span class="hl">   │ SQLite │ │  768d    │ │ Fallback  │</span>
-        <span class="hl">   │ + FTS5 │ │  cosine  │ │  Model    │</span>
-        <span class="hl">   └────────┘ └──────────┘ └───────────┘</span>
-        <span class="hl2">              │ jev_examples queue │</span>
-        <span class="hl2">              ▼ hourly cron</span>
-        <span class="hl2">       🤗 ctaxnagomi/DGUI_HYPERMEM-JEV</span>
-    </div>
-  </div>
+<section id="crm" class="crm-section">
+<div class="section-header"><div class="caption-mono"><i class="fas fa-key"></i> Access</div><h2>Get your bearer token.</h2><p>Star the repo on GitHub, verify your identity, and get a token instantly.</p></div>
+<div class="crm-card" id="crm-form">
+<input type="email" id="crm-email" placeholder="Email" autocomplete="email">
+<input type="text" id="crm-github" placeholder="GitHub username" autocomplete="off">
+<input type="password" id="crm-passkey" placeholder="4-digit passkey" maxlength="4" autocomplete="off">
+<button class="btn-primary" onclick="requestToken()"><i class="fas fa-paper-plane"></i> Request Token</button>
+</div>
+<div class="crm-card" id="crm-status" style="display:none">
+<div class="status-line" id="crm-status-text">⏳ Processing...</div>
+<div id="crm-star-prompt" style="display:none">
+<div class="status-line" style="border-color:var(--accent-cyan);color:var(--accent-cyan)">⭐ Please star <a href="https://github.com/ctaxnagomi/dgui-hypermem" target="_blank" style="color:#fff">github.com/ctaxnagomi/dgui-hypermem</a> and come back.</div>
+</div>
+<div id="crm-token-result" style="display:none">
+<div class="status-line" style="border-color:#4ade80;color:#4ade80">🎉 Token active!</div>
+<p style="font-size:13px;color:var(--text-muted);margin-bottom:8px">Your token:</p>
+<code class="token-display" id="crm-token-value"></code>
+<p style="font-size:13px;color:var(--text-muted);margin-bottom:8px">MCP config:</p>
+<div class="config-block" id="crm-config"></div>
+<button class="btn-outline" style="margin-top:16px;width:100%" onclick="disableTokenPrompt()"><i class="fas fa-ban"></i> Disable Token</button>
+</div>
+</div>
 </section>
 
-<section id="connect" class="config">
-  <div class="section-header">
-    <div class="caption-mono"><i class="fas fa-plug"></i> Connect</div>
-    <h2>Ready to connect.</h2>
-    <p>Add this to your MCP client configuration to connect any AI agent to DGUI-HyperMem.</p>
-  </div>
-  <div class="container">
-    <div class="config-block">
-      <code style="color:var(--text-muted);margin-bottom:8px">// opencode.jsonc / claude_desktop_config.json</code>
-      <code>{</code>
-      <code>  <span style="color:var(--accent-cyan)">"mcp"</span>: {</code>
-      <code>    <span style="color:var(--accent-cyan)">"dgui-hypermem"</span>: {</code>
-      <code>      <span style="color:var(--accent-cyan)">"type"</span>: <span style="color:#a5d6a5">"remote"</span>,</code>
-      <code>      <span style="color:var(--accent-cyan)">"url"</span>: <span style="color:#a5d6a5">"https://dguihymem.deckergui.my/mcp"</span>,</code>
-      <code>      <span style="color:var(--accent-cyan)">"enabled"</span>: <span style="color:#a5d6a5">true</span>,</code>
-      <code>      <span style="color:var(--accent-cyan)">"headers"</span>: {</code>
-      <code>        <span style="color:var(--accent-cyan)">"Authorization"</span>: <span style="color:#a5d6a5">"Bearer MCP_TOKEN"</span></code>
-      <code>      }</code>
-      <code>    }</code>
-      <code>  }</code>
-      <code>}</code>
-    </div>
-    <div style="text-align:center;margin-top:32px;padding:24px;background:var(--bg-surface);border:1px solid var(--border-glass);border-radius:8px">
-      <p style="color:var(--text-secondary);margin-bottom:12px">Need an access token?</p>
-      <a href="https://deckergui.my" class="btn-outline"><i class="fas fa-envelope"></i> Contact DeckerGUI</a>
-    </div>
-  </div>
-</section>
-
-<section style="padding:40px 24px 80px">
-  <div class="section-header">
-    <div class="caption-mono"><i class="fas fa-tools"></i> Tools</div>
-    <h2>Available commands.</h2>
-  </div>
-  <div class="container">
-    <div class="features-grid">
-      <div class="feature-card" style="padding:20px 24px">
-        <h3 style="font-size:15px"><span style="color:var(--accent-cyan)">add</span> &nbsp;<span style="font-weight:300;color:var(--text-muted)">→</span></h3>
-        <p style="font-size:13px">Store a durable memory. JEV types, scores, and supersedes.</p>
-      </div>
-      <div class="feature-card" style="padding:20px 24px">
-        <h3 style="font-size:15px"><span style="color:var(--accent-cyan)">search</span> &nbsp;<span style="font-weight:300;color:var(--text-muted)">→</span></h3>
-        <p style="font-size:13px">Hybrid recall: vector + keyword fused, JEV re-ranked.</p>
-      </div>
-      <div class="feature-card" style="padding:20px 24px">
-        <h3 style="font-size:15px"><span style="color:var(--accent-cyan)">list</span> &nbsp;<span style="font-weight:300;color:var(--text-muted)">→</span></h3>
-        <p style="font-size:13px">Browse recent memories in a scope.</p>
-      </div>
-      <div class="feature-card" style="padding:20px 24px">
-        <h3 style="font-size:15px"><span style="color:var(--accent-cyan)">profile</span> &nbsp;<span style="font-weight:300;color:var(--text-muted)">→</span></h3>
-        <p style="font-size:13px">Summarise a scope: counts, types, tags, salience.</p>
-      </div>
-      <div class="feature-card" style="padding:20px 24px">
-        <h3 style="font-size:15px"><span style="color:var(--accent-cyan)">forget</span> &nbsp;<span style="font-weight:300;color:var(--text-muted)">→</span></h3>
-        <p style="font-size:13px">Delete by id, by query, or clear a scope.</p>
-      </div>
-      <div class="feature-card" style="padding:20px 24px">
-        <h3 style="font-size:15px"><span style="color:var(--accent-cyan)">sync_jev_dataset</span></h3>
-        <p style="font-size:13px">Flush queued JEV decisions to the HuggingFace dataset.</p>
-      </div>
-    </div>
-  </div>
+<section style="padding:40px 24px 60px">
+<div class="section-header"><div class="caption-mono"><i class="fas fa-tools"></i> Tools</div><h2>Available commands.</h2></div>
+<div class="container"><div class="features-grid">
+<div class="feature-card" style="padding:20px 24px"><h3 style="font-size:15px"><span style="color:var(--accent-cyan)">add</span></h3><p style="font-size:13px">Store a durable memory. JEV types, scores, supersedes.</p></div>
+<div class="feature-card" style="padding:20px 24px"><h3 style="font-size:15px"><span style="color:var(--accent-cyan)">search</span></h3><p style="font-size:13px">Hybrid recall: vector + keyword fused, JEV re-ranked.</p></div>
+<div class="feature-card" style="padding:20px 24px"><h3 style="font-size:15px"><span style="color:var(--accent-cyan)">list</span></h3><p style="font-size:13px">Browse recent memories in a scope.</p></div>
+<div class="feature-card" style="padding:20px 24px"><h3 style="font-size:15px"><span style="color:var(--accent-cyan)">profile</span></h3><p style="font-size:13px">Summarise a scope: counts, types, tags, salience.</p></div>
+<div class="feature-card" style="padding:20px 24px"><h3 style="font-size:15px"><span style="color:var(--accent-cyan)">forget</span></h3><p style="font-size:13px">Delete by id, by query, or clear a scope.</p></div>
+<div class="feature-card" style="padding:20px 24px"><h3 style="font-size:15px"><span style="color:var(--accent-cyan)">sync_jev_dataset</span></h3><p style="font-size:13px">Flush queued JEV decisions to the HuggingFace dataset.</p></div>
+</div></div>
 </section>
 
 <footer>
-  <div class="container">
-    <a href="/" style="display:inline-block;margin-bottom:16px">
-      <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" style="width:24px;height:24px">
-        <path d="M 50 10 L 90 30 L 50 50 L 10 30 Z" fill="#00f0ff" stroke="#00f0ff" stroke-width="1"/>
-        <path d="M 50 30 L 90 50 L 50 70 L 10 50 Z" fill="rgba(36,36,36,0.8)" stroke="#00f0ff" stroke-width="1"/>
-        <path d="M 50 50 L 90 70 L 50 90 L 10 70 Z" fill="#1a1a1a" stroke="#00f0ff" stroke-width="1"/>
-      </svg>
-    </a>
-    <p>DGUI-HyperMem — a <a href="https://deckergui.my">DeckerGUI</a> project</p>
-    <p style="margin-top:8px">Jev / System One primitives by <a href="https://typesafe.ai">TypeSafe AI</a> &middot; Built on <a href="https://cloudflare.com">Cloudflare Workers</a></p>
-    <p style="margin-top:24px;font-size:12px"><a href="https://github.com/ctaxnagomi/dgui-hypermem">GitHub</a> &middot; <a href="https://huggingface.co/datasets/ctaxnagomi/DGUI_HYPERMEM-JEV">HuggingFace Dataset</a> &middot; <a href="https://github.com/ctaxnagomi/dgui-hypermem/blob/main/LICENSE">MIT License</a></p>
-  </div>
+<div class="container">
+<a href="/" style="display:inline-block;margin-bottom:16px">
+<svg viewBox="0 0 100 100" fill="none" style="width:24px;height:24px"><path d="M 50 10 L 90 30 L 50 50 L 10 30 Z" fill="#00f0ff" stroke="#00f0ff" stroke-width="1"/><path d="M 50 30 L 90 50 L 50 70 L 10 50 Z" fill="rgba(36,36,36,0.8)" stroke="#00f0ff" stroke-width="1"/><path d="M 50 50 L 90 70 L 50 90 L 10 70 Z" fill="#1a1a1a" stroke="#00f0ff" stroke-width="1"/></svg>
+</a>
+<p>DGUI-HyperMem — a <a href="https://deckergui.my">DeckerGUI</a> project</p>
+<p style="margin-top:8px">Jev / System One by <a href="https://typesafe.ai">TypeSafe AI</a> · Built on <a href="https://cloudflare.com">Cloudflare Workers</a></p>
+<p style="margin-top:24px;font-size:12px"><a href="https://github.com/ctaxnagomi/dgui-hypermem">GitHub</a> · <a href="https://huggingface.co/datasets/ctaxnagomi/DGUI_HYPERMEM-JEV">HuggingFace Dataset</a> · <a href="https://github.com/ctaxnagomi/dgui-hypermem/blob/main/LICENSE">MIT License</a></p>
+</div>
 </footer>
 
+<script>
+const SUBDOMAINS = [
+  {icon:"🏠",domain:"deckergui.my",desc:"Root landing",url:"https://deckergui.my"},
+  {icon:"📊",domain:"app.deckergui.my",desc:"KPI Tokenizer",url:"https://app.deckergui.my"},
+  {icon:"📚",domain:"corpuslib-ui.deckergui.my",desc:"Corpus Library UI",url:"https://corpuslib-ui.deckergui.my"},
+  {icon:"🧠",domain:"dguihymem.deckergui.my",desc:"DGUI-HyperMem",url:"https://dguihymem.ctaxnagomi.workers.dev"},
+  {icon:"🤖",domain:"agent.deckergui.my",desc:"Agent Runtime",url:"https://agent.deckergui.my"},
+  {icon:"🔌",domain:"hub.deckergui.my",desc:"Coordinator Hub",url:"https://hub.deckergui.my"},
+  {icon:"🔬",domain:"ctecx.deckergui.my",desc:"CTECX Hub",url:"https://ctecx.deckergui.my"},
+  {icon:"🌐",domain:"api.deckergui.my",desc:"API Gateway",url:"https://api.deckergui.my"},
+  {icon:"🖥",domain:"landing.deckergui.my",desc:"DeckerGUI OS",url:"https://landing.deckergui.my"},
+  {icon:"🌍",domain:"www.deckergui.my",desc:"WWW",url:"https://www.deckergui.my"},
+  {icon:"📦",domain:"kd-c2p.deckergui.my",desc:"C2P",url:"https://kd-c2p.deckergui.my"},
+  {icon:"📋",domain:"ctecex.deckergui.my",desc:"CTECEX",url:"https://ctecex.deckergui.my"},
+];
+const track = document.getElementById('carousel-track');
+const cards = SUBDOMAINS.map(s => '<div class="wallet-card" onclick="window.open(\\''+s.url+'\\',\\'_blank\\')">' +
+  '<div class="card-icon">'+s.icon+'</div><div class="card-domain">'+s.domain+'</div><div class="card-desc">'+s.desc+'</div></div>').join('');
+track.innerHTML = cards + cards;
+
+let pollTimer = null;
+async function requestToken(){
+  const email = document.getElementById('crm-email').value.trim();
+  const github = document.getElementById('crm-github').value.trim();
+  const passkey = document.getElementById('crm-passkey').value.trim();
+  if(!email||!github||!passkey) return alert('All fields required');
+  const form = document.getElementById('crm-form');
+  const status = document.getElementById('crm-status');
+  const text = document.getElementById('crm-status-text');
+  form.style.display='none'; status.style.display='block'; text.textContent='⏳ Verifying passkey...';
+  try{
+    const r = await fetch('/api/request-token',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email,github_username:github,passkey})});
+    const d = await r.json();
+    if(d.error){text.textContent='❌ '+d.error;form.style.display='block';return}
+    if(d.has_token){showToken(d.token);return}
+    if(d.status==='pending'){
+      text.textContent='✅ Passkey verified. Checking GitHub star status...';
+      document.getElementById('crm-star-prompt').style.display='block';
+      pollTimer = setInterval(()=>checkStar(email),3000);
+    }
+  }catch(e){text.textContent='❌ Error: '+e.message;form.style.display='block'}
+}
+async function checkStar(email){
+  const text = document.getElementById('crm-status-text');
+  try{
+    const r = await fetch('/api/check-star',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email})});
+    const d = await r.json();
+    if(d.error){text.textContent='❌ '+d.error;clearInterval(pollTimer);return}
+    if(d.starred&&d.token){clearInterval(pollTimer);showToken(d.token)}
+  }catch(e){text.textContent='❌ Error: '+e.message;clearInterval(pollTimer)}
+}
+function showToken(token){
+  document.getElementById('crm-star-prompt').style.display='none';
+  document.getElementById('crm-token-result').style.display='block';
+  document.getElementById('crm-status-text').textContent='';
+  document.getElementById('crm-token-value').textContent=token;
+  const cfg = JSON.stringify({mcp:{"dgui-hypermem":{type:"remote",url:"https://dguihymem.deckergui.my/mcp",enabled:true,headers:{Authorization:"Bearer "+token}}}},null,2);
+  document.getElementById('crm-config').textContent=cfg;
+}
+function disableTokenPrompt(){
+  const passkey = prompt('Enter passkey to disable token:');
+  if(!passkey) return;
+  const email = document.getElementById('crm-email').value.trim();
+  fetch('/api/disable-token',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email,passkey})})
+  .then(r=>r.json()).then(d=>{
+    if(d.error) return alert('Error: '+d.error);
+    alert('Token disabled');
+    location.reload();
+  });
+}
+</script>
 </body>
 </html>
