@@ -235,6 +235,20 @@ Each row carries \`state\`, \`questions\` (the exact TypeSafe System One block t
 \`instruction\`, \`input\`, \`output\`, and \`created_at\`.
 
 Appended automatically by the worker (scheduled + manual \`sync_jev_dataset\`).
+
+## Credits
+
+DGUI-HyperMem is a **DeckerGUI** project.
+
+| Who | Contribution | Link |
+|-----|--------------|------|
+| **TypeSafe AI** | Jev / System One, the Choice / Noul / Score primitives the JEV layer is built on | <https://typesafe.ai> |
+| **DeckerGUI** | Design, implementation and operation | <https://deckergui.my> |
+| **KrackedDevs** | Community credit and support | |
+| **CTECX** | Knowledge / corpus partner | |
+
+> Jev, System One, and the Choice / Noul / Score primitives are TypeSafe AI's and are used
+> under their MIT-licensed public documentation at <https://docs.typesafe.ai>.
 `;
 
 const META_DEFAULTS = {
