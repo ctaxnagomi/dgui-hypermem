@@ -338,32 +338,37 @@ async function handleRest(request: Request, env: Env, path: string): Promise<Res
     case "/api/disable-token":
       return json(await handleDisableToken(env, body, request), { headers: CORS });
     case "/api/admin/tokens":
-      return json(await handleAdminTokens(env, body, url), { headers: CORS });
+      return json(await handleAdminTokens(env, body, url, request), { headers: CORS });
     case "/api/admin/logs":
-      return json(await handleAdminLogs(env, body, url), { headers: CORS });
+      return json(await handleAdminLogs(env, body, url, request), { headers: CORS });
     case "/api/admin/toggle-train":
       return json(await handleToggleTrain(env, body), { headers: CORS });
     case "/api/check-quota":
       return json(await handleCheckQuota(env, request), { headers: CORS });
     case "/api/admin/stats":
-      return json(await handleAdminStats(env, body, url), { headers: CORS });
+      return json(await handleAdminStats(env, body, url, request), { headers: CORS });
     default:
       return json({ error: "not found" }, { status: 404, headers: CORS });
   }
 }
 
-async function handleAdminTokens(env: Env, body: Record<string, any>, url: URL): Promise<Record<string, any>> {
+async function handleAdminTokens(env: Env, body: Record<string, any>, url: URL, request: Request): Promise<Record<string, any>> {
   const masterPasskey = env.MASTER_PASSKEY;
   const passkey = body.passkey || url.searchParams.get("passkey") || "";
-  if (!masterPasskey || passkey !== masterPasskey) return { error: "unauthorized" };
+  if (!masterPasskey || passkey !== masterPasskey) {
+    await logCrmAction(env, "unknown", "admin_login_fail", `failed admin token list attempt`, request).run().catch(() => {});
+    return { error: "unauthorized" };
+  }
+  await logCrmAction(env, "admin", "admin_login_success", "viewed token list", request).run().catch(() => {});
   const { results } = await env.DB.prepare("SELECT id, email, status, token, quota_monthly, requests_used, requests_reset_at, train_with_all, has_connected, created_at, updated_at FROM tokens ORDER BY created_at DESC LIMIT 500").bind().all<{ id: string; email: string; status: string; token: string | null; quota_monthly: number; requests_used: number; requests_reset_at: number | null; train_with_all: number; has_connected: number; created_at: number; updated_at: number }>();
   return { tokens: results || [] };
 }
 
 function logCrmAction(env: Env, email: string, action: string, detail: string | null, request: Request): D1PreparedStatement {
   const ip = request.headers.get("cf-connecting-ip") || request.headers.get("x-forwarded-for") || "";
-  return env.DB.prepare("INSERT INTO crm_logs (email, action, detail, ip, created_at) VALUES (?, ?, ?, ?, ?)")
-    .bind(email, action, detail, ip, now());
+  const device = (request.headers.get("user-agent") || "").substring(0, 200);
+  return env.DB.prepare("INSERT INTO crm_logs (email, action, detail, ip, device, created_at) VALUES (?, ?, ?, ?, ?, ?)")
+    .bind(email, action, detail, ip, device, now());
 }
 
 function classifyPath(path: string): string {
@@ -381,16 +386,20 @@ function classifyPath(path: string): string {
   return "other";
 }
 
-async function handleAdminLogs(env: Env, body: Record<string, any>, url: URL): Promise<Record<string, any>> {
+async function handleAdminLogs(env: Env, body: Record<string, any>, url: URL, request: Request): Promise<Record<string, any>> {
   const masterPasskey = env.MASTER_PASSKEY;
   const passkey = body.passkey || url.searchParams.get("passkey") || "";
-  if (!masterPasskey || passkey !== masterPasskey) return { error: "unauthorized" };
+  if (!masterPasskey || passkey !== masterPasskey) {
+    await logCrmAction(env, "unknown", "admin_logs_fail", "failed admin logs attempt", request).run().catch(() => {});
+    return { error: "unauthorized" };
+  }
+  await logCrmAction(env, "admin", "admin_logs_success", "viewed admin logs", request).run().catch(() => {});
   const limit = Math.min(Math.max(Number(body.limit || url.searchParams.get("limit") || 100), 1), 500);
   const filterEmail = url.searchParams.get("email") || "";
   const filterAction = url.searchParams.get("action") || "";
   const page = Math.max(Number(url.searchParams.get("page") || 1), 1);
   const offset = (page - 1) * limit;
-  let sql = "SELECT id, email, action, detail, ip, created_at FROM crm_logs";
+  let sql = "SELECT id, email, action, detail, ip, device, created_at FROM crm_logs";
   let countSql = "SELECT COUNT(*) as total FROM crm_logs";
   const params: any[] = [];
   const wheres: string[] = [];
@@ -401,7 +410,7 @@ async function handleAdminLogs(env: Env, body: Record<string, any>, url: URL): P
   countSql += whereClause;
   const totalRow = await env.DB.prepare(countSql).bind(...params).first<{ total: number }>();
   const total = totalRow?.total || 0;
-  const { results } = await env.DB.prepare(sql).bind(...params, limit, offset).all<{ id: number; email: string; action: string; detail: string | null; ip: string | null; created_at: number }>();
+  const { results } = await env.DB.prepare(sql).bind(...params, limit, offset).all<{ id: number; email: string; action: string; detail: string | null; ip: string | null; device: string | null; created_at: number }>();
   return { logs: results || [], total, page, limit, pages: Math.ceil(total / limit) };
 }
 
@@ -500,10 +509,14 @@ async function handleCheckQuota(env: Env, request: Request): Promise<Record<stri
   };
 }
 
-async function handleAdminStats(env: Env, body: Record<string, any>, url: URL): Promise<Record<string, any>> {
+async function handleAdminStats(env: Env, body: Record<string, any>, url: URL, request: Request): Promise<Record<string, any>> {
   const masterPasskey = env.MASTER_PASSKEY;
   const passkey = body.passkey || url.searchParams.get("passkey") || "";
-  if (!masterPasskey || passkey !== masterPasskey) return { error: "unauthorized" };
+  if (!masterPasskey || passkey !== masterPasskey) {
+    await logCrmAction(env, "unknown", "admin_stats_fail", "failed admin stats attempt", request).run().catch(() => {});
+    return { error: "unauthorized" };
+  }
+  await logCrmAction(env, "admin", "admin_stats_success", "viewed admin stats", request).run().catch(() => {});
   const now_ = now();
   const day = 86400 * 1000;
   const month = 30 * day;
@@ -513,12 +526,14 @@ async function handleAdminStats(env: Env, body: Record<string, any>, url: URL): 
   const lastYear = await env.DB.prepare("SELECT COUNT(*) as c FROM usage_events WHERE event_at > ?").bind(now_ - year).first<{ c: number }>();
   const topTokens = await env.DB.prepare("SELECT email, COUNT(*) as c FROM usage_events GROUP BY email ORDER BY c DESC LIMIT 10").bind().all<{ email: string; c: number }>();
   const recentlyActive = await env.DB.prepare("SELECT DISTINCT email FROM usage_events WHERE event_at > ? ORDER BY event_at DESC LIMIT 10").bind(now_ - 7 * day).all<{ email: string }>();
+  const loginFails = await env.DB.prepare("SELECT COUNT(*) as c FROM crm_logs WHERE action LIKE '%fail%' AND created_at > ?").bind(now_ - month).first<{ c: number }>();
   return {
     all_time: allTime?.c || 0,
     last_30_days: last30d?.c || 0,
     last_year: lastYear?.c || 0,
     top_tokens: topTokens?.results || [],
     recently_active: recentlyActive?.results ? [...new Set(recentlyActive.results.map(r => r.email))] : [],
+    failed_logins_30d: loginFails?.c || 0,
   };
 }
 

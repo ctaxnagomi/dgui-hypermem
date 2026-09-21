@@ -40,9 +40,13 @@ a{color:var(--accent-cyan);text-decoration:none}
 .badge.offline{background:var(--text-muted)}
 .topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
 .privacy-link{font-size:12px;color:var(--text-muted)}
+.hidden-msg{display:none}
+.alert-badge{display:inline-block;background:#f87171;color:#fff;border-radius:10px;padding:1px 6px;font-size:10px;margin-left:6px;vertical-align:top}
 </style>
 </head>
 <body>
+<!-- Hidden DevTools message: If you are here, you know we can see you — so why need to do this? Just contact us if you need these for free. -->
+<div class="hidden-msg" style="display:none" aria-hidden="true">If you are here, you know we can see you — so why need to do this? Just contact us if you need these for free.</div>
 <div id="app">
 <div id="login">
 <div class="login-box">
@@ -53,7 +57,7 @@ a{color:var(--accent-cyan);text-decoration:none}
 </div>
 <div id="dashboard" style="display:none">
 <div class="topbar"><div><h1>Token Dashboard</h1><div class="sub">dgui-hypermem.ctaxnagomi.workers.dev</div></div><div style="text-align:right"><a class="logout" onclick="document.getElementById('dashboard').style.display='none';document.getElementById('login').style.display='block'" style="color:var(--text-muted);font-size:13px;cursor:pointer;display:block">Logout</a><a href="/privacy" class="privacy-link" style="margin-top:4px;display:inline-block">Privacy Policy</a></div></div>
-<div class="stats"><div class="stat-card"><div class="num" id="stat-total">0</div><div class="label">Total Tokens</div></div><div class="stat-card"><div class="num" id="stat-active">0</div><div class="label">Active</div></div><div class="stat-card"><div class="num" id="stat-disabled">0</div><div class="label">Revoked</div></div><div class="stat-card"><div class="num" id="stat-online">0</div><div class="label">Connected</div></div></div>
+<div class="stats"><div class="stat-card"><div class="num" id="stat-total">0</div><div class="label">Total Tokens</div></div><div class="stat-card"><div class="num" id="stat-active">0</div><div class="label">Active</div></div><div class="stat-card"><div class="num" id="stat-disabled">0</div><div class="label">Revoked</div></div><div class="stat-card"><div class="num" id="stat-online">0</div><div class="label">Connected</div></div><div class="stat-card"><div class="num" id="stat-fails">0</div><div class="label">Login Fails (30d)</div></div></div>
 <div style="overflow-x:auto"><table><thead><tr><th>Email</th><th>Status</th><th>MCP</th><th>Token</th><th>Train</th><th>Created</th><th>Action</th></tr></thead><tbody id="token-rows"></tbody></table></div>
 </div>
 </div>
@@ -63,10 +67,13 @@ async function login(){
   cp=document.getElementById('admin-passkey').value;
   if(!cp) return alert('Enter master passkey');
   try{
-    const r=await fetch('/api/admin/tokens?passkey='+encodeURIComponent(cp));
-    const d=await r.json();
-    if(d.error) return alert('Unauthorized');
-    render(d.tokens);
+    const r1=await fetch('/api/admin/tokens?passkey='+encodeURIComponent(cp));
+    const d1=await r1.json();
+    if(d1.error) return alert('Unauthorized');
+    render(d1.tokens);
+    const r2=await fetch('/api/admin/stats?passkey='+encodeURIComponent(cp));
+    const d2=await r2.json();
+    if(!d2.error) document.getElementById('stat-fails').textContent=d2.failed_logins_30d||0;
     document.getElementById('login').style.display='none';
     document.getElementById('dashboard').style.display='block';
   }catch(e){alert('Error: '+e.message)}
