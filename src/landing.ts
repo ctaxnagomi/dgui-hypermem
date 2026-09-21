@@ -206,7 +206,7 @@ footer p{font-size:14px;color:var(--text-muted)}footer a{color:var(--accent-cyan
 <li><i class="fas fa-check"></i> Email support</li>
 <li><i class="fas fa-check"></i> Early access to new features</li>
 </ul>
-<button class="btn-primary" style="text-align:center;width:100%" onclick="subscribe('median')"><i class="fas fa-credit-card"></i> Subscribe $2.99/mo</button>
+<a href="/pay" class="btn-primary" style="text-align:center;width:100%;display:block;box-sizing:border-box"><i class="fas fa-credit-card"></i> Subscribe $2.99/mo</a>
 </div>
 <div class="pricing-card">
 <div class="plan-name"><i class="fas fa-crown"></i> Pro</div>
@@ -219,7 +219,7 @@ footer p{font-size:14px;color:var(--text-muted)}footer a{color:var(--accent-cyan
 <li><i class="fas fa-check"></i> Priority email & chat support</li>
 <li><i class="fas fa-check"></i> Beta feature access</li>
 </ul>
-<button class="btn-primary" style="text-align:center;width:100%" onclick="subscribe('pro')"><i class="fas fa-credit-card"></i> Subscribe $11.99/mo</button>
+<a href="/pay" class="btn-primary" style="text-align:center;width:100%;display:block;box-sizing:border-box"><i class="fas fa-credit-card"></i> Subscribe $11.99/mo</a>
 </div>
 </div>
 </section>

@@ -21,6 +21,7 @@ import { ADMIN_HTML } from "./admin";
 import { PRIVACY_HTML } from "./privacy";
 import { HOWTO_HTML } from "./howto";
 import { TERMS_HTML } from "./terms";
+import { createCheckoutSession, handleStripeWebhook, PAYMENT_HTML } from "./payment";
 import { LANDING_HTML } from "./landing";
 
 const SERVER_NAME = "dgui-hypermem";
@@ -349,6 +350,10 @@ async function handleRest(request: Request, env: Env, path: string): Promise<Res
       return json(await handleCheckQuota(env, request), { headers: CORS });
     case "/api/enterprise-inquiry":
       return json(await handleEnterpriseInquiry(env, body), { headers: CORS });
+    case "/api/create-checkout-session":
+      return json(await createCheckoutSession(env, body), { headers: CORS });
+    case "/api/stripe-webhook":
+      return await handleStripeWebhook(env, request);
     case "/api/admin/stats":
       return json(await handleAdminStats(env, body, url, request), { headers: CORS });
     default:
@@ -625,7 +630,7 @@ export default {
         dataset: env.HF_TOKEN ? (env.HF_DATASET || "ctaxnagomi/DGUI_HYPERMEM-JEV") : null,
         endpoints: {
           mcp: "/mcp",
-          rest: ["/api/add", "/api/search", "/api/list", "/api/profile", "/api/forget", "/api/sync_jev", "/api/jev_queue_stats", "/api/request-token", "/api/check-star", "/api/disable-token", "/api/check-quota", "/api/enterprise-inquiry", "/api/admin/tokens", "/api/admin/stats", "/api/admin/logs", "/api/admin/toggle-train"],
+          rest: ["/api/add", "/api/search", "/api/list", "/api/profile", "/api/forget", "/api/sync_jev", "/api/jev_queue_stats", "/api/request-token", "/api/check-star", "/api/disable-token", "/api/check-quota", "/api/enterprise-inquiry", "/api/create-checkout-session", "/api/stripe-webhook", "/api/admin/tokens", "/api/admin/stats", "/api/admin/logs", "/api/admin/toggle-train"],
         },
       });
     }
@@ -660,7 +665,13 @@ export default {
       });
     }
 
-    const CRM_ROUTES = ["/api/request-token", "/api/check-star", "/api/disable-token", "/api/enterprise-inquiry", "/api/admin/tokens", "/api/admin/stats", "/api/admin/logs", "/api/admin/toggle-train", "/api/check-quota"];
+    if (path.startsWith("/pay") || path === "/payment" || path === "/upgrade") {
+      return new Response(PAYMENT_HTML, {
+        headers: { "content-type": "text/html;charset=UTF-8" },
+      });
+    }
+
+    const CRM_ROUTES = ["/api/request-token", "/api/check-star", "/api/disable-token", "/api/enterprise-inquiry", "/api/create-checkout-session", "/api/stripe-webhook", "/api/admin/tokens", "/api/admin/stats", "/api/admin/logs", "/api/admin/toggle-train", "/api/check-quota"];
     if (path === "/mcp" || (path.startsWith("/api/") && !CRM_ROUTES.includes(path))) {
       if (!(await authorized(request, env))) {
         return json({ error: "unauthorized" }, { status: 401, headers: CORS });

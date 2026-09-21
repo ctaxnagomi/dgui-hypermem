@@ -15,6 +15,8 @@ export interface Env {
   PASSKEY?: string;
   MASTER_PASSKEY?: string;
   GITHUB_TOKEN?: string;
+  STRIPE_SECRET_KEY?: string;
+  STRIPE_WEBHOOK_SECRET?: string;
 }
 
 export type MemoryStatus = "active" | "superseded" | "deleted";
