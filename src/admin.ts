@@ -57,8 +57,8 @@ a{color:var(--accent-cyan);text-decoration:none}
 </div>
 <div id="dashboard" style="display:none">
 <div class="topbar"><div><h1>Token Dashboard</h1><div class="sub">dgui-hypermem.ctaxnagomi.workers.dev</div></div><div style="text-align:right"><a class="logout" onclick="document.getElementById('dashboard').style.display='none';document.getElementById('login').style.display='block'" style="color:var(--text-muted);font-size:13px;cursor:pointer;display:block">Logout</a><a href="/privacy" class="privacy-link" style="margin-top:4px;display:inline-block">Privacy Policy</a></div></div>
-<div class="stats"><div class="stat-card"><div class="num" id="stat-total">0</div><div class="label">Total Tokens</div></div><div class="stat-card"><div class="num" id="stat-active">0</div><div class="label">Active</div></div><div class="stat-card"><div class="num" id="stat-disabled">0</div><div class="label">Revoked</div></div><div class="stat-card"><div class="num" id="stat-online">0</div><div class="label">Connected</div></div><div class="stat-card"><div class="num" id="stat-fails">0</div><div class="label">Login Fails (30d)</div></div></div>
-<div style="overflow-x:auto"><table><thead><tr><th>Email</th><th>Status</th><th>MCP</th><th>Token</th><th>Train</th><th>Created</th><th>Action</th></tr></thead><tbody id="token-rows"></tbody></table></div>
+<div class="stats"><div class="stat-card"><div class="num" id="stat-total">0</div><div class="label">Total / 100 Users</div></div><div class="stat-card"><div class="num" id="stat-active">0</div><div class="label">Active</div></div><div class="stat-card"><div class="num" id="stat-disabled">0</div><div class="label">Revoked</div></div><div class="stat-card"><div class="num" id="stat-online">0</div><div class="label">Connected</div></div><div class="stat-card"><div class="num" id="stat-fails">0</div><div class="label">Login Fails (30d)</div></div></div>
+<div style="overflow-x:auto"><table><thead><tr><th>Email</th><th>Status</th><th>MCP</th><th>Token</th><th>Quota</th><th>Train</th><th>Created</th><th>Action</th></tr></thead><tbody id="token-rows"></tbody></table></div>
 </div>
 </div>
 <script>
@@ -91,8 +91,13 @@ function render(tokens){
     const connected=t.has_connected?'<span class="badge online"></span>Yes':'<span class="badge offline"></span>No';
     const trainOn=t.train_with_all===1||t.train_with_all===true;
     const trainBtn='<button class="toggle'+(trainOn?' on':' off')+'" onclick="toggleTrain(\\''+esc(t.email)+'\\','+(trainOn?'0':'1')+')">'+(trainOn?'ON':'OFF')+'</button>';
+    const quotaUsed=t.requests_used||0;
+    const quotaMax=t.quota_monthly||1000;
+    const quotaPct=Math.min(100,Math.round(quotaUsed/quotaMax*100));
+    const quotaColor=quotaPct>=90?'#f87171':quotaPct>=70?'#fbbf24':'#4ade80';
+    const quotaDisplay='<span style="color:'+quotaColor+'">'+quotaUsed+'/'+quotaMax+'</span>';
     const actions=t.status==='active'?'<a href="#" onclick="revoke(\\''+esc(t.email)+'\\')" style="font-size:12px">Revoke</a>':'';
-    return '<tr><td class="email">'+esc(t.email)+'</td><td><span class="status '+t.status+'">'+t.status+'</span></td><td style="font-size:12px">'+connected+'</td><td style="max-width:140px;overflow:hidden;text-overflow:ellipsis">'+(t.token?t.token.substring(0,16)+'...':'-')+'</td><td>'+trainBtn+'</td><td style="font-size:11px">'+date+'</td><td>'+actions+'</td></tr>';
+    return '<tr><td class="email">'+esc(t.email)+'</td><td><span class="status '+t.status+'">'+t.status+'</span></td><td style="font-size:12px">'+connected+'</td><td style="max-width:120px;overflow:hidden;text-overflow:ellipsis">'+(t.token?t.token.substring(0,12)+'...':'-')+'</td><td>'+quotaDisplay+'</td><td>'+trainBtn+'</td><td style="font-size:11px">'+date+'</td><td>'+actions+'</td></tr>';
   }).join('');
 }
 async function toggleTrain(email,val){

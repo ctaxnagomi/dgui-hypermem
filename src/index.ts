@@ -432,26 +432,31 @@ async function handleRequestToken(env: Env, body: Record<string, any>, request: 
   const masterPasskey = env.MASTER_PASSKEY;
   const isMaster = masterPasskey && passkey === masterPasskey;
   if (passkey !== userPasskey && !isMaster) return { error: "invalid passkey" };
-const existing = await env.DB.prepare("SELECT id, status, token FROM tokens WHERE email = ?").bind(email).first<{ id: string; status: string; token: string | null }>();
+  const existing = await env.DB.prepare("SELECT id, status, token, train_with_all FROM tokens WHERE email = ?").bind(email).first<{ id: string; status: string; token: string | null; train_with_all: number }>();
   if (existing) {
     if (existing.status === "active" && existing.token) {
       await logCrmAction(env, email, "token_retrieved", "re-issued existing token", request).run();
-      return { status: "active", token: existing.token };
+      return { status: "active", token: existing.token, train_with_all: !!existing.train_with_all };
     }
     const token = uuid();
     await Promise.all([
       env.DB.prepare("UPDATE tokens SET status = 'active', token = ?, updated_at = ? WHERE id = ?").bind(token, now(), existing.id).run(),
       logCrmAction(env, email, isMaster ? "token_master_issue" : "token_reissued", "re-activated disabled token", request).run(),
     ]);
-    return { status: "active", token };
+    return { status: "active", token, train_with_all: true };
+  }
+  // Enforce 100-user limit
+  const countRow = await env.DB.prepare("SELECT COUNT(*) as c FROM tokens WHERE status = 'active'").bind().first<{ c: number }>();
+  if (!isMaster && (countRow?.c || 0) >= 100) {
+    return { error: "user limit reached (100 max). Contact admin." };
   }
   const token = uuid();
   await Promise.all([
-    env.DB.prepare("INSERT INTO tokens (id, email, github_username, status, token, created_at, updated_at) VALUES (?, ?, ?, 'active', ?, ?, ?)")
+    env.DB.prepare("INSERT INTO tokens (id, email, github_username, status, token, quota_monthly, created_at, updated_at) VALUES (?, ?, ?, 'active', ?, 1000, ?, ?)")
       .bind(uuid(), email, email, token, now(), now()).run(),
     logCrmAction(env, email, isMaster ? "token_master_created" : "token_created", "new token via CRM", request).run(),
   ]);
-  return { status: "active", token };
+  return { status: "active", token, train_with_all: true };
 }
 
 async function handleCheckStar(env: Env, body: Record<string, any>): Promise<Record<string, any>> {
@@ -559,7 +564,7 @@ async function checkAndTrackUsage(env: Env, request: Request): Promise<{ allowed
     used = 0;
     resetAt = now_ + 30 * 86400 * 1000;
   }
-  if (used >= (row.quota_monthly || 100)) return { allowed: false, reason: "monthly quota exceeded" };
+  if (used >= (row.quota_monthly || 1000)) return { allowed: false, reason: "monthly quota exceeded" };
   const path = new URL(request.url).pathname;
   const context = classifyPath(path);
   await Promise.all([
