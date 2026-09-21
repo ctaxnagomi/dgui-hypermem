@@ -88,11 +88,10 @@ async function login(){
 }
 function render(tokens){
   const active=tokens.filter(t=>t.status==='active');
-  const disabled=tokens.filter(t=>t.status==='disabled');
   const online=tokens.filter(t=>t.has_connected);
   document.getElementById('stat-total').textContent=tokens.length;
   document.getElementById('stat-active').textContent=active.length;
-  document.getElementById('stat-disabled').textContent=disabled.length;
+  if(document.getElementById('stat-disabled')) document.getElementById('stat-disabled').textContent=disabled.length;
   document.getElementById('stat-online').textContent=online.length;
   document.getElementById('token-rows').innerHTML=tokens.map(t=>{
     const date=new Date(t.created_at).toLocaleDateString()+' '+new Date(t.created_at).toLocaleTimeString();

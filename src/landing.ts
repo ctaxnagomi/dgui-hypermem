@@ -45,8 +45,6 @@ nav{display:flex;align-items:center;justify-content:space-between;padding:16px 2
 .crm-card input{width:100%;padding:12px 16px;margin-bottom:12px;background:var(--bg-primary);border:1px solid var(--border-glass);border-radius:8px;color:var(--accent);font-family:Inter,sans-serif;font-size:14px;outline:none;transition:border-color .2s}
 .crm-card input:focus{border-color:var(--accent-cyan)}
 .crm-card .btn-primary{width:100%;margin-top:8px}
-.crm-card.phase-hidden{opacity:0;transform:translateY(30px) scale(.95);pointer-events:none;position:absolute;width:100%;max-width:520px;left:50%;margin-left:-260px}
-.crm-card.phase-visible{opacity:1;transform:translateY(0) scale(1)}
 .status-line{padding:12px 16px;background:var(--bg-primary);border:1px solid var(--border-glass);border-radius:8px;font-size:14px;color:var(--text-secondary);margin-bottom:16px;font-family:JetBrains Mono,monospace}
 .token-display{display:block;padding:16px;background:var(--bg-primary);border:1px solid var(--accent-cyan);border-radius:8px;font-family:JetBrains Mono,monospace;font-size:13px;color:var(--accent-cyan);word-break:break-all;margin-bottom:16px}
 /* Modal */
@@ -157,16 +155,16 @@ footer p{font-size:14px;color:var(--text-muted)}footer a{color:var(--accent-cyan
 <section id="crm" class="crm-section">
 <div class="section-header"><div class="caption-mono"><i class="fas fa-key"></i> Access</div><h2>Get your bearer token.</h2><p>Enter your email and passkey to claim one token per email.</p></div>
 <div class="crm-form-wrap">
-<div class="crm-card phase-visible" id="crm-phase-start">
+<div class="crm-card" id="crm-phase-start" style="display:block">
 <p style="font-size:14px;color:var(--text-secondary);margin-bottom:20px;line-height:1.6">Before you can get a token, you must agree to the <strong>Terms &amp; Agreement</strong> and <strong>Privacy Policy</strong>.</p>
-<button class="btn-primary" onclick="showTerms()"><i class="fas fa-file-contract"></i> Review &amp; Agree</button>
+<button class="btn-primary" onclick="showTerms()" id="btn-review"><i class="fas fa-file-contract"></i> Review &amp; Agree</button>
 </div>
-<div class="crm-card phase-hidden" id="crm-form">
+<div class="crm-card" id="crm-form" style="display:none">
 <input type="email" id="crm-email" placeholder="Email" autocomplete="email">
 <input type="password" id="crm-passkey" placeholder="Passkey" maxlength="20" autocomplete="off">
 <button class="btn-primary" onclick="requestToken()"><i class="fas fa-paper-plane"></i> Get Token</button>
 </div>
-<div class="crm-card phase-hidden" id="crm-status">
+<div class="crm-card" id="crm-status" style="display:none">
 <div class="status-line" id="crm-status-text">⏳ Issuing token...</div>
 <div id="crm-token-result" style="display:none">
 <div class="status-line" style="border-color:#4ade80;color:#4ade80">🎉 Token ready!</div>
@@ -232,7 +230,7 @@ footer p{font-size:14px;color:var(--text-muted)}footer a{color:var(--accent-cyan
 <p><i class="fas fa-check" style="color:var(--accent-cyan)"></i> Self-hosted or managed deployment</p>
 <p><i class="fas fa-check" style="color:var(--accent-cyan)"></i> Dedicated support &amp; SLA</p>
 <p><i class="fas fa-check" style="color:var(--accent-cyan)"></i> Custom integrations</p>
-<p style="margin-top:16px;font-size:13px;color:var(--text-muted)">Send us a message and we'll get back to you within 24 hours.</p>
+<p style="margin-top:16px;font-size:13px;color:var(--text-muted)">Send us a message and we will get back to you within 24 hours.</p>
 </div>
 <div class="enterprise-form" id="enterprise-form">
 <input type="text" id="ent-name" placeholder="Your name">
@@ -292,23 +290,21 @@ function closeTerms(){document.getElementById('terms-modal').classList.remove('s
 document.getElementById('tc-checkbox').addEventListener('change',function(){document.getElementById('tc-accept-btn').disabled=!this.checked});
 function acceptTerms(){
   closeTerms();
-  const start=document.getElementById('crm-phase-start'),form=document.getElementById('crm-form');
-  start.classList.remove('phase-visible');start.classList.add('phase-hidden');
-  setTimeout(()=>{form.classList.remove('phase-hidden');form.classList.add('phase-visible')},50);
+  document.getElementById('crm-phase-start').style.display='none';
+  document.getElementById('crm-form').style.display='block';
 }
 async function requestToken(){
   const e=document.getElementById('crm-email').value.trim(),p=document.getElementById('crm-passkey').value.trim();
   if(!e||!p) return alert('All fields required');
-  const form=document.getElementById('crm-form'),status=document.getElementById('crm-status');
-  form.classList.remove('phase-visible');form.classList.add('phase-hidden');
-  status.classList.remove('phase-hidden');status.classList.add('phase-visible');
+  document.getElementById('crm-form').style.display='none';
+  document.getElementById('crm-status').style.display='block';
   const tx=document.getElementById('crm-status-text');tx.textContent='⏳ Issuing token...';
   try{
     const r=await fetch('/api/request-token',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email:e,passkey:p,tc_agreed:true})});
     const d=await r.json();
-    if(d.error){tx.textContent='❌ '+d.error;form.classList.remove('phase-hidden');form.classList.add('phase-visible');status.classList.remove('phase-visible');status.classList.add('phase-hidden');return}
+    if(d.error){tx.textContent='❌ '+d.error;document.getElementById('crm-form').style.display='block';document.getElementById('crm-status').style.display='none';return}
     showToken(e,d.token);
-  }catch(e){tx.textContent='❌ Error';form.classList.remove('phase-hidden');form.classList.add('phase-visible');status.classList.remove('phase-visible');status.classList.add('phase-hidden')}
+  }catch(e){tx.textContent='❌ Error';document.getElementById('crm-form').style.display='block';document.getElementById('crm-status').style.display='none'}
 }
 function showToken(e,t){
   document.getElementById('crm-token-result').style.display='block';
@@ -326,7 +322,7 @@ async function sendEnterprise(){
     const r=await fetch('/api/enterprise-inquiry',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({name:n,email:e,company:c,message:m})});
     const d=await r.json();
     const st=document.getElementById('ent-status');st.style.display='block';
-    if(d.ok){st.style.color='#4ade80';st.textContent='Thank you! We\'ll respond within 24 hours.';document.getElementById('ent-name').value='';document.getElementById('ent-email').value='';document.getElementById('ent-company').value='';document.getElementById('ent-message').value=''}
+    if(d.ok){st.style.color='#4ade80';st.textContent='Thank you! We will respond within 24 hours.';document.getElementById('ent-name').value='';document.getElementById('ent-email').value='';document.getElementById('ent-company').value='';document.getElementById('ent-message').value=''}
     else{st.style.color='#f87171';st.textContent='Error: '+d.error}
   }catch(e){const st=document.getElementById('ent-status');st.style.display='block';st.style.color='#f87171';st.textContent='Error sending message'}
   btn.disabled=false;btn.textContent='Send Inquiry';
