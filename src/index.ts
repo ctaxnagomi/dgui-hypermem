@@ -275,14 +275,19 @@ async function handleMcp(request: Request, env: Env): Promise<Response> {
   }
 }
 
-function authorized(request: Request, env: Env): boolean {
-  const expected = env.MCP_TOKEN;
-  if (!expected) return true;
+async function authorized(request: Request, env: Env): Promise<boolean> {
+  const mcpToken = env.MCP_TOKEN;
   const header = request.headers.get("authorization") || "";
   const bearer = header.toLowerCase().startsWith("bearer ") ? header.slice(7).trim() : "";
   const apiKey = request.headers.get("x-api-key") || "";
   const queryToken = new URL(request.url).searchParams.get("token") || "";
-  return timeSafeEqual(bearer, expected) || timeSafeEqual(apiKey, expected) || timeSafeEqual(queryToken, expected);
+  const token = bearer || apiKey || queryToken;
+  if (!token) return !mcpToken;
+  if (mcpToken && (timeSafeEqual(bearer, mcpToken) || timeSafeEqual(apiKey, mcpToken) || timeSafeEqual(queryToken, mcpToken))) return true;
+  try {
+    const row = await env.DB.prepare("SELECT status FROM tokens WHERE token = ? AND status = 'active'").bind(token).first<{ status: string }>();
+    return !!row;
+  } catch { return false; }
 }
 
 const CORS = {
@@ -333,6 +338,8 @@ async function handleRest(request: Request, env: Env, path: string): Promise<Res
       return json(await handleDisableToken(env, body), { headers: CORS });
     case "/api/admin/tokens":
       return json(await handleAdminTokens(env, body, url), { headers: CORS });
+    case "/api/check-quota":
+      return json(await handleCheckQuota(env, request), { headers: CORS });
     default:
       return json({ error: "not found" }, { status: 404, headers: CORS });
   }
@@ -342,7 +349,7 @@ async function handleAdminTokens(env: Env, body: Record<string, any>, url: URL):
   const masterPasskey = env.MASTER_PASSKEY;
   const passkey = body.passkey || url.searchParams.get("passkey") || "";
   if (!masterPasskey || passkey !== masterPasskey) return { error: "unauthorized" };
-  const { results } = await env.DB.prepare("SELECT id, email, status, token, created_at, updated_at FROM tokens ORDER BY created_at DESC LIMIT 500").bind().all<{ id: string; email: string; status: string; token: string | null; created_at: number; updated_at: number }>();
+  const { results } = await env.DB.prepare("SELECT id, email, status, token, quota_monthly, requests_used, requests_reset_at, created_at, updated_at FROM tokens ORDER BY created_at DESC LIMIT 500").bind().all<{ id: string; email: string; status: string; token: string | null; quota_monthly: number; requests_used: number; requests_reset_at: number | null; created_at: number; updated_at: number }>();
   return { tokens: results || [] };
 }
 
@@ -386,6 +393,50 @@ async function handleDisableToken(env: Env, body: Record<string, any>): Promise<
   return { status: "disabled" };
 }
 
+async function handleCheckQuota(env: Env, request: Request): Promise<Record<string, any>> {
+  const token = extractToken(request);
+  if (!token) return { error: "no token provided" };
+  const row = await env.DB.prepare("SELECT email, status, quota_monthly, requests_used, requests_reset_at FROM tokens WHERE token = ?").bind(token).first<{ email: string; status: string; quota_monthly: number; requests_used: number; requests_reset_at: number | null }>();
+  if (!row) return { error: "invalid token" };
+  const now_ = now();
+  let quota = row.quota_monthly || 100;
+  let used = row.requests_used || 0;
+  let resetAt = row.requests_reset_at;
+  if (!resetAt || now_ > resetAt) {
+    used = 0;
+    resetAt = now_ + 30 * 86400 * 1000;
+    await env.DB.prepare("UPDATE tokens SET requests_used = 0, requests_reset_at = ? WHERE token = ?").bind(resetAt, token).run();
+  }
+  return { email: row.email, status: row.status, quota_monthly: quota, requests_used: used, requests_remaining: Math.max(0, quota - used), resets_at: resetAt };
+}
+
+function extractToken(request: Request): string | null {
+  const auth = request.headers.get("authorization") || "";
+  if (auth.toLowerCase().startsWith("bearer ")) return auth.slice(7).trim();
+  const apiKey = request.headers.get("x-api-key");
+  if (apiKey) return apiKey;
+  const q = new URL(request.url).searchParams.get("token");
+  if (q) return q;
+  return null;
+}
+
+async function checkAndTrackUsage(env: Env, request: Request): Promise<{ allowed: boolean; reason?: string }> {
+  const token = extractToken(request);
+  if (!token) return { allowed: true };
+  const row = await env.DB.prepare("SELECT id, status, quota_monthly, requests_used, requests_reset_at FROM tokens WHERE token = ?").bind(token).first<{ id: string; status: string; quota_monthly: number; requests_used: number; requests_reset_at: number | null }>();
+  if (!row || row.status !== "active") return { allowed: false, reason: "token invalid or disabled" };
+  const now_ = now();
+  let used = row.requests_used || 0;
+  let resetAt = row.requests_reset_at;
+  if (!resetAt || now_ > resetAt) {
+    used = 0;
+    resetAt = now_ + 30 * 86400 * 1000;
+  }
+  if (used >= (row.quota_monthly || 100)) return { allowed: false, reason: "monthly quota exceeded" };
+  await env.DB.prepare("UPDATE tokens SET requests_used = requests_used + 1, requests_reset_at = ?, updated_at = ? WHERE id = ?").bind(resetAt, now_, row.id).run();
+  return { allowed: true };
+}
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
@@ -403,7 +454,7 @@ export default {
         dataset: env.HF_TOKEN ? (env.HF_DATASET || "ctaxnagomi/DGUI_HYPERMEM-JEV") : null,
         endpoints: {
           mcp: "/mcp",
-          rest: ["/api/add", "/api/search", "/api/list", "/api/profile", "/api/forget", "/api/sync_jev", "/api/jev_queue_stats", "/api/request-token", "/api/check-star", "/api/disable-token", "/api/admin/tokens"],
+          rest: ["/api/add", "/api/search", "/api/list", "/api/profile", "/api/forget", "/api/sync_jev", "/api/jev_queue_stats", "/api/request-token", "/api/check-star", "/api/disable-token", "/api/check-quota", "/api/admin/tokens"],
         },
       });
     }
@@ -420,10 +471,14 @@ export default {
       });
     }
 
-    const CRM_ROUTES = ["/api/request-token", "/api/check-star", "/api/disable-token", "/api/admin/tokens"];
+    const CRM_ROUTES = ["/api/request-token", "/api/check-star", "/api/disable-token", "/api/admin/tokens", "/api/check-quota"];
     if (path === "/mcp" || (path.startsWith("/api/") && !CRM_ROUTES.includes(path))) {
-      if (!authorized(request, env)) {
+      if (!(await authorized(request, env))) {
         return json({ error: "unauthorized" }, { status: 401, headers: CORS });
+      }
+      const quota = await checkAndTrackUsage(env, request);
+      if (!quota.allowed) {
+        return json({ error: quota.reason }, { status: 429, headers: CORS });
       }
     }
 
