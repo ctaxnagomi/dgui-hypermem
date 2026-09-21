@@ -364,7 +364,7 @@ async function handleAdminTokens(env: Env, body: Record<string, any>, url: URL, 
     return { error: "unauthorized" };
   }
   await logCrmAction(env, "admin", "admin_login_success", "viewed token list", request).run().catch(() => {});
-  const { results } = await env.DB.prepare("SELECT id, email, status, token, quota_monthly, requests_used, requests_reset_at, train_with_all, has_connected, tc_agreed, created_at, updated_at FROM tokens ORDER BY created_at DESC LIMIT 500").bind().all<{ id: string; email: string; status: string; token: string | null; quota_monthly: number; requests_used: number; requests_reset_at: number | null; train_with_all: number; has_connected: number; tc_agreed: number; created_at: number; updated_at: number }>();
+  const { results } = await env.DB.prepare("SELECT id, email, status, token, plan, quota_monthly, requests_used, requests_reset_at, train_with_all, has_connected, tc_agreed, created_at, updated_at FROM tokens ORDER BY created_at DESC LIMIT 500").bind().all<{ id: string; email: string; status: string; token: string | null; plan: string; quota_monthly: number; requests_used: number; requests_reset_at: number | null; train_with_all: number; has_connected: number; tc_agreed: number; created_at: number; updated_at: number }>();
   return { tokens: results || [] };
 }
 
@@ -457,7 +457,7 @@ async function handleRequestToken(env: Env, body: Record<string, any>, request: 
   }
   const token = uuid();
   await Promise.all([
-    env.DB.prepare("INSERT INTO tokens (id, email, github_username, status, token, quota_monthly, tc_agreed, created_at, updated_at) VALUES (?, ?, ?, 'active', ?, 1000, 1, ?, ?)")
+    env.DB.prepare("INSERT INTO tokens (id, email, github_username, status, token, plan, quota_monthly, tc_agreed, created_at, updated_at) VALUES (?, ?, ?, 'active', ?, 'free', 1000, 1, ?, ?)")
       .bind(uuid(), email, email, token, now(), now()).run(),
     logCrmAction(env, email, isMaster ? "token_master_created" : "token_created", "new token via CRM", request).run(),
   ]);
@@ -488,13 +488,23 @@ async function handleDisableToken(env: Env, body: Record<string, any>, request: 
   return { status: "disabled" };
 }
 
+function planQuota(plan: string | null): number {
+  switch (plan) {
+    case "median": return 3500;
+    case "pro": return 6500;
+    case "enterprise": return 999999;
+    default: return 1000;
+  }
+}
+
 async function handleCheckQuota(env: Env, request: Request): Promise<Record<string, any>> {
   const token = extractToken(request);
   if (!token) return { error: "no token provided" };
-  const row = await env.DB.prepare("SELECT email, status, quota_monthly, requests_used, requests_reset_at FROM tokens WHERE token = ?").bind(token).first<{ email: string; status: string; quota_monthly: number; requests_used: number; requests_reset_at: number | null }>();
+  const row = await env.DB.prepare("SELECT email, status, plan, quota_monthly, requests_used, requests_reset_at FROM tokens WHERE token = ?").bind(token).first<{ email: string; status: string; plan: string; quota_monthly: number; requests_used: number; requests_reset_at: number | null }>();
   if (!row) return { error: "invalid token" };
+  const plan = row.plan || "free";
   const now_ = now();
-  let quota = row.quota_monthly || 100;
+  let quota = row.quota_monthly || planQuota(plan);
   let used = row.requests_used || 0;
   let resetAt = row.requests_reset_at;
   if (!resetAt || now_ > resetAt) {
@@ -509,6 +519,7 @@ async function handleCheckQuota(env: Env, request: Request): Promise<Record<stri
   const userYear = await env.DB.prepare("SELECT COUNT(*) as c FROM usage_events WHERE email = ? AND event_at > ?").bind(row.email, now_ - year).first<{ c: number }>();
   return {
     email: row.email,
+    plan,
     status: row.status,
     quota_monthly: quota,
     requests_used: used,
@@ -537,6 +548,10 @@ async function handleAdminStats(env: Env, body: Record<string, any>, url: URL, r
   const topTokens = await env.DB.prepare("SELECT email, COUNT(*) as c FROM usage_events GROUP BY email ORDER BY c DESC LIMIT 10").bind().all<{ email: string; c: number }>();
   const recentlyActive = await env.DB.prepare("SELECT DISTINCT email FROM usage_events WHERE event_at > ? ORDER BY event_at DESC LIMIT 10").bind(now_ - 7 * day).all<{ email: string }>();
   const loginFails = await env.DB.prepare("SELECT COUNT(*) as c FROM crm_logs WHERE action LIKE '%fail%' AND created_at > ?").bind(now_ - month).first<{ c: number }>();
+  const freeCount = await env.DB.prepare("SELECT COUNT(*) as c FROM tokens WHERE plan = 'free' AND status = 'active'").bind().first<{ c: number }>();
+  const medianCount = await env.DB.prepare("SELECT COUNT(*) as c FROM tokens WHERE plan = 'median' AND status = 'active'").bind().first<{ c: number }>();
+  const proCount = await env.DB.prepare("SELECT COUNT(*) as c FROM tokens WHERE plan = 'pro' AND status = 'active'").bind().first<{ c: number }>();
+  const entCount = await env.DB.prepare("SELECT COUNT(*) as c FROM tokens WHERE plan = 'enterprise' AND status = 'active'").bind().first<{ c: number }>();
   return {
     all_time: allTime?.c || 0,
     last_30_days: last30d?.c || 0,
@@ -544,6 +559,7 @@ async function handleAdminStats(env: Env, body: Record<string, any>, url: URL, r
     top_tokens: topTokens?.results || [],
     recently_active: recentlyActive?.results ? [...new Set(recentlyActive.results.map(r => r.email))] : [],
     failed_logins_30d: loginFails?.c || 0,
+    users_by_plan: { free: freeCount?.c || 0, median: medianCount?.c || 0, pro: proCount?.c || 0, enterprise: entCount?.c || 0 },
   };
 }
 
@@ -572,7 +588,7 @@ function extractToken(request: Request): string | null {
 async function checkAndTrackUsage(env: Env, request: Request): Promise<{ allowed: boolean; reason?: string }> {
   const token = extractToken(request);
   if (!token) return { allowed: true };
-  const row = await env.DB.prepare("SELECT id, status, quota_monthly, requests_used, requests_reset_at, email FROM tokens WHERE token = ?").bind(token).first<{ id: string; status: string; quota_monthly: number; requests_used: number; requests_reset_at: number | null; email: string }>();
+  const row = await env.DB.prepare("SELECT id, status, plan, quota_monthly, requests_used, requests_reset_at, email FROM tokens WHERE token = ?").bind(token).first<{ id: string; status: string; plan: string; quota_monthly: number; requests_used: number; requests_reset_at: number | null; email: string }>();
   if (!row || row.status !== "active") return { allowed: false, reason: "token invalid or disabled" };
   const now_ = now();
   let used = row.requests_used || 0;
@@ -581,7 +597,8 @@ async function checkAndTrackUsage(env: Env, request: Request): Promise<{ allowed
     used = 0;
     resetAt = now_ + 30 * 86400 * 1000;
   }
-  if (used >= (row.quota_monthly || 1000)) return { allowed: false, reason: "monthly quota exceeded" };
+  const maxQuota = row.quota_monthly || planQuota(row.plan);
+  if (used >= maxQuota) return { allowed: false, reason: "monthly quota exceeded" };
   const path = new URL(request.url).pathname;
   const context = classifyPath(path);
   await Promise.all([

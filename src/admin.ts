@@ -57,8 +57,8 @@ a{color:var(--accent-cyan);text-decoration:none}
 </div>
 <div id="dashboard" style="display:none">
 <div class="topbar"><div><h1>Token Dashboard</h1><div class="sub">dgui-hypermem.ctaxnagomi.workers.dev</div></div><div style="text-align:right"><a class="logout" onclick="document.getElementById('dashboard').style.display='none';document.getElementById('login').style.display='block'" style="color:var(--text-muted);font-size:13px;cursor:pointer;display:block">Logout</a><a href="/privacy" class="privacy-link" style="margin-top:4px;display:inline-block">Privacy Policy</a></div></div>
-<div class="stats"><div class="stat-card"><div class="num" id="stat-total">0</div><div class="label">Total / 100 Users</div></div><div class="stat-card"><div class="num" id="stat-active">0</div><div class="label">Active</div></div><div class="stat-card"><div class="num" id="stat-disabled">0</div><div class="label">Revoked</div></div><div class="stat-card"><div class="num" id="stat-online">0</div><div class="label">Connected</div></div><div class="stat-card"><div class="num" id="stat-fails">0</div><div class="label">Login Fails (30d)</div></div></div>
-<div style="overflow-x:auto"><table><thead><tr><th>Email</th><th>Status</th><th>MCP</th><th>T&C</th><th>Token</th><th>Quota</th><th>Train</th><th>Created</th><th>Action</th></tr></thead><tbody id="token-rows"></tbody></table></div>
+<div class="stats"><div class="stat-card"><div class="num" id="stat-total">0</div><div class="label">Total / 100 Users</div></div><div class="stat-card"><div class="num" id="stat-active">0</div><div class="label">Active</div></div><div class="stat-card"><div class="num" id="stat-free">0</div><div class="label">Free</div></div><div class="stat-card"><div class="num" id="stat-median">0</div><div class="label">Median</div></div><div class="stat-card"><div class="num" id="stat-pro">0</div><div class="label">Pro</div></div><div class="stat-card"><div class="num" id="stat-ent">0</div><div class="label">Enterprise</div></div><div class="stat-card"><div class="num" id="stat-online">0</div><div class="label">Connected</div></div><div class="stat-card"><div class="num" id="stat-fails">0</div><div class="label">Login Fails (30d)</div></div></div>
+<div style="overflow-x:auto"><table><thead><tr><th>Email</th><th>Plan</th><th>Status</th><th>MCP</th><th>T&C</th><th>Token</th><th>Quota</th><th>Train</th><th>Created</th><th>Action</th></tr></thead><tbody id="token-rows"></tbody></table></div>
 </div>
 </div>
 <script>
@@ -73,7 +73,15 @@ async function login(){
     render(d1.tokens);
     const r2=await fetch('/api/admin/stats?passkey='+encodeURIComponent(cp));
     const d2=await r2.json();
-    if(!d2.error) document.getElementById('stat-fails').textContent=d2.failed_logins_30d||0;
+    if(!d2.error){
+      document.getElementById('stat-fails').textContent=d2.failed_logins_30d||0;
+      if(d2.users_by_plan){
+        document.getElementById('stat-free').textContent=d2.users_by_plan.free||0;
+        document.getElementById('stat-median').textContent=d2.users_by_plan.median||0;
+        document.getElementById('stat-pro').textContent=d2.users_by_plan.pro||0;
+        document.getElementById('stat-ent').textContent=d2.users_by_plan.enterprise||0;
+      }
+    }
     document.getElementById('login').style.display='none';
     document.getElementById('dashboard').style.display='block';
   }catch(e){alert('Error: '+e.message)}
@@ -99,7 +107,11 @@ function render(tokens){
     const actions=t.status==='active'?'<a href="#" onclick="revoke(\\''+esc(t.email)+'\\')" style="font-size:12px">Revoke</a>':'';
     const tcAgreed=t.tc_agreed===1||t.tc_agreed===true;
     const tcDisplay='<span style="color:'+(tcAgreed?'#4ade80':'#f87171')+'">'+(tcAgreed?'✓ Agreed':'✗ Pending')+'</span>';
-    return '<tr><td class="email">'+esc(t.email)+'</td><td><span class="status '+t.status+'">'+t.status+'</span></td><td style="font-size:12px">'+connected+'</td><td style="font-size:12px">'+tcDisplay+'</td><td style="max-width:120px;overflow:hidden;text-overflow:ellipsis">'+(t.token?t.token.substring(0,12)+'...':'-')+'</td><td>'+quotaDisplay+'</td><td>'+trainBtn+'</td><td style="font-size:11px">'+date+'</td><td>'+actions+'</td></tr>';
+    const planName=t.plan||'free';
+    const planColors={free:'#7d8187',median:'#00f0ff',pro:'#f59e0b',enterprise:'#ec4899'};
+    const planColor=planColors[planName]||'#7d8187';
+    const planDisplay='<span style="color:'+planColor+';font-size:11px;text-transform:capitalize">'+planName+'</span>';
+    return '<tr><td class="email">'+esc(t.email)+'</td><td>'+planDisplay+'</td><td><span class="status '+t.status+'">'+t.status+'</span></td><td style="font-size:12px">'+connected+'</td><td style="font-size:12px">'+tcDisplay+'</td><td style="max-width:120px;overflow:hidden;text-overflow:ellipsis">'+(t.token?t.token.substring(0,12)+'...':'-')+'</td><td>'+quotaDisplay+'</td><td>'+trainBtn+'</td><td style="font-size:11px">'+date+'</td><td>'+actions+'</td></tr>';
   }).join('');
 }
 async function toggleTrain(email,val){

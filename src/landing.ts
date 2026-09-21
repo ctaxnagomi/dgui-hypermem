@@ -68,7 +68,7 @@ footer p{font-size:14px;color:var(--text-muted)}footer a{color:var(--accent-cyan
 .footer-links a:hover{color:var(--accent-cyan)}
 /* Pricing */
 .pricing-section{padding:30px 24px 60px}
-.pricing-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;max-width:900px;margin:32px auto 0;padding:0 24px}
+.pricing-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;max-width:1000px;margin:32px auto 0;padding:0 24px}
 .pricing-card{background:var(--bg-surface);border:1px solid var(--border-glass);border-radius:12px;padding:32px;transition:border-color .2s;display:flex;flex-direction:column}
 .pricing-card:hover{border-color:var(--border-accent)}
 .pricing-card.featured{border-color:var(--accent-cyan)}
@@ -198,15 +198,28 @@ footer p{font-size:14px;color:var(--text-muted)}footer a{color:var(--accent-cyan
 <div class="pricing-card featured">
 <div class="plan-name"><i class="fas fa-rocket"></i> Median</div>
 <div class="price">$2.99 <span>/ month</span></div>
-<div class="desc">For power users and small teams who need more capacity and priority support.</div>
+<div class="desc">For power users who need more capacity and priority support.</div>
 <ul class="features">
 <li><i class="fas fa-check"></i> Everything in Free</li>
-<li><i class="fas fa-check"></i> 10,000 requests / month</li>
+<li><i class="fas fa-check"></i> 3,500 requests / month</li>
 <li><i class="fas fa-check"></i> Priority queue</li>
 <li><i class="fas fa-check"></i> Email support</li>
 <li><i class="fas fa-check"></i> Early access to new features</li>
 </ul>
 <button class="btn-primary" style="text-align:center;width:100%" onclick="subscribe('median')"><i class="fas fa-credit-card"></i> Subscribe $2.99/mo</button>
+</div>
+<div class="pricing-card">
+<div class="plan-name"><i class="fas fa-crown"></i> Pro</div>
+<div class="price">$11.99 <span>/ month</span></div>
+<div class="desc">For professionals and teams needing high throughput and premium support.</div>
+<ul class="features">
+<li><i class="fas fa-check"></i> Everything in Median</li>
+<li><i class="fas fa-check"></i> 6,500 requests / month</li>
+<li><i class="fas fa-check"></i> Highest priority queue</li>
+<li><i class="fas fa-check"></i> Priority email & chat support</li>
+<li><i class="fas fa-check"></i> Beta feature access</li>
+</ul>
+<button class="btn-primary" style="text-align:center;width:100%" onclick="subscribe('pro')"><i class="fas fa-credit-card"></i> Subscribe $11.99/mo</button>
 </div>
 </div>
 </section>
