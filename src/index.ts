@@ -17,6 +17,7 @@ import { addMemory, forgetMemories, listMemories, profile, searchMemories } from
 import { MEMORY_TYPES, resolveMode } from "./jev";
 import { flushJevExamples, jevQueueStats } from "./dataset";
 import { json, now, timeSafeEqual, uuid } from "./util";
+import { ADMIN_HTML } from "./admin";
 import { LANDING_HTML } from "./landing";
 
 const SERVER_NAME = "dgui-hypermem";
@@ -330,9 +331,19 @@ async function handleRest(request: Request, env: Env, path: string): Promise<Res
       return json(await handleCheckStar(env, body), { headers: CORS });
     case "/api/disable-token":
       return json(await handleDisableToken(env, body), { headers: CORS });
+    case "/api/admin/tokens":
+      return json(await handleAdminTokens(env, body, url), { headers: CORS });
     default:
       return json({ error: "not found" }, { status: 404, headers: CORS });
   }
+}
+
+async function handleAdminTokens(env: Env, body: Record<string, any>, url: URL): Promise<Record<string, any>> {
+  const masterPasskey = env.MASTER_PASSKEY;
+  const passkey = body.passkey || url.searchParams.get("passkey") || "";
+  if (!masterPasskey || passkey !== masterPasskey) return { error: "unauthorized" };
+  const { results } = await env.DB.prepare("SELECT id, email, status, token, created_at, updated_at FROM tokens ORDER BY created_at DESC LIMIT 500").bind().all<{ id: string; email: string; status: string; token: string | null; created_at: number; updated_at: number }>();
+  return { tokens: results || [] };
 }
 
 async function handleRequestToken(env: Env, body: Record<string, any>): Promise<Record<string, any>> {
@@ -392,7 +403,7 @@ export default {
         dataset: env.HF_TOKEN ? (env.HF_DATASET || "ctaxnagomi/DGUI_HYPERMEM-JEV") : null,
         endpoints: {
           mcp: "/mcp",
-          rest: ["/api/add", "/api/search", "/api/list", "/api/profile", "/api/forget", "/api/sync_jev", "/api/jev_queue_stats", "/api/request-token", "/api/check-star", "/api/disable-token"],
+          rest: ["/api/add", "/api/search", "/api/list", "/api/profile", "/api/forget", "/api/sync_jev", "/api/jev_queue_stats", "/api/request-token", "/api/check-star", "/api/disable-token", "/api/admin/tokens"],
         },
       });
     }
@@ -403,7 +414,13 @@ export default {
       });
     }
 
-    const CRM_ROUTES = ["/api/request-token", "/api/check-star", "/api/disable-token"];
+    if (path === "/admin") {
+      return new Response(ADMIN_HTML, {
+        headers: { "content-type": "text/html;charset=UTF-8" },
+      });
+    }
+
+    const CRM_ROUTES = ["/api/request-token", "/api/check-star", "/api/disable-token", "/api/admin/tokens"];
     if (path === "/mcp" || (path.startsWith("/api/") && !CRM_ROUTES.includes(path))) {
       if (!authorized(request, env)) {
         return json({ error: "unauthorized" }, { status: 401, headers: CORS });
