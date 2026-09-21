@@ -340,6 +340,8 @@ async function handleRest(request: Request, env: Env, path: string): Promise<Res
       return json(await handleAdminTokens(env, body, url), { headers: CORS });
     case "/api/check-quota":
       return json(await handleCheckQuota(env, request), { headers: CORS });
+    case "/api/admin/stats":
+      return json(await handleAdminStats(env, body, url), { headers: CORS });
     default:
       return json({ error: "not found" }, { status: 404, headers: CORS });
   }
@@ -407,7 +409,43 @@ async function handleCheckQuota(env: Env, request: Request): Promise<Record<stri
     resetAt = now_ + 30 * 86400 * 1000;
     await env.DB.prepare("UPDATE tokens SET requests_used = 0, requests_reset_at = ? WHERE token = ?").bind(resetAt, token).run();
   }
-  return { email: row.email, status: row.status, quota_monthly: quota, requests_used: used, requests_remaining: Math.max(0, quota - used), resets_at: resetAt };
+  const day = 86400 * 1000;
+  const month = 30 * day;
+  const year = 365 * day;
+  const user30d = await env.DB.prepare("SELECT COUNT(*) as c FROM usage_events WHERE email = ? AND event_at > ?").bind(row.email, now_ - month).first<{ c: number }>();
+  const userYear = await env.DB.prepare("SELECT COUNT(*) as c FROM usage_events WHERE email = ? AND event_at > ?").bind(row.email, now_ - year).first<{ c: number }>();
+  return {
+    email: row.email,
+    status: row.status,
+    quota_monthly: quota,
+    requests_used: used,
+    requests_remaining: Math.max(0, quota - used),
+    resets_at: resetAt,
+    usage_30d: user30d?.c || 0,
+    usage_year: userYear?.c || 0,
+  };
+}
+
+async function handleAdminStats(env: Env, body: Record<string, any>, url: URL): Promise<Record<string, any>> {
+  const masterPasskey = env.MASTER_PASSKEY;
+  const passkey = body.passkey || url.searchParams.get("passkey") || "";
+  if (!masterPasskey || passkey !== masterPasskey) return { error: "unauthorized" };
+  const now_ = now();
+  const day = 86400 * 1000;
+  const month = 30 * day;
+  const year = 365 * day;
+  const allTime = await env.DB.prepare("SELECT COUNT(*) as c FROM usage_events").bind().first<{ c: number }>();
+  const last30d = await env.DB.prepare("SELECT COUNT(*) as c FROM usage_events WHERE event_at > ?").bind(now_ - month).first<{ c: number }>();
+  const lastYear = await env.DB.prepare("SELECT COUNT(*) as c FROM usage_events WHERE event_at > ?").bind(now_ - year).first<{ c: number }>();
+  const topTokens = await env.DB.prepare("SELECT email, COUNT(*) as c FROM usage_events GROUP BY email ORDER BY c DESC LIMIT 10").bind().all<{ email: string; c: number }>();
+  const recentlyActive = await env.DB.prepare("SELECT DISTINCT email FROM usage_events WHERE event_at > ? ORDER BY event_at DESC LIMIT 10").bind(now_ - 7 * day).all<{ email: string }>();
+  return {
+    all_time: allTime?.c || 0,
+    last_30_days: last30d?.c || 0,
+    last_year: lastYear?.c || 0,
+    top_tokens: topTokens?.results || [],
+    recently_active: recentlyActive?.results ? [...new Set(recentlyActive.results.map(r => r.email))] : [],
+  };
 }
 
 function extractToken(request: Request): string | null {
@@ -423,7 +461,7 @@ function extractToken(request: Request): string | null {
 async function checkAndTrackUsage(env: Env, request: Request): Promise<{ allowed: boolean; reason?: string }> {
   const token = extractToken(request);
   if (!token) return { allowed: true };
-  const row = await env.DB.prepare("SELECT id, status, quota_monthly, requests_used, requests_reset_at FROM tokens WHERE token = ?").bind(token).first<{ id: string; status: string; quota_monthly: number; requests_used: number; requests_reset_at: number | null }>();
+  const row = await env.DB.prepare("SELECT id, status, quota_monthly, requests_used, requests_reset_at, email FROM tokens WHERE token = ?").bind(token).first<{ id: string; status: string; quota_monthly: number; requests_used: number; requests_reset_at: number | null; email: string }>();
   if (!row || row.status !== "active") return { allowed: false, reason: "token invalid or disabled" };
   const now_ = now();
   let used = row.requests_used || 0;
@@ -434,6 +472,7 @@ async function checkAndTrackUsage(env: Env, request: Request): Promise<{ allowed
   }
   if (used >= (row.quota_monthly || 100)) return { allowed: false, reason: "monthly quota exceeded" };
   await env.DB.prepare("UPDATE tokens SET requests_used = requests_used + 1, requests_reset_at = ?, updated_at = ? WHERE id = ?").bind(resetAt, now_, row.id).run();
+  env.DB.prepare("INSERT INTO usage_events (token, email, path, event_at) VALUES (?, ?, ?, ?)").bind(token, row.email || "", new URL(request.url).pathname, now_).run().catch(() => {});
   return { allowed: true };
 }
 
@@ -454,7 +493,7 @@ export default {
         dataset: env.HF_TOKEN ? (env.HF_DATASET || "ctaxnagomi/DGUI_HYPERMEM-JEV") : null,
         endpoints: {
           mcp: "/mcp",
-          rest: ["/api/add", "/api/search", "/api/list", "/api/profile", "/api/forget", "/api/sync_jev", "/api/jev_queue_stats", "/api/request-token", "/api/check-star", "/api/disable-token", "/api/check-quota", "/api/admin/tokens"],
+          rest: ["/api/add", "/api/search", "/api/list", "/api/profile", "/api/forget", "/api/sync_jev", "/api/jev_queue_stats", "/api/request-token", "/api/check-star", "/api/disable-token", "/api/check-quota", "/api/admin/tokens", "/api/admin/stats"],
         },
       });
     }
@@ -471,7 +510,7 @@ export default {
       });
     }
 
-    const CRM_ROUTES = ["/api/request-token", "/api/check-star", "/api/disable-token", "/api/admin/tokens", "/api/check-quota"];
+    const CRM_ROUTES = ["/api/request-token", "/api/check-star", "/api/disable-token", "/api/admin/tokens", "/api/admin/stats", "/api/check-quota"];
     if (path === "/mcp" || (path.startsWith("/api/") && !CRM_ROUTES.includes(path))) {
       if (!(await authorized(request, env))) {
         return json({ error: "unauthorized" }, { status: 401, headers: CORS });
