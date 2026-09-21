@@ -67,7 +67,7 @@ export const PAYMENT_HTML = `<!DOCTYPE html>
 <html lang="en" data-theme="dark">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no">
 <title>Upgrade — DGUI-HyperMem by DeckerGUI</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M50 8L92 34L50 58L8 34Z' fill='%2300f0ff' stroke='%2300f0ff' stroke-width='1'/%3E%3Cpath d='M50 30L92 56L50 80L8 56Z' fill='rgba(26,26,26,0.85)' stroke='%2300f0ff' stroke-width='1'/%3E%3Cpath d='M50 52L92 78L50 92L8 78Z' fill='%231a1a1a' stroke='%2300f0ff' stroke-width='1'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -78,7 +78,7 @@ export const PAYMENT_HTML = `<!DOCTYPE html>
 :root{--bg-primary:#0a0a0a;--bg-surface:#1a1c20;--text-primary:#fff;--text-secondary:#dadbdf;--text-muted:#7d8187}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html,body{background:var(--bg-primary);font-family:'Inter',sans-serif;color:var(--text-primary)}
-body{padding:24px;max-width:900px;margin:0 auto}
+body{padding:24px;max-width;touch-action:manipulation;-webkit-text-size-adjust:100%;overscroll-behavior:none;max-width:900px;margin:0 auto}
 h1{font-size:24px;font-weight:300;margin-bottom:4px;color:#00f0ff}
 .sub{color:var(--text-muted);font-size:13px;margin-bottom:32px}
 .back{display:inline-block;margin-bottom:24px;color:var(--text-muted);font-size:13px;cursor:pointer;text-decoration:none}

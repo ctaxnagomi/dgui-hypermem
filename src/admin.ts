@@ -11,7 +11,7 @@ export const ADMIN_HTML = `<!DOCTYPE html>
 <style>
 :root{--bg-primary:#0a0a0a;--bg-surface:#1a1c20;--border-glass:#212327;--accent-cyan:#00f0ff;--text-primary:#fff;--text-secondary:#dadbdf;--text-muted:#7d8187}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-html,body{height:100%;background:var(--bg-primary);font-family:'Inter',sans-serif;color:var(--text-primary)}
+html,body{height:100%;background:var(--bg-primary);font-family:'Inter',sans-serif;color:var(--text-primary);-webkit-overflow-scrolling:touch;overscroll-behavior:none;touch-action:manipulation;-webkit-text-size-adjust:100%;-webkit-text-size-adjust:100%;touch-action:manipulation;-ms-touch-action:manipulation}
 body{padding:24px}
 h1{font-size:24px;font-weight:300;margin-bottom:4px}
 .sub{color:var(--text-muted);font-size:14px;margin-bottom:24px}

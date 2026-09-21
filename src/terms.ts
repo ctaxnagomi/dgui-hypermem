@@ -12,7 +12,7 @@ export const TERMS_HTML = `<!DOCTYPE html>
 :root{--bg-primary:#0a0a0a;--bg-surface:#1a1c20;--border-glass:#212327;--accent-cyan:#00f0ff;--text-primary:#fff;--text-secondary:#dadbdf;--text-muted:#7d8187}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html,body{background:var(--bg-primary);font-family:'Inter',sans-serif;color:var(--text-primary);line-height:1.7}
-body{max-width:720px;margin:0 auto;padding:32px 24px}
+body{touch-action:manipulation;-webkit-text-size-adjust:100%;overscroll-behavior:none;max-width:720px;margin:0 auto;padding:32px 24px}
 h1{font-size:28px;font-weight:300;margin-bottom:4px;color:var(--accent-cyan)}
 h2{font-size:18px;font-weight:500;margin:28px 0 12px;color:var(--text-primary)}
 h3{font-size:15px;font-weight:500;margin:20px 0 8px;color:var(--text-secondary)}

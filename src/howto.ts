@@ -12,7 +12,7 @@ export const HOWTO_HTML = `<!DOCTYPE html>
 :root{--bg-primary:#0a0a0a;--bg-surface:#1a1c20;--border-glass:#212327;--accent-cyan:#00f0ff;--text-primary:#fff;--text-secondary:#dadbdf;--text-muted:#7d8187}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html,body{background:var(--bg-primary);font-family:'Inter',sans-serif;color:var(--text-primary);line-height:1.7}
-body{max-width:720px;margin:0 auto;padding:32px 24px}
+body{touch-action:manipulation;-webkit-text-size-adjust:100%;overscroll-behavior:none;max-width:720px;margin:0 auto;padding:32px 24px}
 h1{font-size:28px;font-weight:300;margin-bottom:4px;color:var(--accent-cyan)}
 h2{font-size:18px;font-weight:500;margin:28px 0 12px;color:var(--text-primary)}
 h3{font-size:15px;font-weight:500;margin:20px 0 8px;color:var(--text-secondary)}
@@ -77,6 +77,55 @@ strong{color:var(--text-primary)}
 <li>View usage stats and login attempt logs</li>
 <li>Monitor failed login attempts with device info</li>
 </ul>
+
+<h2>Connect from Grok / Claude / ChatGPT</h2>
+<p>DGUI-HyperMem supports the MCP protocol (Streamable HTTP). You can connect it to any AI that supports remote MCP servers or OpenAI-compatible function calling.</p>
+
+<h3>Claude Desktop</h3>
+<p>Add this to your <code>claude_desktop_config.json</code>:</p>
+<pre>{
+  "mcpServers": {
+    "dgui-hypermem": {
+      "command": "npx",
+      "args": [
+        "mcp-remote",
+        "https://dgui-hypermem.ctaxnagomi.workers.dev/mcp"
+      ],
+      "env": {
+        "MCP_TOKEN": "YOUR_TOKEN_HERE"
+      }
+    }
+  }
+}</pre>
+
+<h3>Grok / xAI</h3>
+<p>Grok uses OpenAI-compatible function calling. The MCP server exposes tools that can be wrapped as functions. Use the xAI Responses API with function calling pointing to our MCP tools via a bridge. Deploy the <a href="https://github.com/cloudflare/ai/tree/main/demos/remote-mcp-cf-access">Cloudflare MCP proxy</a> or use the Workers AI Playground to test MCP connections.</p>
+<pre># Grok uses OpenAI-compatible function calling.
+# Bridge MCP tools via Cloudflare Workers AI Playground:
+# https://playground.ai.cloudflare.com
+# Add MCP Server URL: https://dgui-hypermem.ctaxnagomi.workers.dev/mcp
+# Connect with Bearer token authentication.</pre>
+
+<h3>ChatGPT / OpenAI</h3>
+<p>ChatGPT supports MCP directly. Add a custom MCP connector:</p>
+<pre>MCP Server URL: https://dgui-hypermem.ctaxnagomi.workers.dev/mcp
+Headers: { "Authorization": "Bearer YOUR_TOKEN_HERE" }</pre>
+
+<h3>Cloudflare AI Playground</h3>
+<p>Go to <a href="https://playground.ai.cloudflare.com">Workers AI Playground</a>, under <strong>MCP Servers</strong> enter the MCP URL and connect with your Bearer token.</p>
+
+<h3>opencode / Cursor / Windsurf</h3>
+<p>These tools support the <code>mcpServers</code> config format. Add our endpoint with the Bearer token in your IDE's MCP configuration.</p>
+<pre>{
+  "mcpServers": {
+    "dgui-hypermem": {
+      "url": "https://dgui-hypermem.ctaxnagomi.workers.dev/mcp",
+      "headers": {
+        "Authorization": "Bearer YOUR_TOKEN_HERE"
+      }
+    }
+  }
+}</pre>
 
 <h2>Self-Hosting</h2>
 <p>DGUI-HyperMem is open source under MIT license. To self-host:</p>
