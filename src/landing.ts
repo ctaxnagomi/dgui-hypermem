@@ -104,25 +104,21 @@ footer p{font-size:14px;color:var(--text-muted)}footer a{color:var(--accent-cyan
 </svg>
 </div>
 <section id="crm" class="crm-section">
-<div class="section-header"><div class="caption-mono"><i class="fas fa-key"></i> Access</div><h2>Get your bearer token.</h2><p>Star the repo on GitHub, verify with passkey, get your token instantly.</p></div>
+<div class="section-header"><div class="caption-mono"><i class="fas fa-key"></i> Access</div><h2>Get your bearer token.</h2><p>Enter your email and passkey to claim one token per email.</p></div>
 <div class="crm-card" id="crm-form">
 <input type="email" id="crm-email" placeholder="Email" autocomplete="email">
-<input type="text" id="crm-github" placeholder="GitHub username">
-<input type="password" id="crm-passkey" placeholder="4-digit passkey" maxlength="4">
-<button class="btn-primary" onclick="requestToken()"><i class="fas fa-paper-plane"></i> Request Token</button>
+<input type="password" id="crm-passkey" placeholder="Passkey" maxlength="20" autocomplete="off">
+<button class="btn-primary" onclick="requestToken()"><i class="fas fa-paper-plane"></i> Get Token</button>
 </div>
 <div class="crm-card" id="crm-status" style="display:none">
 <div class="status-line" id="crm-status-text">⏳ Processing...</div>
-<div id="crm-star-prompt" style="display:none">
-<div class="status-line" style="border-color:var(--accent-cyan);color:var(--accent-cyan)">⭐ Please star <a href="https://github.com/ctaxnagomi/dgui-hypermem" target="_blank" style="color:#fff">github.com/ctaxnagomi/dgui-hypermem</a> and try again.</div>
-</div>
 <div id="crm-token-result" style="display:none">
-<div class="status-line" style="border-color:#4ade80;color:#4ade80">🎉 Token active!</div>
+<div class="status-line" style="border-color:#4ade80;color:#4ade80">🎉 Token ready!</div>
 <p style="font-size:13px;color:var(--text-muted);margin-bottom:8px">Your token:</p>
 <code class="token-display" id="crm-token-value"></code>
 <p style="font-size:13px;color:var(--text-muted);margin-bottom:8px">MCP config:</p>
 <pre class="status-line" id="crm-config" style="white-space:pre;overflow-x:auto;font-size:12px;line-height:20px"></pre>
-<button class="btn-outline" style="margin-top:16px;width:100%;text-align:center;display:block" onclick="disableToken()"><i class="fas fa-ban"></i> Disable Token</button>
+<button class="btn-outline" style="margin-top:16px;width:100%;text-align:center;display:block" onclick="disableToken()"><i class="fas fa-ban"></i> Revoke Token</button>
 </div>
 </div>
 </section>
@@ -136,21 +132,24 @@ footer p{font-size:14px;color:var(--text-muted)}footer a{color:var(--accent-cyan
 <script>
 let pt=null;
 async function requestToken(){
-  const e=document.getElementById('crm-email').value.trim(),g=document.getElementById('crm-github').value.trim(),p=document.getElementById('crm-passkey').value.trim();
-  if(!e||!g||!p) return alert('All fields required');
+  const e=document.getElementById('crm-email').value.trim(),p=document.getElementById('crm-passkey').value.trim();
+  if(!e||!p) return alert('All fields required');
   document.getElementById('crm-form').style.display='none';const st=document.getElementById('crm-status');st.style.display='block';
-  const tx=document.getElementById('crm-status-text');tx.textContent='⏳ Verifying...';
+  const tx=document.getElementById('crm-status-text');tx.textContent='⏳ Issuing token...';
   try{
-    const r=await fetch('/api/request-token',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email:e,github_username:g,passkey:p})});
+    const r=await fetch('/api/request-token',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email:e,passkey:p})});
     const d=await r.json();
     if(d.error){tx.textContent='❌ '+d.error;document.getElementById('crm-form').style.display='block';return}
-    if(d.has_token){showToken(e,d.token);return}
-    if(d.status==='pending'){tx.textContent='✅ Passkey OK. Checking GitHub star...';document.getElementById('crm-star-prompt').style.display='block';
-      pt=setInterval(async()=>{const r2=await fetch('/api/check-star',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email:e})});const d2=await r2.json();if(d2.starred&&d2.token){clearInterval(pt);showToken(e,d2.token)}},3000);}
+    showToken(e,d.token);
   }catch(e){tx.textContent='❌ Error';document.getElementById('crm-form').style.display='block'}
 }
-function showToken(e,t){document.getElementById('crm-star-prompt').style.display='none';document.getElementById('crm-token-result').style.display='block';document.getElementById('crm-status-text').textContent='';document.getElementById('crm-token-value').textContent=t;document.getElementById('crm-config').textContent=JSON.stringify({mcp:{"dgui-hypermem":{type:"remote",url:"https://dgui-hypermem.ctaxnagomi.workers.dev/mcp",enabled:true,headers:{Authorization:"Bearer "+t}}}},null,2);}
-async function disableToken(){const e=document.getElementById('crm-email').value.trim(),p=prompt('Passkey to disable:');if(!p)return;const r=await fetch('/api/disable-token',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email:e,passkey:p})});const d=await r.json();if(d.error)return alert(d.error);alert('Disabled');location.reload();}
+function showToken(e,t){
+  document.getElementById('crm-token-result').style.display='block';
+  document.getElementById('crm-status-text').textContent='';
+  document.getElementById('crm-token-value').textContent=t;
+  document.getElementById('crm-config').textContent=JSON.stringify({mcp:{"dgui-hypermem":{type:"remote",url:"https://dgui-hypermem.ctaxnagomi.workers.dev/mcp",enabled:true,headers:{Authorization:"Bearer "+t}}}},null,2);
+}
+async function disableToken(){const e=document.getElementById('crm-email').value.trim(),p=prompt('Passkey to revoke:');if(!p)return;const r=await fetch('/api/disable-token',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email:e,passkey:p})});const d=await r.json();if(d.error)return alert(d.error);alert('Token revoked');location.reload();}
 </script>
 </body>
 </html>`;

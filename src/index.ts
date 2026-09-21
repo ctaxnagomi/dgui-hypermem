@@ -336,45 +336,29 @@ async function handleRest(request: Request, env: Env, path: string): Promise<Res
 }
 
 async function handleRequestToken(env: Env, body: Record<string, any>): Promise<Record<string, any>> {
-  const { email, github_username, passkey } = body;
-  if (!email || !github_username || !passkey) return { error: "email, github_username and passkey are required" };
+  const { email, passkey } = body;
+  if (!email || !passkey) return { error: "email and passkey are required" };
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { error: "invalid email" };
   const userPasskey = env.PASSKEY || "0866";
   const masterPasskey = env.MASTER_PASSKEY;
   const isMaster = masterPasskey && passkey === masterPasskey;
   if (passkey !== userPasskey && !isMaster) return { error: "invalid passkey" };
   const existing = await env.DB.prepare("SELECT id, status, token FROM tokens WHERE email = ?").bind(email).first<{ id: string; status: string; token: string | null }>();
-  if (existing) return { id: existing.id, status: existing.status, has_token: !!existing.token };
-  const id = uuid();
-  const status = isMaster ? "active" : "pending";
-  const token = isMaster ? uuid() : null;
-  await env.DB.prepare("INSERT INTO tokens (id, email, github_username, status, token, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)")
-    .bind(id, email, github_username, status, token, now(), now()).run();
-  if (isMaster) return { status: "active", token, master: true };
-  return { status: "pending", id };
+  if (existing) {
+    if (existing.status === "active" && existing.token) return { status: "active", token: existing.token };
+    // Re-issue for disabled/pending
+    const token = uuid();
+    await env.DB.prepare("UPDATE tokens SET status = 'active', token = ?, updated_at = ? WHERE id = ?").bind(token, now(), existing.id).run();
+    return { status: "active", token };
+  }
+  const token = uuid();
+  await env.DB.prepare("INSERT INTO tokens (id, email, github_username, status, token, created_at, updated_at) VALUES (?, ?, ?, 'active', ?, ?, ?)")
+    .bind(uuid(), email, email, token, now(), now()).run();
+  return { status: "active", token };
 }
 
 async function handleCheckStar(env: Env, body: Record<string, any>): Promise<Record<string, any>> {
-  const { email } = body;
-  if (!email) return { error: "email is required" };
-  const row = await env.DB.prepare("SELECT id, github_username, status, token FROM tokens WHERE email = ?").bind(email).first<{ id: string; github_username: string; status: string; token: string | null }>();
-  if (!row) return { error: "no pending request found" };
-  if (row.status === "active" && row.token) return { starred: true, token: row.token };
-  if (row.status !== "pending") return { error: `request is ${row.status}` };
-  try {
-    const headers: Record<string, string> = { "user-agent": "dgui-hypermem", accept: "application/vnd.github+json" };
-    if (env.GITHUB_TOKEN) headers.authorization = `Bearer ${env.GITHUB_TOKEN}`;
-    const res = await fetch(`https://api.github.com/repos/ctaxnagomi/dgui-hypermem/stargazers?per_page=100`, { headers });
-    if (!res.ok) return { error: `github api: ${res.status}`, starred: false };
-    const stargazers = await res.json() as { login: string }[];
-    const starred = stargazers.some((u: any) => u.login === row.github_username);
-    if (!starred) return { starred: false, url: "https://github.com/ctaxnagomi/dgui-hypermem" };
-    const token = uuid();
-    await env.DB.prepare("UPDATE tokens SET status = 'active', token = ?, updated_at = ? WHERE id = ?").bind(token, now(), row.id).run();
-    return { starred: true, token };
-  } catch (err) {
-    return { error: String(err), starred: false };
-  }
+  return { error: "no longer required", starred: true };
 }
 
 async function handleDisableToken(env: Env, body: Record<string, any>): Promise<Record<string, any>> {
