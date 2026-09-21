@@ -2,8 +2,8 @@ import Stripe from "stripe";
 import { now, uuid } from "./util";
 
 const PRICES: Record<string, { price_id: string; name: string; quota: number }> = {
-  median: { price_id: "price_1QqwertyExampleMedian", name: "Median", quota: 3500 }, // TODO: Replace with actual Stripe Price ID
-  pro: { price_id: "price_1QqwertyExamplePro", name: "Pro", quota: 6500 },           // TODO: Replace with actual Stripe Price ID
+  median: { price_id: "price_1UICicLjoFSWfKc7s3edXQzs", name: "Median", quota: 3500 },
+  pro: { price_id: "price_1UICitLjoFSWfKc7PYVoJ5hj", name: "Pro", quota: 6500 },
 };
 
 export function getStripe(env: { STRIPE_SECRET_KEY?: string }): Stripe | null {
@@ -59,8 +59,8 @@ export async function handleStripeWebhook(env: any, request: Request): Promise<R
 }
 
 const PRICES_DISPLAY: Record<string, { price_id: string; name: string; quota: number; amount: number; currency: string }> = {
-  median: { price_id: "price_median", name: "Median", quota: 3500, amount: 299, currency: "usd" },
-  pro: { price_id: "price_pro", name: "Pro", quota: 6500, amount: 1199, currency: "usd" },
+  median: { price_id: "price_1UICicLjoFSWfKc7s3edXQzs", name: "Median", quota: 3500, amount: 299, currency: "usd" },
+  pro: { price_id: "price_1UICitLjoFSWfKc7PYVoJ5hj", name: "Pro", quota: 6500, amount: 1199, currency: "usd" },
 };
 
 export const PAYMENT_HTML = `<!DOCTYPE html>
