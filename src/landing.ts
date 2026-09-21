@@ -4,15 +4,12 @@ export const LANDING_HTML = `<!DOCTYPE html>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>DGUI-HyperMem — Hybrid Memory MCP Server</title>
-<!-- Brain SVG Favicon -->
-<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M50 8C30 8 14 24 14 44c0 8 2.5 15.5 7 21.5v16c0 3.5 3 6.5 6.5 6.5h45c3.5 0 6.5-3 6.5-6.5v-16c4.5-6 7-13.5 7-21.5C86 24 70 8 50 8z' fill='%2300f0ff' opacity='0.15'/%3E%3Cpath d='M50 14C32 14 18 28 18 46s7 20 10 23v14c0 3 2 5 5 5h34c3 0 5-2 5-5V69c3-3 10-8 10-23S68 14 50 14z' fill='none' stroke='%2300f0ff' stroke-width='2'/%3E%3Cpath d='M50 28c-8 0-15 4-18 10h5c2-3 6-5 13-5s11 2 13 5h5c-3-6-10-10-18-10z' fill='%2300f0ff' opacity='0.6'/%3E%3Cpath d='M35 42c-2 0-4 2-4 4s2 4 4 4 4-2 4-4-2-4-4-4zM65 42c-2 0-4 2-4 4s2 4 4 4 4-2 4-4-2-4-4-4z' fill='%2300f0ff'/%3E%3Cpath d='M42 55c0 0 3 4 8 4s8-4 8-4' fill='none' stroke='%2300f0ff' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E">
-<link rel="icon" type="image/png" sizes="48x48" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M50 8C30 8 14 24 14 44c0 8 2.5 15.5 7 21.5v16c0 3.5 3 6.5 6.5 6.5h45c3.5 0 6.5-3 6.5-6.5v-16c4.5-6 7-13.5 7-21.5C86 24 70 8 50 8z' fill='%2300f0ff' opacity='0.15'/%3E%3Cpath d='M50 14C32 14 18 28 18 46s7 20 10 23v14c0 3 2 5 5 5h34c3 0 5-2 5-5V69c3-3 10-8 10-23S68 14 50 14z' fill='none' stroke='%2300f0ff' stroke-width='2'/%3E%3Cpath d='M50 28c-8 0-15 4-18 10h5c2-3 6-5 13-5s11 2 13 5h5c-3-6-10-10-18-10z' fill='%2300f0ff' opacity='0.6'/%3E%3Cpath d='M35 42c-2 0-4 2-4 4s2 4 4 4 4-2 4-4-2-4-4-4zM65 42c-2 0-4 2-4 4s2 4 4 4 4-2 4-4-2-4-4-4z' fill='%2300f0ff'/%3E%3Cpath d='M42 55c0 0 3 4 8 4s8-4 8-4' fill='none' stroke='%2300f0ff' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E">
-<link rel="icon" type="image/png" sizes="192x192" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M50 8C30 8 14 24 14 44c0 8 2.5 15.5 7 21.5v16c0 3.5 3 6.5 6.5 6.5h45c3.5 0 6.5-3 6.5-6.5v-16c4.5-6 7-13.5 7-21.5C86 24 70 8 50 8z' fill='%2300f0ff' opacity='0.15'/%3E%3Cpath d='M50 14C32 14 18 28 18 46s7 20 10 23v14c0 3 2 5 5 5h34c3 0 5-2 5-5V69c3-3 10-8 10-23S68 14 50 14z' fill='none' stroke='%2300f0ff' stroke-width='2'/%3E%3Cpath d='M50 28c-8 0-15 4-18 10h5c2-3 6-5 13-5s11 2 13 5h5c-3-6-10-10-18-10z' fill='%2300f0ff' opacity='0.6'/%3E%3C/svg%3E">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M50 8C30 8 14 24 14 44c0 8 2.5 15.5 7 21.5v16c0 3.5 3 6.5 6.5 6.5h45c3.5 0 6.5-3 6.5-6.5v-16c4.5-6 7-13.5 7-21.5C86 24 70 8 50 8z' fill='%2300f0ff' opacity='0.15'/%3E%3Cpath d='M50 14C32 14 18 28 18 46s7 20 10 23v14c0 3 2 5 5 5h34c3 0 5-2 5-5V69c3-3 10-8 10-23S68 14 50 14z' fill='none' stroke='%2300f0ff' stroke-width='2'/%3E%3Cpath d='M50 28c-8 0-15 4-18 10h5c2-3 6-5 13-5s11 2 13 5h5c-3-6-10-10-18-10z' fill='%2300f0ff' opacity='0.6'/%3E%3C/svg%3E">
+<link rel="icon" type="image/png" sizes="48x48" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M50 8C30 8 14 24 14 44c0 8 2.5 15.5 7 21.5v16c0 3.5 3 6.5 6.5 6.5h45c3.5 0 6.5-3 6.5-6.5v-16c4.5-6 7-13.5 7-21.5C86 24 70 8 50 8z' fill='%2300f0ff' opacity='0.15'/%3E%3Cpath d='M50 14C32 14 18 28 18 46s7 20 10 23v14c0 3 2 5 5 5h34c3 0 5-2 5-5V69c3-3 10-8 10-23S68 14 50 14z' fill='none' stroke='%2300f0ff' stroke-width='2'/%3E%3Cpath d='M50 28c-8 0-15 4-18 10h5c2-3 6-5 13-5s11 2 13 5h5c-3-6-10-10-18-10z' fill='%2300f0ff' opacity='0.6'/%3E%3C/svg%3E">
 <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M50 8C30 8 14 24 14 44c0 8 2.5 15.5 7 21.5v16c0 3.5 3 6.5 6.5 6.5h45c3.5 0 6.5-3 6.5-6.5v-16c4.5-6 7-13.5 7-21.5C86 24 70 8 50 8z' fill='%2300f0ff' opacity='0.15'/%3E%3Cpath d='M50 14C32 14 18 28 18 46s7 20 10 23v14c0 3 2 5 5 5h34c3 0 5-2 5-5V69c3-3 10-8 10-23S68 14 50 14z' fill='none' stroke='%2300f0ff' stroke-width='2'/%3E%3Cpath d='M50 28c-8 0-15 4-18 10h5c2-3 6-5 13-5s11 2 13 5h5c-3-6-10-10-18-10z' fill='%2300f0ff' opacity='0.6'/%3E%3C/svg%3E">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="DGUI-HyperMem">
-<meta name="mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#0a0a0a">
 <meta name="application-name" content="DGUI-HyperMem">
 <meta name="msapplication-TileColor" content="#0a0a0a">
@@ -23,34 +20,52 @@ export const LANDING_HTML = `<!DOCTYPE html>
 <style>
 :root{--bg-primary:#0a0a0a;--bg-surface:#1a1c20;--accent-cyan:#00f0ff;--accent:#fff;--text-secondary:#dadbdf;--text-muted:#7d8187;--border-glass:#212327;--border-accent:rgba(255,255,255,0.25)}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-html,body{height:100%;width:100%;background:var(--bg-primary);font-family:'Inter',-apple-system,BlinkMacSystemFont,system-ui,sans-serif;font-weight:400;color:var(--accent);-webkit-font-smoothing:antialiased;overflow-x:hidden}
+html,body{height:100%;width:100%;background:var(--bg-primary);font-family:'Inter',sans-serif;color:var(--accent);-webkit-font-smoothing:antialiased;overflow-x:hidden}
 ::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--border-glass);border-radius:10px}
 nav{display:flex;align-items:center;justify-content:space-between;padding:16px 24px;border-bottom:1px solid var(--border-glass)}
 .hero{padding:120px 24px 60px;text-align:center}
-.hero .caption-mono{font-family:JetBrains Mono,ui-monospace,monospace;font-size:14px;letter-spacing:1.4px;text-transform:uppercase;color:var(--accent-cyan);margin-bottom:24px}
+.hero .caption-mono{font-family:JetBrains Mono,monospace;font-size:14px;letter-spacing:1.4px;text-transform:uppercase;color:var(--accent-cyan);margin-bottom:24px}
 .hero h1{font-size:72px;line-height:72px;font-weight:300;letter-spacing:-1.8px;margin-bottom:24px}
 .hero p{font-size:18px;line-height:28px;color:var(--text-secondary);max-width:640px;margin:0 auto 48px}
 .btn-primary{background:var(--accent);color:#0a0a0a;border:none;border-radius:9999px;padding:10px 24px;font-size:15px;cursor:pointer;display:inline-flex;align-items:center;gap:8px;text-decoration:none}
 .btn-outline{background:transparent;color:var(--accent);border:1px solid var(--border-accent);border-radius:9999px;padding:10px 24px;font-size:15px;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:8px}
 .hero-actions{display:flex;gap:16px;justify-content:center;flex-wrap:wrap;margin-top:32px}
 .section-header{text-align:center;margin-bottom:16px;padding:60px 24px 0}
-.section-header .caption-mono{font-family:JetBrains Mono,ui-monospace,monospace;font-size:14px;letter-spacing:1.4px;text-transform:uppercase;color:var(--accent-cyan);margin-bottom:12px}
+.section-header .caption-mono{font-family:JetBrains Mono,monospace;font-size:14px;letter-spacing:1.4px;text-transform:uppercase;color:var(--accent-cyan);margin-bottom:12px}
 .section-header h2{font-size:48px;line-height:48px;font-weight:300;letter-spacing:-1.2px;margin-bottom:12px}
 .section-header p{font-size:16px;color:var(--text-secondary);max-width:560px;margin:0 auto}
 .arch-section{padding:30px 24px 60px}
 .arch-wrapper{display:flex;justify-content:center;overflow-x:auto;margin-top:32px}
 .dash-anim{animation:dash 1.2s linear infinite}@keyframes dash{to{stroke-dashoffset:-24}}
-.arch-section{padding:30px 24px 60px}
+/* CRM */
 .crm-section{padding:30px 24px 60px}
-.crm-card{max-width:520px;margin:24px auto;padding:32px;border:1px solid var(--border-glass);border-radius:12px;background:var(--bg-surface)}
+.crm-form-wrap{position:relative;min-height:360px}
+.crm-card{max-width:520px;margin:24px auto;padding:32px;border:1px solid var(--border-glass);border-radius:12px;background:var(--bg-surface);transition:all .5s cubic-bezier(.16,1,.3,1)}
 .crm-card input{width:100%;padding:12px 16px;margin-bottom:12px;background:var(--bg-primary);border:1px solid var(--border-glass);border-radius:8px;color:var(--accent);font-family:Inter,sans-serif;font-size:14px;outline:none;transition:border-color .2s}
 .crm-card input:focus{border-color:var(--accent-cyan)}
-.crm-card .btn-primary{width:100%;margin-top:4px}
+.crm-card .btn-primary{width:100%;margin-top:8px}
+.crm-card.phase-hidden{opacity:0;transform:translateY(30px) scale(.95);pointer-events:none;position:absolute;width:100%;max-width:520px;left:50%;margin-left:-260px}
+.crm-card.phase-visible{opacity:1;transform:translateY(0) scale(1)}
 .status-line{padding:12px 16px;background:var(--bg-primary);border:1px solid var(--border-glass);border-radius:8px;font-size:14px;color:var(--text-secondary);margin-bottom:16px;font-family:JetBrains Mono,monospace}
 .token-display{display:block;padding:16px;background:var(--bg-primary);border:1px solid var(--accent-cyan);border-radius:8px;font-family:JetBrains Mono,monospace;font-size:13px;color:var(--accent-cyan);word-break:break-all;margin-bottom:16px}
+/* Modal */
+.modal-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.7);backdrop-filter:blur(4px);z-index:1000;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .4s}
+.modal-overlay.show{opacity:1;pointer-events:auto}
+.modal-box{background:var(--bg-surface);border:1px solid var(--border-glass);border-radius:12px;padding:32px;max-width:560px;width:90%;max-height:80vh;overflow-y:auto;transform:scale(.9);transition:transform .4s cubic-bezier(.16,1,.3,1)}
+.modal-overlay.show .modal-box{transform:scale(1)}
+.modal-box h2{font-size:20px;font-weight:500;margin-bottom:16px;color:var(--accent)}
+.modal-box h3{font-size:14px;font-weight:500;margin:20px 0 8px;color:var(--accent)}
+.modal-box p, .modal-box li{font-size:13px;line-height:1.6;color:var(--text-secondary);margin-bottom:6px}
+.modal-box ul{padding-left:18px;margin:8px 0}
+.modal-box label{display:flex;align-items:flex-start;gap:10px;margin:20px 0 24px;cursor:pointer;font-size:13px;color:var(--text-secondary);line-height:1.5}
+.modal-box input[type=checkbox]{margin-top:3px;accent-color:var(--accent-cyan);width:16px;height:16px;flex-shrink:0}
+/* Footer */
 footer{border-top:1px solid var(--border-glass);padding:48px 24px;text-align:center;margin-top:60px}
 footer p{font-size:14px;color:var(--text-muted)}footer a{color:var(--accent-cyan);text-decoration:none}
-@media(max-width:768px){.hero h1{font-size:40px;line-height:44px}.section-header h2{font-size:32px;line-height:36px}}
+.footer-links{display:flex;justify-content:center;gap:20px;flex-wrap:wrap;margin:16px 0}
+.footer-links a{font-size:12px;color:var(--text-muted);text-decoration:none;transition:color .2s}
+.footer-links a:hover{color:var(--accent-cyan)}
+@media(max-width:768px){.hero h1{font-size:40px;line-height:44px}.section-header h2{font-size:32px;line-height:36px}.crm-card.phase-hidden{left:0;margin-left:0}}
 </style>
 </head>
 <body>
@@ -103,15 +118,21 @@ footer p{font-size:14px;color:var(--text-muted)}footer a{color:var(--accent-cyan
 <line x1="390" y1="510" x2="390" y2="530" stroke="#00f0ff" stroke-width="1.5" class="dash-anim"/>
 </svg>
 </div>
+</section>
 <section id="crm" class="crm-section">
 <div class="section-header"><div class="caption-mono"><i class="fas fa-key"></i> Access</div><h2>Get your bearer token.</h2><p>Enter your email and passkey to claim one token per email.</p></div>
-<div class="crm-card" id="crm-form">
+<div class="crm-form-wrap">
+<div class="crm-card phase-visible" id="crm-phase-start">
+<p style="font-size:14px;color:var(--text-secondary);margin-bottom:20px;line-height:1.6">Before you can get a token, you must agree to the <strong>Terms &amp; Agreement</strong> and <strong>Privacy Policy</strong>.</p>
+<button class="btn-primary" onclick="showTerms()"><i class="fas fa-file-contract"></i> Review &amp; Agree</button>
+</div>
+<div class="crm-card phase-hidden" id="crm-form">
 <input type="email" id="crm-email" placeholder="Email" autocomplete="email">
 <input type="password" id="crm-passkey" placeholder="Passkey" maxlength="20" autocomplete="off">
 <button class="btn-primary" onclick="requestToken()"><i class="fas fa-paper-plane"></i> Get Token</button>
 </div>
-<div class="crm-card" id="crm-status" style="display:none">
-<div class="status-line" id="crm-status-text">⏳ Processing...</div>
+<div class="crm-card phase-hidden" id="crm-status">
+<div class="status-line" id="crm-status-text">⏳ Issuing token...</div>
 <div id="crm-token-result" style="display:none">
 <div class="status-line" style="border-color:#4ade80;color:#4ade80">🎉 Token ready!</div>
 <p style="font-size:13px;color:var(--text-muted);margin-bottom:8px">Your token:</p>
@@ -121,27 +142,73 @@ footer p{font-size:14px;color:var(--text-muted)}footer a{color:var(--accent-cyan
 <button class="btn-outline" style="margin-top:16px;width:100%;text-align:center;display:block" onclick="disableToken()"><i class="fas fa-ban"></i> Revoke Token</button>
 </div>
 </div>
+</div>
 </section>
+<!-- Terms & Agreement Modal -->
+<div class="modal-overlay" id="terms-modal">
+<div class="modal-box">
+<h2><i class="fas fa-file-contract"></i> Terms &amp; Agreement</h2>
+<p>By using DGUI-HyperMem, you agree to the following:</p>
+<h3>1. Service Description</h3>
+<p>DGUI-HyperMem is a self-hosted hybrid memory MCP server. You receive an API token to access the MCP tools (add, search, list, profile, forget). The service runs on Cloudflare Workers infrastructure.</p>
+<h3>2. Acceptable Use</h3>
+<ul>
+<li>You may use the service for personal or commercial projects</li>
+<li>You may not use the service for illegal activities</li>
+<li>You may not attempt to bypass rate limits or quotas</li>
+<li>You may not share your API token with unauthorized parties</li>
+</ul>
+<h3>3. Data &amp; Privacy</h3>
+<p>Your use of the service is subject to our <a href="/privacy" target="_blank" style="color:var(--accent-cyan)">Privacy Policy</a>. Memory content you store is private to your token. Usage context (anonymized) may be used for service improvement unless you opt out via the admin dashboard.</p>
+<h3>4. Limitation of Liability</h3>
+<p>The service is provided "as is" without warranty. The maintainers are not liable for any damages arising from use of the service.</p>
+<h3>5. Quota &amp; Rate Limits</h3>
+<p>Each user receives 1,000 requests per month. The total number of active users is capped at 100. Exceeding either limit will result in a temporary suspension until the next cycle or contact with the admin.</p>
+<h3>6. Termination</h3>
+<p>The admin reserves the right to revoke any token for violation of these terms.</p>
+<label><input type="checkbox" id="tc-checkbox"> I have read and agree to the <strong>Terms &amp; Agreement</strong> and <strong><a href="/privacy" target="_blank" style="color:var(--accent-cyan)">Privacy Policy</a></strong>.</label>
+<div style="display:flex;gap:12px">
+<button class="btn-outline" onclick="closeTerms()" style="flex:1">Cancel</button>
+<button class="btn-primary" id="tc-accept-btn" onclick="acceptTerms()" style="flex:1" disabled>Agree &amp; Continue</button>
+</div>
+</div>
+</div>
 <footer>
 <div class="container" style="max-width:1200px;margin:0 auto;padding:0 24px">
 <p>DGUI-HyperMem — a <a href="https://deckergui.my">DeckerGUI</a> project</p>
-<p style="margin-top:8px">Jev / System One by <a href="https://typesafe.ai">TypeSafe AI</a></p>
-<p style="margin-top:24px;font-size:12px"><a href="https://github.com/ctaxnagomi/dgui-hypermem">GitHub</a> · <a href="https://huggingface.co/datasets/ctaxnagomi/DGUI_HYPERMEM-JEV">HuggingFace</a> · <a href="https://github.com/ctaxnagomi/dgui-hypermem/blob/main/LICENSE">MIT</a></p>
+<div class="footer-links">
+<a href="/how-to"><i class="fas fa-book"></i> How to Use</a>
+<a href="/privacy"><i class="fas fa-shield-alt"></i> Privacy Policy</a>
+<a href="/terms"><i class="fas fa-file-signature"></i> Terms of Service</a>
+<a href="https://github.com/ctaxnagomi/dgui-hypermem"><i class="fab fa-github"></i> Self-Host on GitHub</a>
+</div>
+<p style="margin-top:8px;font-size:12px">Jev / System One by <a href="https://typesafe.ai">TypeSafe AI</a></p>
+<p style="margin-top:16px;font-size:11px"><a href="https://github.com/ctaxnagomi/dgui-hypermem">GitHub</a> · <a href="https://huggingface.co/datasets/ctaxnagomi/DGUI_HYPERMEM-JEV">HuggingFace</a> · <a href="https://github.com/ctaxnagomi/dgui-hypermem/blob/main/LICENSE">MIT License</a> · <a href="https://krackeddevs.com">KrackedDevs</a> · <a href="https://ctecx.com">CTECX</a></p>
 </div>
 </footer>
 <script>
-let pt=null;
+function showTerms(){document.getElementById('terms-modal').classList.add('show')}
+function closeTerms(){document.getElementById('terms-modal').classList.remove('show')}
+document.getElementById('tc-checkbox').addEventListener('change',function(){document.getElementById('tc-accept-btn').disabled=!this.checked});
+function acceptTerms(){
+  closeTerms();
+  const start=document.getElementById('crm-phase-start'),form=document.getElementById('crm-form');
+  start.classList.remove('phase-visible');start.classList.add('phase-hidden');
+  setTimeout(()=>{form.classList.remove('phase-hidden');form.classList.add('phase-visible')},50);
+}
 async function requestToken(){
   const e=document.getElementById('crm-email').value.trim(),p=document.getElementById('crm-passkey').value.trim();
   if(!e||!p) return alert('All fields required');
-  document.getElementById('crm-form').style.display='none';const st=document.getElementById('crm-status');st.style.display='block';
+  const form=document.getElementById('crm-form'),status=document.getElementById('crm-status');
+  form.classList.remove('phase-visible');form.classList.add('phase-hidden');
+  status.classList.remove('phase-hidden');status.classList.add('phase-visible');
   const tx=document.getElementById('crm-status-text');tx.textContent='⏳ Issuing token...';
   try{
-    const r=await fetch('/api/request-token',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email:e,passkey:p})});
+    const r=await fetch('/api/request-token',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email:e,passkey:p,tc_agreed:true})});
     const d=await r.json();
-    if(d.error){tx.textContent='❌ '+d.error;document.getElementById('crm-form').style.display='block';return}
+    if(d.error){tx.textContent='❌ '+d.error;form.classList.remove('phase-hidden');form.classList.add('phase-visible');status.classList.remove('phase-visible');status.classList.add('phase-hidden');return}
     showToken(e,d.token);
-  }catch(e){tx.textContent='❌ Error';document.getElementById('crm-form').style.display='block'}
+  }catch(e){tx.textContent='❌ Error';form.classList.remove('phase-hidden');form.classList.add('phase-visible');status.classList.remove('phase-visible');status.classList.add('phase-hidden')}
 }
 function showToken(e,t){
   document.getElementById('crm-token-result').style.display='block';

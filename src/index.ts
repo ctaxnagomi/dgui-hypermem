@@ -19,6 +19,8 @@ import { flushJevExamples, jevQueueStats } from "./dataset";
 import { json, now, timeSafeEqual, uuid } from "./util";
 import { ADMIN_HTML } from "./admin";
 import { PRIVACY_HTML } from "./privacy";
+import { HOWTO_HTML } from "./howto";
+import { TERMS_HTML } from "./terms";
 import { LANDING_HTML } from "./landing";
 
 const SERVER_NAME = "dgui-hypermem";
@@ -360,7 +362,7 @@ async function handleAdminTokens(env: Env, body: Record<string, any>, url: URL, 
     return { error: "unauthorized" };
   }
   await logCrmAction(env, "admin", "admin_login_success", "viewed token list", request).run().catch(() => {});
-  const { results } = await env.DB.prepare("SELECT id, email, status, token, quota_monthly, requests_used, requests_reset_at, train_with_all, has_connected, created_at, updated_at FROM tokens ORDER BY created_at DESC LIMIT 500").bind().all<{ id: string; email: string; status: string; token: string | null; quota_monthly: number; requests_used: number; requests_reset_at: number | null; train_with_all: number; has_connected: number; created_at: number; updated_at: number }>();
+  const { results } = await env.DB.prepare("SELECT id, email, status, token, quota_monthly, requests_used, requests_reset_at, train_with_all, has_connected, tc_agreed, created_at, updated_at FROM tokens ORDER BY created_at DESC LIMIT 500").bind().all<{ id: string; email: string; status: string; token: string | null; quota_monthly: number; requests_used: number; requests_reset_at: number | null; train_with_all: number; has_connected: number; tc_agreed: number; created_at: number; updated_at: number }>();
   return { tokens: results || [] };
 }
 
@@ -425,18 +427,19 @@ async function handleToggleTrain(env: Env, body: Record<string, any>): Promise<R
 }
 
 async function handleRequestToken(env: Env, body: Record<string, any>, request: Request): Promise<Record<string, any>> {
-  const { email, passkey } = body;
+  const { email, passkey, tc_agreed } = body;
   if (!email || !passkey) return { error: "email and passkey are required" };
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { error: "invalid email" };
   const userPasskey = env.PASSKEY || "0866";
   const masterPasskey = env.MASTER_PASSKEY;
   const isMaster = masterPasskey && passkey === masterPasskey;
   if (passkey !== userPasskey && !isMaster) return { error: "invalid passkey" };
-  const existing = await env.DB.prepare("SELECT id, status, token, train_with_all FROM tokens WHERE email = ?").bind(email).first<{ id: string; status: string; token: string | null; train_with_all: number }>();
+  if (!isMaster && !tc_agreed) return { error: "you must agree to the Terms and Privacy Policy" };
+  const existing = await env.DB.prepare("SELECT id, status, token, train_with_all, tc_agreed FROM tokens WHERE email = ?").bind(email).first<{ id: string; status: string; token: string | null; train_with_all: number; tc_agreed: number }>();
   if (existing) {
     if (existing.status === "active" && existing.token) {
       await logCrmAction(env, email, "token_retrieved", "re-issued existing token", request).run();
-      return { status: "active", token: existing.token, train_with_all: !!existing.train_with_all };
+      return { status: "active", token: existing.token, train_with_all: !!existing.train_with_all, tc_agreed: !!existing.tc_agreed };
     }
     const token = uuid();
     await Promise.all([
@@ -452,11 +455,11 @@ async function handleRequestToken(env: Env, body: Record<string, any>, request: 
   }
   const token = uuid();
   await Promise.all([
-    env.DB.prepare("INSERT INTO tokens (id, email, github_username, status, token, quota_monthly, created_at, updated_at) VALUES (?, ?, ?, 'active', ?, 1000, ?, ?)")
+    env.DB.prepare("INSERT INTO tokens (id, email, github_username, status, token, quota_monthly, tc_agreed, created_at, updated_at) VALUES (?, ?, ?, 'active', ?, 1000, 1, ?, ?)")
       .bind(uuid(), email, email, token, now(), now()).run(),
     logCrmAction(env, email, isMaster ? "token_master_created" : "token_created", "new token via CRM", request).run(),
   ]);
-  return { status: "active", token, train_with_all: true };
+  return { status: "active", token, train_with_all: true, tc_agreed: true };
 }
 
 async function handleCheckStar(env: Env, body: Record<string, any>): Promise<Record<string, any>> {
@@ -610,6 +613,18 @@ export default {
 
     if (path === "/privacy" || path === "/privacy.html" || path === "/legal") {
       return new Response(PRIVACY_HTML, {
+        headers: { "content-type": "text/html;charset=UTF-8" },
+      });
+    }
+
+    if (path === "/how-to" || path === "/howto") {
+      return new Response(HOWTO_HTML, {
+        headers: { "content-type": "text/html;charset=UTF-8" },
+      });
+    }
+
+    if (path === "/terms" || path === "/terms-of-service") {
+      return new Response(TERMS_HTML, {
         headers: { "content-type": "text/html;charset=UTF-8" },
       });
     }
