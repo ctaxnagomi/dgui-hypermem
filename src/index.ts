@@ -347,6 +347,8 @@ async function handleRest(request: Request, env: Env, path: string): Promise<Res
       return json(await handleToggleTrain(env, body), { headers: CORS });
     case "/api/check-quota":
       return json(await handleCheckQuota(env, request), { headers: CORS });
+    case "/api/enterprise-inquiry":
+      return json(await handleEnterpriseInquiry(env, body), { headers: CORS });
     case "/api/admin/stats":
       return json(await handleAdminStats(env, body, url, request), { headers: CORS });
     default:
@@ -545,6 +547,18 @@ async function handleAdminStats(env: Env, body: Record<string, any>, url: URL, r
   };
 }
 
+async function handleEnterpriseInquiry(env: Env, body: Record<string, any>): Promise<Record<string, any>> {
+  const { name, email, company, message } = body;
+  if (!name || !email || !message) return { error: "name, email and message are required" };
+  try {
+    await env.DB.prepare("INSERT INTO crm_logs (email, action, detail, device, created_at) VALUES (?, ?, ?, ?, ?)")
+      .bind(email, "enterprise_inquiry", `Name: ${name}, Company: ${company || "N/A"}, Message: ${message?.substring(0, 500)}`, `web-form`, now()).run();
+    return { ok: true };
+  } catch (e) {
+    return { error: "failed to save inquiry" };
+  }
+}
+
 function extractToken(request: Request): string | null {
   const auth = request.headers.get("authorization") || "";
   if (auth.toLowerCase().startsWith("bearer ")) return auth.slice(7).trim();
@@ -594,7 +608,7 @@ export default {
         dataset: env.HF_TOKEN ? (env.HF_DATASET || "ctaxnagomi/DGUI_HYPERMEM-JEV") : null,
         endpoints: {
           mcp: "/mcp",
-          rest: ["/api/add", "/api/search", "/api/list", "/api/profile", "/api/forget", "/api/sync_jev", "/api/jev_queue_stats", "/api/request-token", "/api/check-star", "/api/disable-token", "/api/check-quota", "/api/admin/tokens", "/api/admin/stats", "/api/admin/logs", "/api/admin/toggle-train"],
+          rest: ["/api/add", "/api/search", "/api/list", "/api/profile", "/api/forget", "/api/sync_jev", "/api/jev_queue_stats", "/api/request-token", "/api/check-star", "/api/disable-token", "/api/check-quota", "/api/enterprise-inquiry", "/api/admin/tokens", "/api/admin/stats", "/api/admin/logs", "/api/admin/toggle-train"],
         },
       });
     }
@@ -629,7 +643,7 @@ export default {
       });
     }
 
-    const CRM_ROUTES = ["/api/request-token", "/api/check-star", "/api/disable-token", "/api/admin/tokens", "/api/admin/stats", "/api/admin/logs", "/api/admin/toggle-train", "/api/check-quota"];
+    const CRM_ROUTES = ["/api/request-token", "/api/check-star", "/api/disable-token", "/api/enterprise-inquiry", "/api/admin/tokens", "/api/admin/stats", "/api/admin/logs", "/api/admin/toggle-train", "/api/check-quota"];
     if (path === "/mcp" || (path.startsWith("/api/") && !CRM_ROUTES.includes(path))) {
       if (!(await authorized(request, env))) {
         return json({ error: "unauthorized" }, { status: 401, headers: CORS });

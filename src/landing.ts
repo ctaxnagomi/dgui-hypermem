@@ -13,6 +13,7 @@ export const LANDING_HTML = `<!DOCTYPE html>
 <meta name="theme-color" content="#0a0a0a">
 <meta name="application-name" content="DGUI-HyperMem">
 <meta name="msapplication-TileColor" content="#0a0a0a">
+<link rel="manifest" href="/manifest.json">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;800&family=JetBrains+Mono:wght@300;400;700&display=swap" rel="stylesheet">
@@ -65,13 +66,47 @@ footer p{font-size:14px;color:var(--text-muted)}footer a{color:var(--accent-cyan
 .footer-links{display:flex;justify-content:center;gap:20px;flex-wrap:wrap;margin:16px 0}
 .footer-links a{font-size:12px;color:var(--text-muted);text-decoration:none;transition:color .2s}
 .footer-links a:hover{color:var(--accent-cyan)}
-@media(max-width:768px){.hero h1{font-size:40px;line-height:44px}.section-header h2{font-size:32px;line-height:36px}.crm-card.phase-hidden{left:0;margin-left:0}}
+/* Pricing */
+.pricing-section{padding:30px 24px 60px}
+.pricing-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;max-width:900px;margin:32px auto 0;padding:0 24px}
+.pricing-card{background:var(--bg-surface);border:1px solid var(--border-glass);border-radius:12px;padding:32px;transition:border-color .2s;display:flex;flex-direction:column}
+.pricing-card:hover{border-color:var(--border-accent)}
+.pricing-card.featured{border-color:var(--accent-cyan)}
+.pricing-card .plan-name{font-size:14px;font-weight:600;margin-bottom:4px;color:var(--accent-cyan);text-transform:uppercase;letter-spacing:1px}
+.pricing-card .price{font-size:36px;font-weight:300;color:var(--accent);margin:12px 0;letter-spacing:-1px}
+.pricing-card .price span{font-size:16px;color:var(--text-muted);font-weight:400}
+.pricing-card .desc{font-size:13px;color:var(--text-secondary);margin-bottom:20px;line-height:1.5;flex:1}
+.pricing-card .features{list-style:none;padding:0;margin:0 0 24px}
+.pricing-card .features li{font-size:13px;color:var(--text-secondary);margin-bottom:8px;display:flex;align-items:center;gap:8px}
+.pricing-card .features li i{color:var(--accent-cyan);width:16px}
+/* Enterprise form */
+.enterprise-section{padding:30px 24px 60px}
+.enterprise-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px;max-width:900px;margin:32px auto 0;padding:0 24px}
+.enterprise-info p{font-size:14px;color:var(--text-secondary);line-height:1.6;margin-bottom:12px}
+.enterprise-form input,.enterprise-form textarea{width:100%;padding:12px 16px;margin-bottom:12px;background:var(--bg-primary);border:1px solid var(--border-glass);border-radius:8px;color:var(--accent);font-family:Inter,sans-serif;font-size:14px;outline:none;transition:border-color .2s}
+.enterprise-form input:focus,.enterprise-form textarea:focus{border-color:var(--accent-cyan)}
+.enterprise-form textarea{min-height:100px;resize:vertical}
+@media(max-width:768px){
+  .hero h1{font-size:36px;line-height:40px;letter-spacing:-.5px}
+  .hero p{font-size:15px;line-height:24px}
+  .section-header h2{font-size:28px;line-height:32px}
+  .section-header p{font-size:14px}
+  .crm-card.phase-hidden{left:0;margin-left:0}
+  nav .nav-links a:not(.btn-accent){display:none}
+  .pricing-grid{padding:0 12px}
+  .enterprise-grid{grid-template-columns:1fr;padding:0 12px}
+  .features-grid{padding:0 12px}
+  .arch-wrapper svg{width:100%;height:auto}
+  .token-display{font-size:11px;word-break:break-all}
+  .config-block{font-size:10px}
+}
 </style>
 </head>
 <body>
 <nav><span style="font-weight:500;font-size:16px">DECKER GUI</span>
 <div style="display:flex;gap:24px;align-items:center">
 <a href="#arch" style="color:var(--text-muted);text-decoration:none;font-size:14px">Architecture</a>
+<a href="#pricing" style="color:var(--text-muted);text-decoration:none;font-size:14px">Plans</a>
 <a href="#crm" style="color:var(--text-muted);text-decoration:none;font-size:14px">Get Token</a>
 <a href="https://github.com/ctaxnagomi/dgui-hypermem" target="_blank" style="color:var(--accent);border:1px solid var(--border-accent);border-radius:9999px;padding:8px 20px;font-size:14px;text-decoration:none"><i class="fab fa-github"></i> GitHub</a>
 </div></nav>
@@ -141,6 +176,58 @@ footer p{font-size:14px;color:var(--text-muted)}footer a{color:var(--accent-cyan
 <pre class="status-line" id="crm-config" style="white-space:pre;overflow-x:auto;font-size:12px;line-height:20px"></pre>
 <button class="btn-outline" style="margin-top:16px;width:100%;text-align:center;display:block" onclick="disableToken()"><i class="fas fa-ban"></i> Revoke Token</button>
 </div>
+</div>
+</div>
+</section>
+<section class="pricing-section" id="pricing">
+<div class="section-header"><div class="caption-mono"><i class="fas fa-tags"></i> Plans</div><h2>Choose your plan.</h2></div>
+<div class="pricing-grid">
+<div class="pricing-card">
+<div class="plan-name"><i class="fas fa-leaf"></i> Free</div>
+<div class="price">$0 <span>/ month</span></div>
+<div class="desc">For individuals and hobbyists getting started with AI agent memory.</div>
+<ul class="features">
+<li><i class="fas fa-check"></i> 1 token per email</li>
+<li><i class="fas fa-check"></i> 1,000 requests / month</li>
+<li><i class="fas fa-check"></i> MCP tools: add, search, list, profile, forget</li>
+<li><i class="fas fa-check"></i> JEV reasoning layer (Choice/Noul/Score)</li>
+<li><i class="fas fa-check"></i> Community support</li>
+</ul>
+<a href="#crm" class="btn-primary" style="text-align:center"><i class="fas fa-key"></i> Get Free Token</a>
+</div>
+<div class="pricing-card featured">
+<div class="plan-name"><i class="fas fa-rocket"></i> Median</div>
+<div class="price">$2.99 <span>/ month</span></div>
+<div class="desc">For power users and small teams who need more capacity and priority support.</div>
+<ul class="features">
+<li><i class="fas fa-check"></i> Everything in Free</li>
+<li><i class="fas fa-check"></i> 10,000 requests / month</li>
+<li><i class="fas fa-check"></i> Priority queue</li>
+<li><i class="fas fa-check"></i> Email support</li>
+<li><i class="fas fa-check"></i> Early access to new features</li>
+</ul>
+<button class="btn-primary" style="text-align:center;width:100%" onclick="subscribe('median')"><i class="fas fa-credit-card"></i> Subscribe $2.99/mo</button>
+</div>
+</div>
+</section>
+<section class="enterprise-section" id="enterprise">
+<div class="section-header"><div class="caption-mono"><i class="fas fa-building"></i> Enterprise</div><h2>Need more?</h2></div>
+<div class="enterprise-grid">
+<div class="enterprise-info">
+<p>DGUI-HyperMem Enterprise is designed for organizations that need dedicated infrastructure, custom quotas, SLAs, and white-label deployment.</p>
+<p><i class="fas fa-check" style="color:var(--accent-cyan)"></i> Unlimited requests &amp; users</p>
+<p><i class="fas fa-check" style="color:var(--accent-cyan)"></i> Self-hosted or managed deployment</p>
+<p><i class="fas fa-check" style="color:var(--accent-cyan)"></i> Dedicated support &amp; SLA</p>
+<p><i class="fas fa-check" style="color:var(--accent-cyan)"></i> Custom integrations</p>
+<p style="margin-top:16px;font-size:13px;color:var(--text-muted)">Send us a message and we'll get back to you within 24 hours.</p>
+</div>
+<div class="enterprise-form" id="enterprise-form">
+<input type="text" id="ent-name" placeholder="Your name">
+<input type="email" id="ent-email" placeholder="Email">
+<input type="text" id="ent-company" placeholder="Company">
+<textarea id="ent-message" placeholder="Tell us about your needs..."></textarea>
+<button class="btn-primary" onclick="sendEnterprise()"><i class="fas fa-paper-plane"></i> Send Inquiry</button>
+<div id="ent-status" style="margin-top:12px;font-size:13px;color:var(--accent-cyan);display:none"></div>
 </div>
 </div>
 </section>
@@ -217,6 +304,20 @@ function showToken(e,t){
   document.getElementById('crm-config').textContent=JSON.stringify({mcp:{"dgui-hypermem":{type:"remote",url:"https://dgui-hypermem.ctaxnagomi.workers.dev/mcp",enabled:true,headers:{Authorization:"Bearer "+t}}}},null,2);
 }
 async function disableToken(){const e=document.getElementById('crm-email').value.trim(),p=prompt('Passkey to revoke:');if(!p)return;const r=await fetch('/api/disable-token',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email:e,passkey:p})});const d=await r.json();if(d.error)return alert(d.error);alert('Token revoked');location.reload();}
+async function sendEnterprise(){
+  const n=document.getElementById('ent-name').value.trim(),e=document.getElementById('ent-email').value.trim(),c=document.getElementById('ent-company').value.trim(),m=document.getElementById('ent-message').value.trim();
+  if(!n||!e||!m) return alert('Name, email and message are required');
+  const btn=document.getElementById('enterprise-form').querySelector('.btn-primary');
+  btn.disabled=true;btn.textContent='Sending...';
+  try{
+    const r=await fetch('/api/enterprise-inquiry',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({name:n,email:e,company:c,message:m})});
+    const d=await r.json();
+    const st=document.getElementById('ent-status');st.style.display='block';
+    if(d.ok){st.style.color='#4ade80';st.textContent='Thank you! We\'ll respond within 24 hours.';document.getElementById('ent-name').value='';document.getElementById('ent-email').value='';document.getElementById('ent-company').value='';document.getElementById('ent-message').value=''}
+    else{st.style.color='#f87171';st.textContent='Error: '+d.error}
+  }catch(e){const st=document.getElementById('ent-status');st.style.display='block';st.style.color='#f87171';st.textContent='Error sending message'}
+  btn.disabled=false;btn.textContent='Send Inquiry';
+}
 </script>
 </body>
 </html>`;
