@@ -26,14 +26,20 @@ h1{font-size:24px;font-weight:300;margin-bottom:4px}
 table{width:100%;border-collapse:collapse;font-size:13px}
 th{text-align:left;padding:12px 8px;border-bottom:1px solid var(--border-glass);color:var(--text-muted);font-weight:500;font-size:11px;text-transform:uppercase;letter-spacing:.5px}
 td{padding:10px 8px;border-bottom:1px solid var(--border-glass);font-family:JetBrains Mono,monospace;font-size:12px;color:var(--text-secondary)}
-td.email{font-family:Inter,sans-serif}
+td.email{font-family:Inter,sans-serif;font-size:13px}
 .status{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:500}
 .status.active{background:rgba(74,222,128,.15);color:#4ade80}
 .status.disabled{background:rgba(248,113,113,.15);color:#f87171}
 .status.pending{background:rgba(251,191,36,.15);color:#fbbf24}
+.toggle{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;cursor:pointer;border:1px solid var(--border-glass);background:transparent;color:var(--text-muted)}
+.toggle.on{background:rgba(74,222,128,.15);color:#4ade80;border-color:#4ade80}
+.toggle.off{background:rgba(248,113,113,.15);color:#f87171;border-color:#f87171}
 a{color:var(--accent-cyan);text-decoration:none}
-.logout{color:var(--text-muted);font-size:13px;float:right;margin-top:8px;cursor:pointer}
-.logout:hover{color:var(--accent-cyan)}
+.badge{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px}
+.badge.online{background:#4ade80}
+.badge.offline{background:var(--text-muted)}
+.topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+.privacy-link{font-size:12px;color:var(--text-muted)}
 </style>
 </head>
 <body>
@@ -46,19 +52,19 @@ a{color:var(--accent-cyan);text-decoration:none}
 </div>
 </div>
 <div id="dashboard" style="display:none">
-<div style="display:flex;justify-content:space-between;align-items:center"><div><h1>Token Dashboard</h1><div class="sub">dgui-hypermem.ctaxnagomi.workers.dev</div></div><a class="logout" onclick="document.getElementById('dashboard').style.display='none';document.getElementById('login').style.display='block'">Logout</a></div>
-<div class="stats"><div class="stat-card"><div class="num" id="stat-total">0</div><div class="label">Total</div></div><div class="stat-card"><div class="num" id="stat-active">0</div><div class="label">Active</div></div><div class="stat-card"><div class="num" id="stat-disabled">0</div><div class="label">Revoked</div></div></div>
-<div style="overflow-x:auto"><table><thead><tr><th>Email</th><th>Status</th><th>Token</th><th>Created</th><th>Action</th></tr></thead><tbody id="token-rows"></tbody></table></div>
+<div class="topbar"><div><h1>Token Dashboard</h1><div class="sub">dgui-hypermem.ctaxnagomi.workers.dev</div></div><div style="text-align:right"><a class="logout" onclick="document.getElementById('dashboard').style.display='none';document.getElementById('login').style.display='block'" style="color:var(--text-muted);font-size:13px;cursor:pointer;display:block">Logout</a><a href="/privacy" class="privacy-link" style="margin-top:4px;display:inline-block">Privacy Policy</a></div></div>
+<div class="stats"><div class="stat-card"><div class="num" id="stat-total">0</div><div class="label">Total Tokens</div></div><div class="stat-card"><div class="num" id="stat-active">0</div><div class="label">Active</div></div><div class="stat-card"><div class="num" id="stat-disabled">0</div><div class="label">Revoked</div></div><div class="stat-card"><div class="num" id="stat-online">0</div><div class="label">Connected</div></div></div>
+<div style="overflow-x:auto"><table><thead><tr><th>Email</th><th>Status</th><th>MCP</th><th>Token</th><th>Train</th><th>Created</th><th>Action</th></tr></thead><tbody id="token-rows"></tbody></table></div>
 </div>
 </div>
 <script>
-let currentPasskey = '';
+let cp='';
 async function login(){
-  currentPasskey = document.getElementById('admin-passkey').value;
-  if(!currentPasskey) return alert('Enter master passkey');
+  cp=document.getElementById('admin-passkey').value;
+  if(!cp) return alert('Enter master passkey');
   try{
-    const r = await fetch('/api/admin/tokens?passkey='+encodeURIComponent(currentPasskey));
-    const d = await r.json();
+    const r=await fetch('/api/admin/tokens?passkey='+encodeURIComponent(cp));
+    const d=await r.json();
     if(d.error) return alert('Unauthorized');
     render(d.tokens);
     document.getElementById('login').style.display='none';
@@ -66,20 +72,33 @@ async function login(){
   }catch(e){alert('Error: '+e.message)}
 }
 function render(tokens){
-  const active = tokens.filter(t => t.status === 'active');
-  const disabled = tokens.filter(t => t.status === 'disabled');
-  document.getElementById('stat-total').textContent = tokens.length;
-  document.getElementById('stat-active').textContent = active.length;
-  document.getElementById('stat-disabled').textContent = disabled.length;
-  document.getElementById('token-rows').innerHTML = tokens.map(t => {
-    const date = new Date(t.created_at).toLocaleDateString() + ' ' + new Date(t.created_at).toLocaleTimeString();
-    return '<tr><td class="email">'+esc(t.email)+'</td><td><span class="status '+t.status+'">'+t.status+'</span></td><td style="max-width:200px;overflow:hidden;text-overflow:ellipsis">'+(t.token||'-')+'</td><td>'+date+'</td><td>'+(t.status === 'active' ? '<a href="#" onclick="revoke(\\''+esc(t.email)+'\\')">Revoke</a>' : '')+'</td></tr>';
+  const active=tokens.filter(t=>t.status==='active');
+  const disabled=tokens.filter(t=>t.status==='disabled');
+  const online=tokens.filter(t=>t.has_connected);
+  document.getElementById('stat-total').textContent=tokens.length;
+  document.getElementById('stat-active').textContent=active.length;
+  document.getElementById('stat-disabled').textContent=disabled.length;
+  document.getElementById('stat-online').textContent=online.length;
+  document.getElementById('token-rows').innerHTML=tokens.map(t=>{
+    const date=new Date(t.created_at).toLocaleDateString()+' '+new Date(t.created_at).toLocaleTimeString();
+    const connected=t.has_connected?'<span class="badge online"></span>Yes':'<span class="badge offline"></span>No';
+    const trainOn=t.train_with_all===1||t.train_with_all===true;
+    const trainBtn='<button class="toggle'+(trainOn?' on':' off')+'" onclick="toggleTrain(\\''+esc(t.email)+'\\','+(trainOn?'0':'1')+')">'+(trainOn?'ON':'OFF')+'</button>';
+    const actions=t.status==='active'?'<a href="#" onclick="revoke(\\''+esc(t.email)+'\\')" style="font-size:12px">Revoke</a>':'';
+    return '<tr><td class="email">'+esc(t.email)+'</td><td><span class="status '+t.status+'">'+t.status+'</span></td><td style="font-size:12px">'+connected+'</td><td style="max-width:140px;overflow:hidden;text-overflow:ellipsis">'+(t.token?t.token.substring(0,16)+'...':'-')+'</td><td>'+trainBtn+'</td><td style="font-size:11px">'+date+'</td><td>'+actions+'</td></tr>';
   }).join('');
+}
+async function toggleTrain(email,val){
+  if(!cp) return;
+  const r=await fetch('/api/admin/toggle-train',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email,passkey:cp,train_with_all:val})});
+  const d=await r.json();
+  if(d.error) return alert(d.error);
+  await login();
 }
 async function revoke(email){
   if(!confirm('Revoke token for '+email+'?')) return;
-  const r = await fetch('/api/disable-token',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email,passkey:currentPasskey})});
-  const d = await r.json();
+  const r=await fetch('/api/disable-token',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email,passkey:cp})});
+  const d=await r.json();
   if(d.error) return alert(d.error);
   await login();
 }

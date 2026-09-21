@@ -18,6 +18,7 @@ import { MEMORY_TYPES, resolveMode } from "./jev";
 import { flushJevExamples, jevQueueStats } from "./dataset";
 import { json, now, timeSafeEqual, uuid } from "./util";
 import { ADMIN_HTML } from "./admin";
+import { PRIVACY_HTML } from "./privacy";
 import { LANDING_HTML } from "./landing";
 
 const SERVER_NAME = "dgui-hypermem";
@@ -340,6 +341,8 @@ async function handleRest(request: Request, env: Env, path: string): Promise<Res
       return json(await handleAdminTokens(env, body, url), { headers: CORS });
     case "/api/admin/logs":
       return json(await handleAdminLogs(env, body, url), { headers: CORS });
+    case "/api/admin/toggle-train":
+      return json(await handleToggleTrain(env, body), { headers: CORS });
     case "/api/check-quota":
       return json(await handleCheckQuota(env, request), { headers: CORS });
     case "/api/admin/stats":
@@ -353,7 +356,7 @@ async function handleAdminTokens(env: Env, body: Record<string, any>, url: URL):
   const masterPasskey = env.MASTER_PASSKEY;
   const passkey = body.passkey || url.searchParams.get("passkey") || "";
   if (!masterPasskey || passkey !== masterPasskey) return { error: "unauthorized" };
-  const { results } = await env.DB.prepare("SELECT id, email, status, token, quota_monthly, requests_used, requests_reset_at, created_at, updated_at FROM tokens ORDER BY created_at DESC LIMIT 500").bind().all<{ id: string; email: string; status: string; token: string | null; quota_monthly: number; requests_used: number; requests_reset_at: number | null; created_at: number; updated_at: number }>();
+  const { results } = await env.DB.prepare("SELECT id, email, status, token, quota_monthly, requests_used, requests_reset_at, train_with_all, has_connected, created_at, updated_at FROM tokens ORDER BY created_at DESC LIMIT 500").bind().all<{ id: string; email: string; status: string; token: string | null; quota_monthly: number; requests_used: number; requests_reset_at: number | null; train_with_all: number; has_connected: number; created_at: number; updated_at: number }>();
   return { tokens: results || [] };
 }
 
@@ -361,6 +364,21 @@ function logCrmAction(env: Env, email: string, action: string, detail: string | 
   const ip = request.headers.get("cf-connecting-ip") || request.headers.get("x-forwarded-for") || "";
   return env.DB.prepare("INSERT INTO crm_logs (email, action, detail, ip, created_at) VALUES (?, ?, ?, ?, ?)")
     .bind(email, action, detail, ip, now());
+}
+
+function classifyPath(path: string): string {
+  if (path.startsWith("/mcp")) return "mcp";
+  if (path.includes("/api/add")) return "memory_add";
+  if (path.includes("/api/search")) return "memory_search";
+  if (path.includes("/api/list")) return "memory_list";
+  if (path.includes("/api/profile")) return "memory_profile";
+  if (path.includes("/api/forget")) return "memory_forget";
+  if (path.includes("/request-token")) return "crm_token";
+  if (path.includes("/disable-token")) return "crm_revoke";
+  if (path.includes("/check-quota")) return "crm_quota";
+  if (path.includes("/admin")) return "admin";
+  if (path.includes("/health")) return "health";
+  return "other";
 }
 
 async function handleAdminLogs(env: Env, body: Record<string, any>, url: URL): Promise<Record<string, any>> {
@@ -385,6 +403,16 @@ async function handleAdminLogs(env: Env, body: Record<string, any>, url: URL): P
   const total = totalRow?.total || 0;
   const { results } = await env.DB.prepare(sql).bind(...params, limit, offset).all<{ id: number; email: string; action: string; detail: string | null; ip: string | null; created_at: number }>();
   return { logs: results || [], total, page, limit, pages: Math.ceil(total / limit) };
+}
+
+async function handleToggleTrain(env: Env, body: Record<string, any>): Promise<Record<string, any>> {
+  const { email, passkey, train_with_all } = body;
+  if (!email || !passkey) return { error: "email and passkey are required" };
+  const masterPasskey = env.MASTER_PASSKEY;
+  if (!masterPasskey || passkey !== masterPasskey) return { error: "unauthorized" };
+  const value = train_with_all === true || train_with_all === 1 ? 1 : 0;
+  await env.DB.prepare("UPDATE tokens SET train_with_all = ?, updated_at = ? WHERE email = ?").bind(value, now(), email).run();
+  return { email, train_with_all: !!value, status: "updated" };
 }
 
 async function handleRequestToken(env: Env, body: Record<string, any>, request: Request): Promise<Record<string, any>> {
@@ -517,8 +545,12 @@ async function checkAndTrackUsage(env: Env, request: Request): Promise<{ allowed
     resetAt = now_ + 30 * 86400 * 1000;
   }
   if (used >= (row.quota_monthly || 100)) return { allowed: false, reason: "monthly quota exceeded" };
-  await env.DB.prepare("UPDATE tokens SET requests_used = requests_used + 1, requests_reset_at = ?, updated_at = ? WHERE id = ?").bind(resetAt, now_, row.id).run();
-  env.DB.prepare("INSERT INTO usage_events (token, email, path, event_at) VALUES (?, ?, ?, ?)").bind(token, row.email || "", new URL(request.url).pathname, now_).run().catch(() => {});
+  const path = new URL(request.url).pathname;
+  const context = classifyPath(path);
+  await Promise.all([
+    env.DB.prepare("UPDATE tokens SET requests_used = requests_used + 1, requests_reset_at = ?, has_connected = 1, updated_at = ? WHERE id = ?").bind(resetAt, now_, row.id).run(),
+    env.DB.prepare("INSERT INTO usage_events (token, email, path, event_at) VALUES (?, ?, ?, ?)").bind(token, row.email || "", context, now_).run(),
+  ]);
   return { allowed: true };
 }
 
@@ -539,7 +571,7 @@ export default {
         dataset: env.HF_TOKEN ? (env.HF_DATASET || "ctaxnagomi/DGUI_HYPERMEM-JEV") : null,
         endpoints: {
           mcp: "/mcp",
-          rest: ["/api/add", "/api/search", "/api/list", "/api/profile", "/api/forget", "/api/sync_jev", "/api/jev_queue_stats", "/api/request-token", "/api/check-star", "/api/disable-token", "/api/check-quota", "/api/admin/tokens", "/api/admin/stats", "/api/admin/logs"],
+          rest: ["/api/add", "/api/search", "/api/list", "/api/profile", "/api/forget", "/api/sync_jev", "/api/jev_queue_stats", "/api/request-token", "/api/check-star", "/api/disable-token", "/api/check-quota", "/api/admin/tokens", "/api/admin/stats", "/api/admin/logs", "/api/admin/toggle-train"],
         },
       });
     }
@@ -556,7 +588,13 @@ export default {
       });
     }
 
-    const CRM_ROUTES = ["/api/request-token", "/api/check-star", "/api/disable-token", "/api/admin/tokens", "/api/admin/stats", "/api/admin/logs", "/api/check-quota"];
+    if (path === "/privacy" || path === "/privacy.html" || path === "/legal") {
+      return new Response(PRIVACY_HTML, {
+        headers: { "content-type": "text/html;charset=UTF-8" },
+      });
+    }
+
+    const CRM_ROUTES = ["/api/request-token", "/api/check-star", "/api/disable-token", "/api/admin/tokens", "/api/admin/stats", "/api/admin/logs", "/api/admin/toggle-train", "/api/check-quota"];
     if (path === "/mcp" || (path.startsWith("/api/") && !CRM_ROUTES.includes(path))) {
       if (!(await authorized(request, env))) {
         return json({ error: "unauthorized" }, { status: 401, headers: CORS });
