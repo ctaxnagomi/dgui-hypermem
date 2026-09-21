@@ -331,13 +331,15 @@ async function handleRest(request: Request, env: Env, path: string): Promise<Res
     case "/api/jev_queue_stats":
       return json(await jevQueueStats(env, scope), { headers: CORS });
     case "/api/request-token":
-      return json(await handleRequestToken(env, body), { headers: CORS });
+      return json(await handleRequestToken(env, body, request), { headers: CORS });
     case "/api/check-star":
       return json(await handleCheckStar(env, body), { headers: CORS });
     case "/api/disable-token":
-      return json(await handleDisableToken(env, body), { headers: CORS });
+      return json(await handleDisableToken(env, body, request), { headers: CORS });
     case "/api/admin/tokens":
       return json(await handleAdminTokens(env, body, url), { headers: CORS });
+    case "/api/admin/logs":
+      return json(await handleAdminLogs(env, body, url), { headers: CORS });
     case "/api/check-quota":
       return json(await handleCheckQuota(env, request), { headers: CORS });
     case "/api/admin/stats":
@@ -355,7 +357,37 @@ async function handleAdminTokens(env: Env, body: Record<string, any>, url: URL):
   return { tokens: results || [] };
 }
 
-async function handleRequestToken(env: Env, body: Record<string, any>): Promise<Record<string, any>> {
+function logCrmAction(env: Env, email: string, action: string, detail: string | null, request: Request): D1PreparedStatement {
+  const ip = request.headers.get("cf-connecting-ip") || request.headers.get("x-forwarded-for") || "";
+  return env.DB.prepare("INSERT INTO crm_logs (email, action, detail, ip, created_at) VALUES (?, ?, ?, ?, ?)")
+    .bind(email, action, detail, ip, now());
+}
+
+async function handleAdminLogs(env: Env, body: Record<string, any>, url: URL): Promise<Record<string, any>> {
+  const masterPasskey = env.MASTER_PASSKEY;
+  const passkey = body.passkey || url.searchParams.get("passkey") || "";
+  if (!masterPasskey || passkey !== masterPasskey) return { error: "unauthorized" };
+  const limit = Math.min(Math.max(Number(body.limit || url.searchParams.get("limit") || 100), 1), 500);
+  const filterEmail = url.searchParams.get("email") || "";
+  const filterAction = url.searchParams.get("action") || "";
+  const page = Math.max(Number(url.searchParams.get("page") || 1), 1);
+  const offset = (page - 1) * limit;
+  let sql = "SELECT id, email, action, detail, ip, created_at FROM crm_logs";
+  let countSql = "SELECT COUNT(*) as total FROM crm_logs";
+  const params: any[] = [];
+  const wheres: string[] = [];
+  if (filterEmail) { wheres.push("email = ?"); params.push(filterEmail); }
+  if (filterAction) { wheres.push("action = ?"); params.push(filterAction); }
+  const whereClause = wheres.length ? " WHERE " + wheres.join(" AND ") : "";
+  sql += whereClause + " ORDER BY created_at DESC LIMIT ? OFFSET ?";
+  countSql += whereClause;
+  const totalRow = await env.DB.prepare(countSql).bind(...params).first<{ total: number }>();
+  const total = totalRow?.total || 0;
+  const { results } = await env.DB.prepare(sql).bind(...params, limit, offset).all<{ id: number; email: string; action: string; detail: string | null; ip: string | null; created_at: number }>();
+  return { logs: results || [], total, page, limit, pages: Math.ceil(total / limit) };
+}
+
+async function handleRequestToken(env: Env, body: Record<string, any>, request: Request): Promise<Record<string, any>> {
   const { email, passkey } = body;
   if (!email || !passkey) return { error: "email and passkey are required" };
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { error: "invalid email" };
@@ -363,17 +395,25 @@ async function handleRequestToken(env: Env, body: Record<string, any>): Promise<
   const masterPasskey = env.MASTER_PASSKEY;
   const isMaster = masterPasskey && passkey === masterPasskey;
   if (passkey !== userPasskey && !isMaster) return { error: "invalid passkey" };
-  const existing = await env.DB.prepare("SELECT id, status, token FROM tokens WHERE email = ?").bind(email).first<{ id: string; status: string; token: string | null }>();
+const existing = await env.DB.prepare("SELECT id, status, token FROM tokens WHERE email = ?").bind(email).first<{ id: string; status: string; token: string | null }>();
   if (existing) {
-    if (existing.status === "active" && existing.token) return { status: "active", token: existing.token };
-    // Re-issue for disabled/pending
+    if (existing.status === "active" && existing.token) {
+      await logCrmAction(env, email, "token_retrieved", "re-issued existing token", request).run();
+      return { status: "active", token: existing.token };
+    }
     const token = uuid();
-    await env.DB.prepare("UPDATE tokens SET status = 'active', token = ?, updated_at = ? WHERE id = ?").bind(token, now(), existing.id).run();
+    await Promise.all([
+      env.DB.prepare("UPDATE tokens SET status = 'active', token = ?, updated_at = ? WHERE id = ?").bind(token, now(), existing.id).run(),
+      logCrmAction(env, email, isMaster ? "token_master_issue" : "token_reissued", "re-activated disabled token", request).run(),
+    ]);
     return { status: "active", token };
   }
   const token = uuid();
-  await env.DB.prepare("INSERT INTO tokens (id, email, github_username, status, token, created_at, updated_at) VALUES (?, ?, ?, 'active', ?, ?, ?)")
-    .bind(uuid(), email, email, token, now(), now()).run();
+  await Promise.all([
+    env.DB.prepare("INSERT INTO tokens (id, email, github_username, status, token, created_at, updated_at) VALUES (?, ?, ?, 'active', ?, ?, ?)")
+      .bind(uuid(), email, email, token, now(), now()).run(),
+    logCrmAction(env, email, isMaster ? "token_master_created" : "token_created", "new token via CRM", request).run(),
+  ]);
   return { status: "active", token };
 }
 
@@ -381,7 +421,7 @@ async function handleCheckStar(env: Env, body: Record<string, any>): Promise<Rec
   return { error: "no longer required", starred: true };
 }
 
-async function handleDisableToken(env: Env, body: Record<string, any>): Promise<Record<string, any>> {
+async function handleDisableToken(env: Env, body: Record<string, any>, request: Request): Promise<Record<string, any>> {
   const { email, passkey } = body;
   if (!email || !passkey) return { error: "email and passkey are required" };
   const userPasskey = env.PASSKEY || "0866";
@@ -390,8 +430,14 @@ async function handleDisableToken(env: Env, body: Record<string, any>): Promise<
   if (passkey !== userPasskey && !isMaster) return { error: "invalid passkey" };
   const row = await env.DB.prepare("SELECT id, status FROM tokens WHERE email = ?").bind(email).first<{ id: string; status: string }>();
   if (!row) return { error: "no token found" };
-  if (row.status === "disabled") return { status: "disabled" };
-  await env.DB.prepare("UPDATE tokens SET status = 'disabled', updated_at = ? WHERE id = ?").bind(now(), row.id).run();
+  if (row.status === "disabled") {
+    await logCrmAction(env, email, "token_disabled_again", "attempted re-disable", request).run();
+    return { status: "disabled" };
+  }
+  await Promise.all([
+    env.DB.prepare("UPDATE tokens SET status = 'disabled', updated_at = ? WHERE id = ?").bind(now(), row.id).run(),
+    logCrmAction(env, email, isMaster ? "token_master_disabled" : "token_disabled", "token revoked", request).run(),
+  ]);
   return { status: "disabled" };
 }
 
@@ -493,7 +539,7 @@ export default {
         dataset: env.HF_TOKEN ? (env.HF_DATASET || "ctaxnagomi/DGUI_HYPERMEM-JEV") : null,
         endpoints: {
           mcp: "/mcp",
-          rest: ["/api/add", "/api/search", "/api/list", "/api/profile", "/api/forget", "/api/sync_jev", "/api/jev_queue_stats", "/api/request-token", "/api/check-star", "/api/disable-token", "/api/check-quota", "/api/admin/tokens", "/api/admin/stats"],
+          rest: ["/api/add", "/api/search", "/api/list", "/api/profile", "/api/forget", "/api/sync_jev", "/api/jev_queue_stats", "/api/request-token", "/api/check-star", "/api/disable-token", "/api/check-quota", "/api/admin/tokens", "/api/admin/stats", "/api/admin/logs"],
         },
       });
     }
@@ -510,7 +556,7 @@ export default {
       });
     }
 
-    const CRM_ROUTES = ["/api/request-token", "/api/check-star", "/api/disable-token", "/api/admin/tokens", "/api/admin/stats", "/api/check-quota"];
+    const CRM_ROUTES = ["/api/request-token", "/api/check-star", "/api/disable-token", "/api/admin/tokens", "/api/admin/stats", "/api/admin/logs", "/api/check-quota"];
     if (path === "/mcp" || (path.startsWith("/api/") && !CRM_ROUTES.includes(path))) {
       if (!(await authorized(request, env))) {
         return json({ error: "unauthorized" }, { status: 401, headers: CORS });
