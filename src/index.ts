@@ -22,6 +22,8 @@ import { PRIVACY_HTML } from "./privacy";
 import { HOWTO_HTML } from "./howto";
 import { TERMS_HTML } from "./terms";
 import { createCheckoutSession, handleStripeWebhook, PAYMENT_HTML } from "./payment";
+import { RETURN_HTML } from "./returnpolicy";
+import { LEGAL_HTML } from "./legal";
 import { LANDING_HTML } from "./landing";
 
 const SERVER_NAME = "dgui-hypermem";
@@ -661,6 +663,18 @@ export default {
 
     if (path === "/terms" || path === "/terms-of-service") {
       return new Response(TERMS_HTML, {
+        headers: { "content-type": "text/html;charset=UTF-8" },
+      });
+    }
+
+    if (path === "/return-policy" || path === "/refund") {
+      return new Response(RETURN_HTML, {
+        headers: { "content-type": "text/html;charset=UTF-8" },
+      });
+    }
+
+    if (path === "/legal" || path === "/legal-policies") {
+      return new Response(LEGAL_HTML, {
         headers: { "content-type": "text/html;charset=UTF-8" },
       });
     }

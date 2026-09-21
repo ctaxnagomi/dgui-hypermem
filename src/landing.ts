@@ -276,9 +276,11 @@ footer p{font-size:14px;color:var(--text-muted)}footer a{color:var(--accent-cyan
 <p>DGUI-HyperMem — a <a href="https://deckergui.my">DeckerGUI</a> project</p>
 <div class="footer-links">
 <a href="/how-to"><i class="fas fa-book"></i> How to Use</a>
-<a href="/privacy"><i class="fas fa-shield-alt"></i> Privacy Policy</a>
-<a href="/terms"><i class="fas fa-file-signature"></i> Terms of Service</a>
-<a href="https://github.com/ctaxnagomi/dgui-hypermem"><i class="fab fa-github"></i> Self-Host on GitHub</a>
+<a href="/privacy"><i class="fas fa-shield-alt"></i> Privacy</a>
+<a href="/terms"><i class="fas fa-file-signature"></i> Terms</a>
+<a href="/return-policy"><i class="fas fa-undo"></i> Returns</a>
+<a href="/legal"><i class="fas fa-gavel"></i> Legal</a>
+<a href="https://github.com/ctaxnagomi/dgui-hypermem"><i class="fab fa-github"></i> Self-Host</a>
 </div>
 <p style="margin-top:8px;font-size:12px">Jev / System One by <a href="https://typesafe.ai">TypeSafe AI</a></p>
 <p style="margin-top:16px;font-size:11px"><a href="https://github.com/ctaxnagomi/dgui-hypermem">GitHub</a> · <a href="https://huggingface.co/datasets/ctaxnagomi/DGUI_HYPERMEM-JEV">HuggingFace</a> · <a href="https://github.com/ctaxnagomi/dgui-hypermem/blob/main/LICENSE">MIT License</a> · <a href="https://krackeddevs.com">KrackedDevs</a> · <a href="https://ctecx.com">CTECX</a></p>
