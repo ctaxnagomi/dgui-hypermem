@@ -620,6 +620,13 @@ export default {
     const url = new URL(request.url);
     const path = url.pathname.replace(/\/+$/, "") || "/";
 
+    // Blocked countries (no diplomatic ties with Malaysia / security risk)
+    const country = (request as any).cf?.country || request.headers.get("CF-IPCountry") || "";
+    const BLOCKED_COUNTRIES = ["IL", "KP", "KR"];
+    if (country && BLOCKED_COUNTRIES.includes(country)) {
+      return json({ error: "access denied from your region" }, { status: 403, headers: CORS });
+    }
+
     if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
 
     if (path === "/health") {
