@@ -1,5 +1,5 @@
 export const LANDING_HTML = `<!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en" data-theme="bright">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no">
@@ -10,7 +10,7 @@ export const LANDING_HTML = `<!DOCTYPE html>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="DGUI-HyperMem">
-<meta name="theme-color" content="#0a0a0a">
+<meta name="theme-color" content="#ffffff">
 <meta name="application-name" content="DGUI-HyperMem">
 <meta name="msapplication-TileColor" content="#0a0a0a">
 <link rel="manifest" href="/manifest.json">
@@ -19,11 +19,11 @@ export const LANDING_HTML = `<!DOCTYPE html>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;800&family=JetBrains+Mono:wght@300;400;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 <style>
-:root{--bg-primary:#0a0a0a;--bg-surface:#1a1c20;--accent-cyan:#00f0ff;--accent:#fff;--text-secondary:#dadbdf;--text-muted:#7d8187;--border-glass:#212327;--border-accent:rgba(255,255,255,0.25)}
+:root{--bg-primary:#ffffff;--bg-surface:#f8f9fb;--accent-cyan:#00a3b3;--accent:#000000;--text-secondary:#4a4a4a;--text-muted:#9ca3af;--border-glass:#e5e7eb;--border-accent:rgba(0,0,0,0.15)}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%;width:100%;background:var(--bg-primary);font-family:'Inter',sans-serif;color:var(--accent);-webkit-font-smoothing:antialiased;overflow-x:hidden;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:none;touch-action:manipulation}
 ::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--border-glass);border-radius:10px}
-nav{display:flex;align-items:center;justify-content:space-between;padding:16px 24px;padding-top:calc(16px + env(safe-area-inset-top,0px));border-bottom:1px solid var(--border-glass)}
+nav{display:flex;align-items:center;justify-content:space-between;padding:16px 24px;padding-top:calc(16px + env(safe-area-inset-top,0px));border-bottom:1px solid var(--border-glass);background:rgba(255,255,255,0.9);backdrop-filter:blur(8px);position:sticky;top:0;z-index:100}
 .hero{padding:120px 24px 60px;text-align:center}
 .hero .caption-mono{font-family:JetBrains Mono,monospace;font-size:14px;letter-spacing:1.4px;text-transform:uppercase;color:var(--accent-cyan);margin-bottom:24px}
 .hero h1{font-size:72px;line-height:72px;font-weight:300;letter-spacing:-1.8px;margin-bottom:24px}
@@ -50,11 +50,11 @@ nav{display:flex;align-items:center;justify-content:space-between;padding:16px 2
 /* Modal */
 .modal-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.7);backdrop-filter:blur(4px);z-index:1000;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .4s}
 .modal-overlay.show{opacity:1;pointer-events:auto}
-.modal-box{background:var(--bg-surface);border:1px solid var(--border-glass);border-radius:12px;padding:32px;max-width:560px;width:90%;max-height:80vh;overflow-y:auto;transform:scale(.9);transition:transform .4s cubic-bezier(.16,1,.3,1)}
+.modal-box{background:#ffffff;border:1px solid var(--border-glass);border-radius:12px;padding:32px;max-width:560px;width:90%;max-height:80vh;overflow-y:auto;transform:scale(.9);transition:transform .4s cubic-bezier(.16,1,.3,1)}
 .modal-overlay.show .modal-box{transform:scale(1)}
 .modal-box h2{font-size:20px;font-weight:500;margin-bottom:16px;color:var(--accent)}
 .modal-box h3{font-size:14px;font-weight:500;margin:20px 0 8px;color:var(--accent)}
-.modal-box p, .modal-box li{font-size:13px;line-height:1.6;color:var(--text-secondary);margin-bottom:6px}
+.modal-box p, .modal-box li{font-size:13px;line-height:1.6;color:#4a4a4a;margin-bottom:6px}
 .modal-box ul{padding-left:18px;margin:8px 0}
 .modal-box label{display:flex;align-items:flex-start;gap:10px;margin:20px 0 24px;cursor:pointer;font-size:13px;color:var(--text-secondary);line-height:1.5}
 .modal-box input[type=checkbox]{margin-top:3px;accent-color:var(--accent-cyan);width:16px;height:16px;flex-shrink:0}
