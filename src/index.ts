@@ -349,6 +349,8 @@ async function handleRest(request: Request, env: Env, path: string): Promise<Res
       return json(await handleAdminLogs(env, body, url, request), { headers: CORS });
     case "/api/admin/toggle-train":
       return json(await handleToggleTrain(env, body), { headers: CORS });
+    case "/api/admin/update-quota":
+      return json(await handleUpdateQuota(env, body), { headers: CORS });
     case "/api/check-quota":
       return json(await handleCheckQuota(env, request), { headers: CORS });
     case "/api/enterprise-inquiry":
@@ -434,6 +436,22 @@ async function handleToggleTrain(env: Env, body: Record<string, any>): Promise<R
   const value = train_with_all === true || train_with_all === 1 ? 1 : 0;
   await env.DB.prepare("UPDATE tokens SET train_with_all = ?, updated_at = ? WHERE email = ?").bind(value, now(), email).run();
   return { email, train_with_all: !!value, status: "updated" };
+}
+
+async function handleUpdateQuota(env: Env, body: Record<string, any>): Promise<Record<string, any>> {
+  const { email, passkey, quota_monthly, plan } = body;
+  if (!email || !passkey) return { error: "email and passkey are required" };
+  const masterPasskey = env.MASTER_PASSKEY;
+  if (!masterPasskey || passkey !== masterPasskey) return { error: "unauthorized" };
+  if (quota_monthly !== undefined && (typeof quota_monthly !== 'number' || quota_monthly < 0)) return { error: "invalid quota" };
+  const updates: string[] = [];
+  const params: any[] = [];
+  if (quota_monthly !== undefined) { updates.push("quota_monthly = ?"); params.push(quota_monthly); }
+  if (plan !== undefined) { updates.push("plan = ?"); params.push(plan); }
+  if (!updates.length) return { error: "nothing to update" };
+  updates.push("updated_at = ?"); params.push(now()); params.push(email);
+  await env.DB.prepare(`UPDATE tokens SET ${updates.join(", ")} WHERE email = ?`).bind(...params).run();
+  return { email, quota_monthly, plan, status: "updated" };
 }
 
 async function handleRequestToken(env: Env, body: Record<string, any>, request: Request): Promise<Record<string, any>> {
@@ -640,7 +658,7 @@ export default {
         dataset: env.HF_TOKEN ? (env.HF_DATASET || "ctaxnagomi/DGUI_HYPERMEM-JEV") : null,
         endpoints: {
           mcp: "/mcp",
-          rest: ["/api/add", "/api/search", "/api/list", "/api/profile", "/api/forget", "/api/sync_jev", "/api/jev_queue_stats", "/api/request-token", "/api/check-star", "/api/disable-token", "/api/check-quota", "/api/enterprise-inquiry", "/api/create-checkout-session", "/api/stripe-webhook", "/api/admin/tokens", "/api/admin/stats", "/api/admin/logs", "/api/admin/toggle-train"],
+          rest: ["/api/add", "/api/search", "/api/list", "/api/profile", "/api/forget", "/api/sync_jev", "/api/jev_queue_stats", "/api/request-token", "/api/check-star", "/api/disable-token", "/api/check-quota", "/api/enterprise-inquiry", "/api/create-checkout-session", "/api/stripe-webhook", "/api/admin/tokens", "/api/admin/stats", "/api/admin/logs", "/api/admin/toggle-train", "/api/admin/update-quota"],
         },
       });
     }
@@ -693,7 +711,7 @@ export default {
       });
     }
 
-    const CRM_ROUTES = ["/api/request-token", "/api/check-star", "/api/disable-token", "/api/enterprise-inquiry", "/api/create-checkout-session", "/api/stripe-webhook", "/api/admin/tokens", "/api/admin/stats", "/api/admin/logs", "/api/admin/toggle-train", "/api/check-quota"];
+    const CRM_ROUTES = ["/api/request-token", "/api/check-star", "/api/disable-token", "/api/enterprise-inquiry", "/api/create-checkout-session", "/api/stripe-webhook", "/api/admin/tokens", "/api/admin/stats", "/api/admin/logs", "/api/admin/toggle-train", "/api/admin/update-quota", "/api/check-quota"];
     if (path === "/mcp" || (path.startsWith("/api/") && !CRM_ROUTES.includes(path))) {
       if (!(await authorized(request, env))) {
         return json({ error: "unauthorized" }, { status: 401, headers: CORS });

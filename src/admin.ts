@@ -110,7 +110,7 @@ function render(tokens){
     const quotaPct=Math.min(100,Math.round(quotaUsed/quotaMax*100));
     const quotaColor=quotaPct>=90?'#f87171':quotaPct>=70?'#fbbf24':'#4ade80';
     const quotaDisplay='<span style="color:'+quotaColor+'">'+quotaUsed+'/'+quotaMax+'</span>';
-    const actions=t.status==='active'?'<a href="#" onclick="revoke(\\''+esc(t.email)+'\\')" style="font-size:11px">Revoke</a>':'';
+    const actions=t.status==='active'?'<a href="#" onclick="revoke(\\''+esc(t.email)+'\\')" style="font-size:11px">Revoke</a> <a href="#" onclick="editQuota(\\''+esc(t.email)+'\\','+t.quota_monthly+',\\''+(t.plan||'free')+'\\')" style="font-size:11px;margin-left:6px">Quota</a>':'';
     const tcAgreed=t.tc_agreed===1||t.tc_agreed===true;
     const tcDisplay='<span style="color:'+(tcAgreed?'#4ade80':'#f87171')+'">'+(tcAgreed?'✓':'✗')+'</span>';
     const planName=t.plan||'free';
@@ -132,6 +132,14 @@ async function revoke(email){
   const d=await r.json();
   if(d.error) return alert(d.error);
   await login();
+}
+function editQuota(email,currentQuota,currentPlan){
+  const quota=prompt('New quota for '+email+':',currentQuota);
+  if(quota===null) return;
+  const plan=prompt('Plan (free/median/pro/enterprise):',currentPlan||'free');
+  if(plan===null) return;
+  fetch('/api/admin/update-quota',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email,passkey:cp,quota_monthly:parseInt(quota),plan})})
+  .then(r=>r.json()).then(d=>{if(d.error)alert(d.error);else alert('Updated');login()});
 }
 function esc(s){return s.replace(/[&<>"]/g,function(m){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]})}
 </script>
