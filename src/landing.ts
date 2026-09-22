@@ -6,7 +6,12 @@ export const LANDING_HTML = `<!DOCTYPE html>
 <title>DGUI-HyperMem — Hybrid Memory MCP Server</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M50 8C30 8 14 24 14 44c0 8 2.5 15.5 7 21.5v16c0 3.5 3 6.5 6.5 6.5h45c3.5 0 6.5-3 6.5-6.5v-16c4.5-6 7-13.5 7-21.5C86 24 70 8 50 8z' fill='%2300f0ff' opacity='0.15'/%3E%3Cpath d='M50 14C32 14 18 28 18 46s7 20 10 23v14c0 3 2 5 5 5h34c3 0 5-2 5-5V69c3-3 10-8 10-23S68 14 50 14z' fill='none' stroke='%2300f0ff' stroke-width='2'/%3E%3Cpath d='M50 28c-8 0-15 4-18 10h5c2-3 6-5 13-5s11 2 13 5h5c-3-6-10-10-18-10z' fill='%2300f0ff' opacity='0.6'/%3E%3C/svg%3E">
 <link rel="icon" type="image/png" sizes="48x48" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M50 8C30 8 14 24 14 44c0 8 2.5 15.5 7 21.5v16c0 3.5 3 6.5 6.5 6.5h45c3.5 0 6.5-3 6.5-6.5v-16c4.5-6 7-13.5 7-21.5C86 24 70 8 50 8z' fill='%2300f0ff' opacity='0.15'/%3E%3Cpath d='M50 14C32 14 18 28 18 46s7 20 10 23v14c0 3 2 5 5 5h34c3 0 5-2 5-5V69c3-3 10-8 10-23S68 14 50 14z' fill='none' stroke='%2300f0ff' stroke-width='2'/%3E%3Cpath d='M50 28c-8 0-15 4-18 10h5c2-3 6-5 13-5s11 2 13 5h5c-3-6-10-10-18-10z' fill='%2300f0ff' opacity='0.6'/%3E%3C/svg%3E">
-<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M50 8C30 8 14 24 14 44c0 8 2.5 15.5 7 21.5v16c0 3.5 3 6.5 6.5 6.5h45c3.5 0 6.5-3 6.5-6.5v-16c4.5-6 7-13.5 7-21.5C86 24 70 8 50 8z' fill='%2300f0ff' opacity='0.15'/%3E%3Cpath d='M50 14C32 14 18 28 18 46s7 20 10 23v14c0 3 2 5 5 5h34c3 0 5-2 5-5V69c3-3 10-8 10-23S68 14 50 14z' fill='none' stroke='%2300f0ff' stroke-width='2'/%3E%3Cpath d='M50 28c-8 0-15 4-18 10h5c2-3 6-5 13-5s11 2 13 5h5c-3-6-10-10-18-10z' fill='%2300f0ff' opacity='0.6'/%3E%3C/svg%3E">
+<link rel="apple-touch-icon" sizes="180x180" href="/icon-180.png">
+<link rel="apple-touch-icon" sizes="152x152" href="/icon-152.png">
+<link rel="apple-touch-icon" sizes="120x120" href="/icon-120.png">
+<link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="/icon-512.png">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M50 8L92 34L50 58L8 34Z' fill='%2300a3b3' stroke='%2300a3b3' stroke-width='1'/%3E%3Cpath d='M50 30L92 56L50 80L8 56Z' fill='rgba(200,200,200,0.8)' stroke='%2300a3b3' stroke-width='1'/%3E%3Cpath d='M50 52L92 78L50 92L8 78Z' fill='%23e0e0e0' stroke='%2300a3b3' stroke-width='1'/%3E%3C/svg%3E">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="DGUI-HyperMem">
@@ -28,8 +33,8 @@ nav{display:flex;align-items:center;justify-content:space-between;padding:16px 2
 .hero .caption-mono{font-family:JetBrains Mono,monospace;font-size:14px;letter-spacing:1.4px;text-transform:uppercase;color:var(--accent-cyan);margin-bottom:24px}
 .hero h1{font-size:72px;line-height:72px;font-weight:300;letter-spacing:-1.8px;margin-bottom:24px}
 .hero p{font-size:18px;line-height:28px;color:var(--text-secondary);max-width:640px;margin:0 auto 48px}
-.btn-primary{background:var(--accent);color:#0a0a0a;border:none;border-radius:9999px;padding:10px 24px;font-size:15px;cursor:pointer;display:inline-flex;align-items:center;gap:8px;text-decoration:none}
-.btn-outline{background:transparent;color:var(--accent);border:1px solid var(--border-accent);border-radius:9999px;padding:10px 24px;font-size:15px;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:8px}
+.btn-primary{background:#00a3b3;color:#ffffff;border:none;border-radius:9999px;padding:10px 24px;font-size:15px;cursor:pointer;display:inline-flex;align-items:center;gap:8px;text-decoration:none}.btn-primary:hover{background:#008896}
+.btn-outline{background:transparent;color:#000000;border:1px solid #d0d0d0;border-radius:9999px;padding:10px 24px;font-size:15px;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:8px}.btn-outline:hover{border-color:#000000}
 .hero-actions{display:flex;gap:16px;justify-content:center;flex-wrap:wrap;margin-top:32px}
 .section-header{text-align:center;margin-bottom:16px;padding:60px 24px 0}
 .section-header .caption-mono{font-family:JetBrains Mono,monospace;font-size:14px;letter-spacing:1.4px;text-transform:uppercase;color:var(--accent-cyan);margin-bottom:12px}
@@ -121,13 +126,13 @@ footer p{font-size:14px;color:var(--text-muted)}footer a{color:var(--accent-cyan
 <div class="arch-wrapper">
 <svg viewBox="0 0 780 540" xmlns="http://www.w3.org/2000/svg">
 <rect x="290" y="5" width="200" height="55" rx="12" stroke="#00f0ff" stroke-width="2" fill="none" transform="rotate(-0.5 390 32)"/>
-<text x="390" y="40" text-anchor="middle" fill="#fff" font-family="JetBrains Mono,monospace" font-size="13">MCP Client</text>
+<text x="390" y="40" text-anchor="middle" fill="#333333" font-family="JetBrains Mono,monospace" font-size="13">MCP Client</text>
 <line x1="390" y1="60" x2="390" y2="95" stroke="#00f0ff" stroke-width="2" stroke-dasharray="6 4" class="dash-anim"/>
 <rect x="270" y="95" width="240" height="55" rx="12" stroke="#00f0ff" stroke-width="2" fill="none" transform="rotate(0.3 390 122)"/>
-<text x="390" y="130" text-anchor="middle" fill="#fff" font-family="JetBrains Mono,monospace" font-size="12">dgui-hypermem.workers.dev</text>
+<text x="390" y="130" text-anchor="middle" fill="#333333" font-family="JetBrains Mono,monospace" font-size="12">dgui-hypermem.workers.dev</text>
 <line x1="390" y1="150" x2="390" y2="185" stroke="#00f0ff" stroke-width="2" stroke-dasharray="6 4" class="dash-anim"/>
 <rect x="290" y="185" width="200" height="50" rx="12" stroke="#fff" stroke-width="2" fill="none" transform="rotate(-0.4 390 210)"/>
-<text x="390" y="215" text-anchor="middle" fill="#fff" font-family="JetBrains Mono,monospace" font-size="11">JEV Layer (Choice/Noul/Score)</text>
+<text x="390" y="215" text-anchor="middle" fill="#333333" font-family="JetBrains Mono,monospace" font-size="11">JEV Layer (Choice/Noul/Score)</text>
 <line x1="325" y1="235" x2="195" y2="290" stroke="#7d8187" stroke-width="2" stroke-dasharray="6 4" class="dash-anim"/>
 <line x1="390" y1="235" x2="390" y2="290" stroke="#7d8187" stroke-width="2" stroke-dasharray="6 4" class="dash-anim"/>
 <line x1="455" y1="235" x2="585" y2="290" stroke="#7d8187" stroke-width="2" stroke-dasharray="6 4" class="dash-anim"/>
@@ -143,7 +148,7 @@ footer p{font-size:14px;color:var(--text-muted)}footer a{color:var(--accent-cyan
 <line x1="195" y1="375" x2="585" y2="375" stroke="#7d8187" stroke-width="1" class="dash-anim"/>
 <line x1="390" y1="375" x2="390" y2="405" stroke="#7d8187" stroke-width="1.5" class="dash-anim"/>
 <rect x="285" y="405" width="210" height="40" rx="12" stroke="#fff" stroke-width="1.5" fill="none" opacity="0.6" transform="rotate(-0.2 390 425)"/>
-<text x="390" y="430" text-anchor="middle" fill="#fff" opacity="0.6" font-family="JetBrains Mono,monospace" font-size="11">jev_examples queue</text>
+<text x="390" y="430" text-anchor="middle" fill="#666666" opacity="0.6" font-family="JetBrains Mono,monospace" font-size="11">jev_examples queue</text>
 <line x1="390" y1="445" x2="390" y2="470" stroke="#00f0ff" stroke-width="1.5" class="dash-anim"/>
 <rect x="265" y="470" width="250" height="40" rx="12" stroke="#00f0ff" stroke-width="2" fill="none" transform="rotate(0.4 390 490)"/>
 <text x="390" y="495" text-anchor="middle" fill="#00f0ff" font-family="JetBrains Mono,monospace" font-size="12">🤗 DGUI_HYPERMEM-JEV</text>

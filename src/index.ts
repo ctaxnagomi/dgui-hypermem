@@ -24,6 +24,7 @@ import { TERMS_HTML } from "./terms";
 import { createCheckoutSession, handleStripeWebhook, PAYMENT_HTML } from "./payment";
 import { RETURN_HTML } from "./returnpolicy";
 import { LEGAL_HTML } from "./legal";
+import { ICON_180_B64, ICON_152_B64, ICON_120_B64, ICON_192_B64, ICON_48_B64, FAVICON_B64 } from "./icons";
 import { LANDING_HTML } from "./landing";
 
 const SERVER_NAME = "dgui-hypermem";
@@ -705,6 +706,23 @@ export default {
 
     if (path === "/mcp") return handleMcp(request, env);
     if (path.startsWith("/api/")) return handleRest(request, env, path);
+
+    // Serve static icon files
+    const ICONS: Record<string, string> = {
+      "/icon-180.png": ICON_180_B64,
+      "/icon-152.png": ICON_152_B64,
+      "/icon-120.png": ICON_120_B64,
+      "/icon-192.png": ICON_192_B64,
+      "/icon-48.png": ICON_48_B64,
+      "/favicon.ico": FAVICON_B64,
+    };
+    const iconB64 = ICONS[path];
+    if (iconB64) {
+      const img = Uint8Array.from(atob(iconB64), c => c.charCodeAt(0));
+      return new Response(img, {
+        headers: { "content-type": "image/png", "cache-control": "public, max-age=86400" },
+      });
+    }
 
     return json({ error: "not found" }, { status: 404 });
   },
