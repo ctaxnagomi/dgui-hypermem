@@ -103,8 +103,7 @@ footer p{font-size:14px;color:var(--text-muted)}footer a{color:var(--accent-cyan
 <body>
 <nav><span style="font-weight:500;font-size:16px">DECKER GUI</span>
 <div style="display:flex;gap:24px;align-items:center">
-<a href="#arch" style="color:var(--text-muted);text-decoration:none;font-size:14px">Architecture</a>
-<a href="#pricing" style="color:var(--text-muted);text-decoration:none;font-size:14px">Plans</a>
+
 <a href="#crm" style="color:var(--text-muted);text-decoration:none;font-size:14px">Get Token</a>
 <a href="https://github.com/ctaxnagomi/dgui-hypermem" target="_blank" style="color:var(--accent);border:1px solid var(--border-accent);border-radius:9999px;padding:8px 20px;font-size:14px;text-decoration:none"><i class="fab fa-github"></i> GitHub</a>
 </div></nav>

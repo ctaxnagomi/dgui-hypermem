@@ -64,7 +64,7 @@ const PRICES_DISPLAY: Record<string, { price_id: string; name: string; quota: nu
 };
 
 export const PAYMENT_HTML = `<!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en" data-theme="bright">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no">
@@ -75,14 +75,14 @@ export const PAYMENT_HTML = `<!DOCTYPE html>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;800&display=swap" rel="stylesheet">
 <script async src="https://js.stripe.com/v3/pricing-table.js"></script>
 <style>
-:root{--bg-primary:#0a0a0a;--bg-surface:#1a1c20;--text-primary:#fff;--text-secondary:#dadbdf;--text-muted:#7d8187}
+:root{--bg-primary:#ffffff;--bg-surface:#f8f9fb;--text-primary:#000000;--text-secondary:#4a4a4a;--text-muted:#9ca3af}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-html,body{background:var(--bg-primary);font-family:'Inter',sans-serif;color:var(--text-primary)}
-body{padding:24px;max-width;touch-action:manipulation;-webkit-text-size-adjust:100%;overscroll-behavior:none;max-width:900px;margin:0 auto}
-h1{font-size:24px;font-weight:300;margin-bottom:4px;color:#00f0ff}
+html,body{background:var(--bg-primary);font-family:'Inter',sans-serif;color:var(--text-primary);touch-action:manipulation;-webkit-text-size-adjust:100%;overscroll-behavior:none}
+body{padding:24px;padding-top:calc(24px + env(safe-area-inset-top,0px));padding-bottom:calc(24px + env(safe-area-inset-bottom,0px));max-width:900px;margin:0 auto}
+h1{font-size:24px;font-weight:300;margin-bottom:4px;color:#000000}
 .sub{color:var(--text-muted);font-size:13px;margin-bottom:32px}
 .back{display:inline-block;margin-bottom:24px;color:var(--text-muted);font-size:13px;cursor:pointer;text-decoration:none}
-.back:hover{color:var(--accent-cyan)}
+.back:hover{color:#00a3b3}
 stripe-pricing-table{margin-top:20px}
 </style>
 </head>
