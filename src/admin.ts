@@ -4,7 +4,12 @@ export const ADMIN_HTML = `<!DOCTYPE html>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>DGUI-HyperMem Admin — Token Dashboard</title>
-<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M50 8L92 34L50 58L8 34Z' fill='%2300f0ff' stroke='%2300f0ff' stroke-width='1'/%3E%3Cpath d='M50 30L92 56L50 80L8 56Z' fill='rgba(26,26,26,0.85)' stroke='%2300f0ff' stroke-width='1'/%3E%3Cpath d='M50 52L92 78L50 92L8 78Z' fill='%231a1a1a' stroke='%2300f0ff' stroke-width='1'/%3E%3C/svg%3E">
+<link rel="apple-touch-icon" sizes="180x180" href="/admin-180.png">
+<link rel="apple-touch-icon" sizes="152x152" href="/admin-152.png">
+<link rel="apple-touch-icon" sizes="120x120" href="/admin-120.png">
+<link rel="icon" type="image/png" sizes="192x192" href="/admin-192.png">
+<link rel="icon" type="image/png" sizes="48x48" href="/admin-48.png">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M50 8L92 34L50 58L8 34Z' fill='%2300f0ff' stroke='%2300f0ff' stroke-width='1'/%3E%3Cpath d='M50 30L92 56L50 80L8 56Z' fill='rgba(200,200,200,0.7)' stroke='%2300f0ff' stroke-width='1'/%3E%3Cpath d='M50 52L92 78L50 92L8 78Z' fill='rgba(255,255,255,0.8)' stroke='%2300f0ff' stroke-width='1'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;800&family=JetBrains+Mono:wght@300;400;700&display=swap" rel="stylesheet">

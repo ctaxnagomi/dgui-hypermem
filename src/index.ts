@@ -24,7 +24,7 @@ import { TERMS_HTML } from "./terms";
 import { createCheckoutSession, handleStripeWebhook, PAYMENT_HTML } from "./payment";
 import { RETURN_HTML } from "./returnpolicy";
 import { LEGAL_HTML } from "./legal";
-import { ICON_180_B64, ICON_152_B64, ICON_120_B64, ICON_192_B64, ICON_48_B64, FAVICON_B64 } from "./icons";
+import { ICON_180_B64, ICON_152_B64, ICON_120_B64, ICON_192_B64, ICON_48_B64, FAVICON_B64, ADMIN_180_B64, ADMIN_152_B64, ADMIN_120_B64, ADMIN_192_B64, ADMIN_48_B64 } from "./icons";
 import { LANDING_HTML } from "./landing";
 
 const SERVER_NAME = "dgui-hypermem";
@@ -733,6 +733,11 @@ export default {
       "/icon-192.png": ICON_192_B64,
       "/icon-48.png": ICON_48_B64,
       "/favicon.ico": FAVICON_B64,
+      "/admin-180.png": ADMIN_180_B64,
+      "/admin-152.png": ADMIN_152_B64,
+      "/admin-120.png": ADMIN_120_B64,
+      "/admin-192.png": ADMIN_192_B64,
+      "/admin-48.png": ADMIN_48_B64,
     };
     const iconB64 = ICONS[path];
     if (iconB64) {
