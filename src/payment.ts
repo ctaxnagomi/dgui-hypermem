@@ -99,7 +99,7 @@ h1{font-size:28px;font-weight:300;margin-bottom:4px;text-align:center}
 </style>
 </head>
 <body>
-<a class="back" href="/" onclick="history.back();return false">&larr; Back</a>
+<a class="back" href="/">&larr; Back to Home</a>
 <h1>Upgrade Your Plan</h1>
 <div class="sub">Powered by <strong>DeckerGUI</strong> &middot; CTECX Payment Partner</div>
 <div class="plans" id="plans">
