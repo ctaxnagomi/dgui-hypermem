@@ -14,6 +14,7 @@ export interface Env {
   HF_DATASET?: string;
   PASSKEY?: string;
   MASTER_PASSKEY?: string;
+  ADMIN_PASSKEY_2?: string;
   GITHUB_TOKEN?: string;
   STRIPE_SECRET_KEY?: string;
   STRIPE_WEBHOOK_SECRET?: string;

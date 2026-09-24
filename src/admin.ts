@@ -72,10 +72,47 @@ a{color:var(--accent-cyan);text-decoration:none}
 <div class="topbar"><div><h1>Token Dashboard</h1><div class="sub">dgui-hypermem.ctaxnagomi.workers.dev</div></div><div style="text-align:right"><a class="logout" onclick="document.getElementById('dashboard').style.display='none';document.getElementById('login').style.display='block'" style="color:var(--text-muted);font-size:13px;cursor:pointer;display:block">Logout</a><a href="/privacy" class="privacy-link" style="margin-top:4px;display:inline-block;font-size:12px;color:var(--text-muted)">Privacy</a></div></div>
 <div class="stats" id="stats-row"></div>
 <div class="table-wrap" id="table-wrap"><table><thead><tr><th>Email</th><th>Plan</th><th>Status</th><th>MCP</th><th>T&amp;C</th><th>Token</th><th>Quota</th><th>Train</th><th>Created</th><th>Action</th></tr></thead><tbody id="token-rows"></tbody></table></div>
+<div style="margin-top:24px;padding-top:16px;border-top:1px solid var(--border-glass);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+<div style="font-size:13px;color:var(--text-muted)"><i class="fas fa-clock"></i> <span id="clock-status">--</span></div>
+<div style="display:flex;gap:8px">
+<button class="btn" id="btn-clock-in" onclick="clockIn()" style="width:auto;padding:8px 16px;font-size:12px"><i class="fas fa-sign-in-alt"></i> Clock In</button>
+<button class="btn" id="btn-clock-out" onclick="clockOut()" style="width:auto;padding:8px 16px;font-size:12px;background:rgba(248,113,113,1);display:none"><i class="fas fa-sign-out-alt"></i> Clock Out</button>
+</div>
+</div>
 </div>
 </div>
 <script>
 let cp='';
+let clockState=null;
+async function clockIn(){
+  if(!cp) return;
+  const r=await fetch('/api/admin/clock',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({action:'in',passkey:cp})});
+  const d=await r.json();
+  if(d.error) return alert(d.error);
+  clockState='in';
+  updateClockUI(d.at);
+}
+async function clockOut(){
+  if(!cp) return;
+  const r=await fetch('/api/admin/clock',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({action:'out',passkey:cp})});
+  const d=await r.json();
+  if(d.error) return alert(d.error);
+  clockState='out';
+  updateClockUI(null,d.duration_minutes);
+}
+function updateClockUI(at,duration){
+  const st=document.getElementById('clock-status');
+  if(clockState==='in'){
+    const d2=new Date(at);
+    st.innerHTML='Clocked in at <strong>'+d2.toLocaleTimeString()+'</strong>';
+    document.getElementById('btn-clock-in').style.display='none';
+    document.getElementById('btn-clock-out').style.display='inline-block';
+  }else{
+    st.innerHTML='Last session: <strong>'+(duration||0)+' min</strong>';
+    document.getElementById('btn-clock-in').style.display='inline-block';
+    document.getElementById('btn-clock-out').style.display='none';
+  }
+}
 async function login(){
   cp=document.getElementById('admin-passkey').value;
   if(!cp) return alert('Enter master passkey');

@@ -351,6 +351,8 @@ async function handleRest(request: Request, env: Env, path: string): Promise<Res
       return json(await handleToggleTrain(env, body), { headers: CORS });
     case "/api/admin/update-quota":
       return json(await handleUpdateQuota(env, body), { headers: CORS });
+    case "/api/admin/clock":
+      return json(await handleAdminClock(env, body), { headers: CORS });
     case "/api/check-quota":
       return json(await handleCheckQuota(env, request), { headers: CORS });
     case "/api/verify-token":
@@ -369,9 +371,8 @@ async function handleRest(request: Request, env: Env, path: string): Promise<Res
 }
 
 async function handleAdminTokens(env: Env, body: Record<string, any>, url: URL, request: Request): Promise<Record<string, any>> {
-  const masterPasskey = env.MASTER_PASSKEY;
   const passkey = body.passkey || url.searchParams.get("passkey") || "";
-  if (!masterPasskey || passkey !== masterPasskey) {
+  if (!passkey || !isAdmin(passkey, env)) {
     await logCrmAction(env, "unknown", "admin_login_fail", `failed admin token list attempt`, request).run().catch(() => {});
     return { error: "unauthorized" };
   }
@@ -402,10 +403,17 @@ function classifyPath(path: string): string {
   return "other";
 }
 
+function isAdmin(passkey: string, env: Env): boolean {
+  const master = env.MASTER_PASSKEY;
+  const admin2 = env.ADMIN_PASSKEY_2;
+  if (master && passkey === master) return true;
+  if (admin2 && passkey === admin2) return true;
+  return false;
+}
+
 async function handleAdminLogs(env: Env, body: Record<string, any>, url: URL, request: Request): Promise<Record<string, any>> {
-  const masterPasskey = env.MASTER_PASSKEY;
   const passkey = body.passkey || url.searchParams.get("passkey") || "";
-  if (!masterPasskey || passkey !== masterPasskey) {
+  if (!passkey || !isAdmin(passkey, env)) {
     await logCrmAction(env, "unknown", "admin_logs_fail", "failed admin logs attempt", request).run().catch(() => {});
     return { error: "unauthorized" };
   }
@@ -433,8 +441,7 @@ async function handleAdminLogs(env: Env, body: Record<string, any>, url: URL, re
 async function handleToggleTrain(env: Env, body: Record<string, any>): Promise<Record<string, any>> {
   const { email, passkey, train_with_all } = body;
   if (!email || !passkey) return { error: "email and passkey are required" };
-  const masterPasskey = env.MASTER_PASSKEY;
-  if (!masterPasskey || passkey !== masterPasskey) return { error: "unauthorized" };
+  if (!isAdmin(passkey, env)) return { error: "unauthorized" };
   const value = train_with_all === true || train_with_all === 1 ? 1 : 0;
   await env.DB.prepare("UPDATE tokens SET train_with_all = ?, updated_at = ? WHERE email = ?").bind(value, now(), email).run();
   return { email, train_with_all: !!value, status: "updated" };
@@ -443,8 +450,7 @@ async function handleToggleTrain(env: Env, body: Record<string, any>): Promise<R
 async function handleUpdateQuota(env: Env, body: Record<string, any>): Promise<Record<string, any>> {
   const { email, passkey, quota_monthly, plan } = body;
   if (!email || !passkey) return { error: "email and passkey are required" };
-  const masterPasskey = env.MASTER_PASSKEY;
-  if (!masterPasskey || passkey !== masterPasskey) return { error: "unauthorized" };
+  if (!isAdmin(passkey, env)) return { error: "unauthorized" };
   if (quota_monthly !== undefined && (typeof quota_monthly !== 'number' || quota_monthly < 0)) return { error: "invalid quota" };
   const updates: string[] = [];
   const params: any[] = [];
@@ -454,6 +460,27 @@ async function handleUpdateQuota(env: Env, body: Record<string, any>): Promise<R
   updates.push("updated_at = ?"); params.push(now()); params.push(email);
   await env.DB.prepare(`UPDATE tokens SET ${updates.join(", ")} WHERE email = ?`).bind(...params).run();
   return { email, quota_monthly, plan, status: "updated" };
+}
+
+async function handleAdminClock(env: Env, body: Record<string, any>): Promise<Record<string, any>> {
+  const { action, passkey } = body;
+  if (!action || !passkey) return { error: "action and passkey are required" };
+  if (action !== "in" && action !== "out") return { error: "action must be 'in' or 'out'" };
+  if (!isAdmin(passkey, env)) return { error: "unauthorized" };
+  const email = "admin";
+  const now_ = now();
+  if (action === "in") {
+    const existingOpen = await env.DB.prepare("SELECT id FROM admin_logs WHERE email = ? AND action = 'clock_in' AND created_at > ? ORDER BY created_at DESC LIMIT 1").bind(email, now_ - 86400000).first();
+    if (existingOpen) return { error: "already clocked in", status: "clocked_in" };
+    await env.DB.prepare("INSERT INTO admin_logs (email, action, created_at) VALUES (?, 'clock_in', ?)").bind(email, now_).run();
+    return { status: "clocked_in", at: now_ };
+  } else {
+    const lastIn = await env.DB.prepare("SELECT id, created_at FROM admin_logs WHERE email = ? AND action = 'clock_in' AND created_at > ? ORDER BY created_at DESC LIMIT 1").bind(email, now_ - 86400000).first<{ id: number; created_at: number }>();
+    if (!lastIn) return { error: "not clocked in", status: "not_clocked_in" };
+    await env.DB.prepare("INSERT INTO admin_logs (email, action, created_at) VALUES (?, 'clock_out', ?)").bind(email, now_).run();
+    const duration = Math.round((now_ - lastIn.created_at) / 60000);
+    return { status: "clocked_out", at: now_, duration_minutes: duration };
+  }
 }
 
 async function handleRequestToken(env: Env, body: Record<string, any>, request: Request): Promise<Record<string, any>> {
@@ -587,9 +614,8 @@ async function handleVerifyToken(env: Env, request: Request): Promise<Record<str
 }
 
 async function handleAdminStats(env: Env, body: Record<string, any>, url: URL, request: Request): Promise<Record<string, any>> {
-  const masterPasskey = env.MASTER_PASSKEY;
   const passkey = body.passkey || url.searchParams.get("passkey") || "";
-  if (!masterPasskey || passkey !== masterPasskey) {
+  if (!passkey || !isAdmin(passkey, env)) {
     await logCrmAction(env, "unknown", "admin_stats_fail", "failed admin stats attempt", request).run().catch(() => {});
     return { error: "unauthorized" };
   }
@@ -688,7 +714,7 @@ export default {
         dataset: env.HF_TOKEN ? (env.HF_DATASET || "ctaxnagomi/DGUI_HYPERMEM-JEV") : null,
         endpoints: {
           mcp: "/mcp",
-          rest: ["/api/add", "/api/search", "/api/list", "/api/profile", "/api/forget", "/api/sync_jev", "/api/jev_queue_stats", "/api/request-token", "/api/check-star", "/api/disable-token", "/api/check-quota", "/api/verify-token", "/api/enterprise-inquiry", "/api/create-checkout-session", "/api/stripe-webhook", "/api/admin/tokens", "/api/admin/stats", "/api/admin/logs", "/api/admin/toggle-train", "/api/admin/update-quota"],
+          rest: ["/api/add", "/api/search", "/api/list", "/api/profile", "/api/forget", "/api/sync_jev", "/api/jev_queue_stats", "/api/request-token", "/api/check-star", "/api/disable-token", "/api/check-quota", "/api/verify-token", "/api/enterprise-inquiry", "/api/create-checkout-session", "/api/stripe-webhook", "/api/admin/tokens", "/api/admin/stats", "/api/admin/logs", "/api/admin/toggle-train", "/api/admin/update-quota", "/api/admin/clock"],
         },
       });
     }
@@ -741,7 +767,7 @@ export default {
       });
     }
 
-    const CRM_ROUTES = ["/api/request-token", "/api/check-star", "/api/disable-token", "/api/verify-token", "/api/enterprise-inquiry", "/api/create-checkout-session", "/api/stripe-webhook", "/api/admin/tokens", "/api/admin/stats", "/api/admin/logs", "/api/admin/toggle-train", "/api/admin/update-quota", "/api/check-quota"];
+    const CRM_ROUTES = ["/api/request-token", "/api/check-star", "/api/disable-token", "/api/verify-token", "/api/enterprise-inquiry", "/api/create-checkout-session", "/api/stripe-webhook", "/api/admin/tokens", "/api/admin/stats", "/api/admin/logs", "/api/admin/toggle-train", "/api/admin/update-quota", "/api/admin/clock", "/api/check-quota"];
     if (path === "/mcp" || (path.startsWith("/api/") && !CRM_ROUTES.includes(path))) {
       if (!(await authorized(request, env))) {
         return json({ error: "unauthorized" }, { status: 401, headers: CORS });
