@@ -457,7 +457,7 @@ async function handleUpdateQuota(env: Env, body: Record<string, any>): Promise<R
 async function handleRequestToken(env: Env, body: Record<string, any>, request: Request): Promise<Record<string, any>> {
   const { email, passkey, tc_agreed } = body;
   if (!email || !passkey) return { error: "email and passkey are required" };
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { error: "invalid email" };
+  if (!email.includes("@") || email.length < 5) return { error: "invalid email" };
   const userPasskey = env.PASSKEY || "0866";
   const masterPasskey = env.MASTER_PASSKEY;
   const isMaster = masterPasskey && passkey === masterPasskey;
