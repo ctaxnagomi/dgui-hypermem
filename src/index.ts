@@ -523,7 +523,7 @@ async function handleRequestToken(env: Env, body: Record<string, any>, request: 
   const token = uuid();
   const tcValue = tc_agreed === true || tc_agreed === 1 ? 1 : 0;
   await Promise.all([
-    env.DB.prepare("INSERT INTO tokens (id, email, github_username, status, token, plan, quota_monthly, tc_agreed, created_at, updated_at) VALUES (?, ?, ?, 'active', ?, 'free', 1000, ?, ?, ?)")
+    env.DB.prepare("INSERT INTO tokens (id, email, github_username, status, token, plan, quota_monthly, tc_agreed, created_at, updated_at) VALUES (?, ?, ?, 'active', ?, 'free', 5600, ?, ?, ?)")
       .bind(uuid(), email, email, token, tcValue, now(), now()).run(),
     logCrmAction(env, email, isMaster ? "token_master_created" : "token_created", "new token via CRM", request).run(),
   ]);
@@ -556,10 +556,11 @@ async function handleDisableToken(env: Env, body: Record<string, any>, request: 
 
 function planQuota(plan: string | null): number {
   switch (plan) {
-    case "median": return 3500;
-    case "pro": return 6500;
+    case "free": return 5600;
+    case "median": return 7800;
+    case "pro": return 10000;
     case "enterprise": return 999999;
-    default: return 1000;
+    default: return 5600;
   }
 }
 

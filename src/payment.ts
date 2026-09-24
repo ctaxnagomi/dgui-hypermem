@@ -2,8 +2,8 @@ import Stripe from "stripe";
 import { now, uuid } from "./util";
 
 const PRICES: Record<string, { price_id: string; name: string; quota: number }> = {
-  median: { price_id: "price_1UICicLjoFSWfKc7s3edXQzs", name: "Median", quota: 3500 },
-  pro: { price_id: "price_1UICitLjoFSWfKc7PYVoJ5hj", name: "Pro", quota: 6500 },
+  median: { price_id: "price_1UICicLjoFSWfKc7s3edXQzs", name: "Median", quota: 7800 },
+  pro: { price_id: "price_1UICitLjoFSWfKc7PYVoJ5hj", name: "Pro", quota: 10000 },
 };
 
 export function getStripe(env: { STRIPE_SECRET_KEY?: string }): Stripe | null {
@@ -121,7 +121,7 @@ h1{font-size:28px;font-weight:300;margin-bottom:4px;text-align:center}
 <div class="plan-desc">For power users who need more capacity.</div>
 <ul class="plan-features">
 <li><i class="fas fa-check"></i> Everything in Free</li>
-<li><i class="fas fa-check"></i> 3,500 requests / month</li>
+<li><i class="fas fa-check"></i> 7,800 requests / month</li>
 <li><i class="fas fa-check"></i> Priority queue</li>
 <li><i class="fas fa-check"></i> Email support</li>
 </ul>
@@ -133,7 +133,7 @@ h1{font-size:28px;font-weight:300;margin-bottom:4px;text-align:center}
 <div class="plan-desc">For professionals and teams.</div>
 <ul class="plan-features">
 <li><i class="fas fa-check"></i> Everything in Median</li>
-<li><i class="fas fa-check"></i> 6,500 requests / month</li>
+<li><i class="fas fa-check"></i> 10,000 requests / month</li>
 <li><i class="fas fa-check"></i> Highest priority queue</li>
 <li><i class="fas fa-check"></i> Chat & email support</li>
 </ul>
