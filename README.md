@@ -152,7 +152,7 @@ DGUI-HyperMem is a **DeckerGUI** project.
 | **TypeSafe AI** | Jev — the first System One model — and the Choice / Noul / Score primitives the reasoning layer is built on. | <https://typesafe.ai> · <https://docs.typesafe.ai> |
 | **DeckerGUI** | Design, implementation and operation. | <https://deckergui.my> |
 | **KrackedDevs** | Community credit and support. | <https://krackeddevs.com> |
-| **CTECX** | Knowledge / corpus partner. | <ctecx.deckergui.my> |
+| **CTECX** | Knowledge / corpus partner. | <https://ctecx.deckergui.my> |
 
 > *Jev*, *System One*, and the *Choice / Noul / Score* primitives are **TypeSafe AI**'s and
 > are used under their MIT-licensed public documentation (<https://docs.typesafe.ai>).
