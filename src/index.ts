@@ -353,6 +353,8 @@ async function handleRest(request: Request, env: Env, path: string): Promise<Res
       return json(await handleUpdateQuota(env, body), { headers: CORS });
     case "/api/admin/clock":
       return json(await handleAdminClock(env, body), { headers: CORS });
+    case "/api/visitor":
+      return json(await handleVisitor(env), { headers: CORS });
     case "/api/check-quota":
       return json(await handleCheckQuota(env, request), { headers: CORS });
     case "/api/verify-token":
@@ -481,6 +483,12 @@ async function handleAdminClock(env: Env, body: Record<string, any>): Promise<Re
     const duration = Math.round((now_ - lastIn.created_at) / 60000);
     return { status: "clocked_out", at: now_, duration_minutes: duration };
   }
+}
+
+async function handleVisitor(env: Env): Promise<Record<string, any>> {
+  await env.DB.prepare("UPDATE visitor_counter SET count = count + 1 WHERE id = 1").run();
+  const row = await env.DB.prepare("SELECT count FROM visitor_counter WHERE id = 1").bind().first<{ count: number }>();
+  return { count: row?.count || 0 };
 }
 
 async function handleRequestToken(env: Env, body: Record<string, any>, request: Request): Promise<Record<string, any>> {
@@ -714,7 +722,7 @@ export default {
         dataset: env.HF_TOKEN ? (env.HF_DATASET || "ctaxnagomi/DGUI_HYPERMEM-JEV") : null,
         endpoints: {
           mcp: "/mcp",
-          rest: ["/api/add", "/api/search", "/api/list", "/api/profile", "/api/forget", "/api/sync_jev", "/api/jev_queue_stats", "/api/request-token", "/api/check-star", "/api/disable-token", "/api/check-quota", "/api/verify-token", "/api/enterprise-inquiry", "/api/create-checkout-session", "/api/stripe-webhook", "/api/admin/tokens", "/api/admin/stats", "/api/admin/logs", "/api/admin/toggle-train", "/api/admin/update-quota", "/api/admin/clock"],
+          rest: ["/api/add", "/api/search", "/api/list", "/api/profile", "/api/forget", "/api/sync_jev", "/api/jev_queue_stats", "/api/request-token", "/api/check-star", "/api/disable-token", "/api/check-quota", "/api/verify-token", "/api/enterprise-inquiry", "/api/create-checkout-session", "/api/stripe-webhook", "/api/admin/tokens", "/api/admin/stats", "/api/admin/logs", "/api/admin/toggle-train", "/api/admin/update-quota", "/api/admin/clock", "/api/visitor"],
         },
       });
     }
@@ -767,7 +775,7 @@ export default {
       });
     }
 
-    const CRM_ROUTES = ["/api/request-token", "/api/check-star", "/api/disable-token", "/api/verify-token", "/api/enterprise-inquiry", "/api/create-checkout-session", "/api/stripe-webhook", "/api/admin/tokens", "/api/admin/stats", "/api/admin/logs", "/api/admin/toggle-train", "/api/admin/update-quota", "/api/admin/clock", "/api/check-quota"];
+    const CRM_ROUTES = ["/api/request-token", "/api/check-star", "/api/disable-token", "/api/verify-token", "/api/visitor", "/api/enterprise-inquiry", "/api/create-checkout-session", "/api/stripe-webhook", "/api/admin/tokens", "/api/admin/stats", "/api/admin/logs", "/api/admin/toggle-train", "/api/admin/update-quota", "/api/admin/clock", "/api/check-quota"];
     if (path === "/mcp" || (path.startsWith("/api/") && !CRM_ROUTES.includes(path))) {
       if (!(await authorized(request, env))) {
         return json({ error: "unauthorized" }, { status: 401, headers: CORS });
