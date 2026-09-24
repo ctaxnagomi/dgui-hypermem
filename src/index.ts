@@ -353,6 +353,8 @@ async function handleRest(request: Request, env: Env, path: string): Promise<Res
       return json(await handleUpdateQuota(env, body), { headers: CORS });
     case "/api/check-quota":
       return json(await handleCheckQuota(env, request), { headers: CORS });
+    case "/api/verify-token":
+      return json(await handleVerifyToken(env, request), { headers: CORS });
     case "/api/enterprise-inquiry":
       return json(await handleEnterpriseInquiry(env, body), { headers: CORS });
     case "/api/create-checkout-session":
@@ -462,7 +464,9 @@ async function handleRequestToken(env: Env, body: Record<string, any>, request: 
   const masterPasskey = env.MASTER_PASSKEY;
   const isMaster = masterPasskey && passkey === masterPasskey;
   if (passkey !== userPasskey && !isMaster) return { error: "invalid passkey" };
-  if (!isMaster && !tc_agreed) return { error: "you must agree to the Terms and Privacy Policy" };
+  if (!isMaster && !tc_agreed) {
+    // Allow the request but mark tc_agreed as 0 - token still works
+  }
   const existing = await env.DB.prepare("SELECT id, status, token, train_with_all, tc_agreed FROM tokens WHERE email = ?").bind(email).first<{ id: string; status: string; token: string | null; train_with_all: number; tc_agreed: number }>();
   if (existing) {
     if (existing.status === "active" && existing.token) {
@@ -482,9 +486,10 @@ async function handleRequestToken(env: Env, body: Record<string, any>, request: 
     return { error: "user limit reached (100 max). Contact admin." };
   }
   const token = uuid();
+  const tcValue = tc_agreed === true || tc_agreed === 1 ? 1 : 0;
   await Promise.all([
-    env.DB.prepare("INSERT INTO tokens (id, email, github_username, status, token, plan, quota_monthly, tc_agreed, created_at, updated_at) VALUES (?, ?, ?, 'active', ?, 'free', 1000, 1, ?, ?)")
-      .bind(uuid(), email, email, token, now(), now()).run(),
+    env.DB.prepare("INSERT INTO tokens (id, email, github_username, status, token, plan, quota_monthly, tc_agreed, created_at, updated_at) VALUES (?, ?, ?, 'active', ?, 'free', 1000, ?, ?, ?)")
+      .bind(uuid(), email, email, token, tcValue, now(), now()).run(),
     logCrmAction(env, email, isMaster ? "token_master_created" : "token_created", "new token via CRM", request).run(),
   ]);
   return { status: "active", token, train_with_all: true, tc_agreed: true };
@@ -554,6 +559,31 @@ async function handleCheckQuota(env: Env, request: Request): Promise<Record<stri
     usage_30d: user30d?.c || 0,
     usage_year: userYear?.c || 0,
   };
+}
+
+async function handleVerifyToken(env: Env, request: Request): Promise<Record<string, any>> {
+  const token = extractToken(request);
+  if (!token) return { error: "no token provided", valid: false };
+  const mcpToken = env.MCP_TOKEN;
+  if (mcpToken && token === mcpToken) return { valid: true, type: "mcp_token", note: "global MCP token" };
+  try {
+    const row = await env.DB.prepare("SELECT email, status, quota_monthly, requests_used, tc_agreed, created_at FROM tokens WHERE token = ?").bind(token).first<{ email: string; status: string; quota_monthly: number; requests_used: number; tc_agreed: number; created_at: number }>();
+    if (!row) return { valid: false, error: "token not found in database" };
+    if (row.status !== "active") return { valid: false, error: `token status is '${row.status}' (not active)` };
+    const quotaOk = (row.requests_used || 0) < (row.quota_monthly || 1000);
+    return {
+      valid: true,
+      email: row.email,
+      status: row.status,
+      tc_agreed: !!row.tc_agreed,
+      quota_ok: quotaOk,
+      requests_used: row.requests_used,
+      quota_monthly: row.quota_monthly,
+      type: "crm_token",
+    };
+  } catch (e: any) {
+    return { valid: false, error: String(e) };
+  }
 }
 
 async function handleAdminStats(env: Env, body: Record<string, any>, url: URL, request: Request): Promise<Record<string, any>> {
@@ -658,7 +688,7 @@ export default {
         dataset: env.HF_TOKEN ? (env.HF_DATASET || "ctaxnagomi/DGUI_HYPERMEM-JEV") : null,
         endpoints: {
           mcp: "/mcp",
-          rest: ["/api/add", "/api/search", "/api/list", "/api/profile", "/api/forget", "/api/sync_jev", "/api/jev_queue_stats", "/api/request-token", "/api/check-star", "/api/disable-token", "/api/check-quota", "/api/enterprise-inquiry", "/api/create-checkout-session", "/api/stripe-webhook", "/api/admin/tokens", "/api/admin/stats", "/api/admin/logs", "/api/admin/toggle-train", "/api/admin/update-quota"],
+          rest: ["/api/add", "/api/search", "/api/list", "/api/profile", "/api/forget", "/api/sync_jev", "/api/jev_queue_stats", "/api/request-token", "/api/check-star", "/api/disable-token", "/api/check-quota", "/api/verify-token", "/api/enterprise-inquiry", "/api/create-checkout-session", "/api/stripe-webhook", "/api/admin/tokens", "/api/admin/stats", "/api/admin/logs", "/api/admin/toggle-train", "/api/admin/update-quota"],
         },
       });
     }
@@ -711,7 +741,7 @@ export default {
       });
     }
 
-    const CRM_ROUTES = ["/api/request-token", "/api/check-star", "/api/disable-token", "/api/enterprise-inquiry", "/api/create-checkout-session", "/api/stripe-webhook", "/api/admin/tokens", "/api/admin/stats", "/api/admin/logs", "/api/admin/toggle-train", "/api/admin/update-quota", "/api/check-quota"];
+    const CRM_ROUTES = ["/api/request-token", "/api/check-star", "/api/disable-token", "/api/verify-token", "/api/enterprise-inquiry", "/api/create-checkout-session", "/api/stripe-webhook", "/api/admin/tokens", "/api/admin/stats", "/api/admin/logs", "/api/admin/toggle-train", "/api/admin/update-quota", "/api/check-quota"];
     if (path === "/mcp" || (path.startsWith("/api/") && !CRM_ROUTES.includes(path))) {
       if (!(await authorized(request, env))) {
         return json({ error: "unauthorized" }, { status: 401, headers: CORS });
