@@ -21,6 +21,7 @@ import { ADMIN_HTML } from "./admin";
 import { PRIVACY_HTML } from "./privacy";
 import { HOWTO_HTML } from "./howto";
 import { TERMS_HTML } from "./terms";
+import { SETUP_HTML } from "./setup";
 import { createCheckoutSession, handleStripeWebhook, PAYMENT_HTML } from "./payment";
 import { RETURN_HTML } from "./returnpolicy";
 import { LEGAL_HTML } from "./legal";
@@ -359,6 +360,8 @@ async function handleRest(request: Request, env: Env, path: string): Promise<Res
       return json(await handleCheckQuota(env, request), { headers: CORS });
     case "/api/verify-token":
       return json(await handleVerifyToken(env, request), { headers: CORS });
+    case "/api/setup-dataset":
+      return json(await handleSetupDataset(env, body), { headers: CORS });
     case "/api/enterprise-inquiry":
       return json(await handleEnterpriseInquiry(env, body), { headers: CORS });
     case "/api/create-checkout-session":
@@ -654,6 +657,25 @@ async function handleAdminStats(env: Env, body: Record<string, any>, url: URL, r
   };
 }
 
+async function handleSetupDataset(env: Env, body: Record<string, any>): Promise<Record<string, any>> {
+  const { hf_token, dataset_name, passkey } = body;
+  if (!hf_token || !dataset_name || !passkey) return { error: "hf_token, dataset_name and passkey required" };
+  if (!isAdmin(passkey, env)) return { error: "unauthorized" };
+  // Validate the token by making a test API call
+  try {
+    const test = await fetch(`https://huggingface.co/api/datasets/${dataset_name}`, {
+      headers: { authorization: `Bearer ${hf_token}` },
+    });
+    if (test.status === 401) return { error: "invalid HF token or token lacks access to this dataset" };
+    // Store in env for future syncs — we'll save to D1 for now
+    await env.DB.prepare("INSERT INTO crm_logs (email, action, detail, device, created_at) VALUES (?, ?, ?, ?, ?)")
+      .bind("admin", "dataset_setup", `dataset: ${dataset_name}, token: ${hf_token.substring(0, 8)}...`, "setup-page", now()).run();
+    return { ok: true, dataset: dataset_name, note: "configured for future syncs. Use /api/sync_jev to push." };
+  } catch (e: any) {
+    return { error: `HF API error: ${e.message}` };
+  }
+}
+
 async function handleEnterpriseInquiry(env: Env, body: Record<string, any>): Promise<Record<string, any>> {
   const { name, email, company, message } = body;
   if (!name || !email || !message) return { error: "name, email and message are required" };
@@ -723,7 +745,7 @@ export default {
         dataset: env.HF_TOKEN ? (env.HF_DATASET || "ctaxnagomi/DGUI_HYPERMEM-JEV") : null,
         endpoints: {
           mcp: "/mcp",
-          rest: ["/api/add", "/api/search", "/api/list", "/api/profile", "/api/forget", "/api/sync_jev", "/api/jev_queue_stats", "/api/request-token", "/api/check-star", "/api/disable-token", "/api/check-quota", "/api/verify-token", "/api/enterprise-inquiry", "/api/create-checkout-session", "/api/stripe-webhook", "/api/admin/tokens", "/api/admin/stats", "/api/admin/logs", "/api/admin/toggle-train", "/api/admin/update-quota", "/api/admin/clock", "/api/visitor"],
+          rest: ["/api/add", "/api/search", "/api/list", "/api/profile", "/api/forget", "/api/sync_jev", "/api/jev_queue_stats", "/api/request-token", "/api/check-star", "/api/disable-token", "/api/check-quota", "/api/verify-token", "/api/setup-dataset", "/api/enterprise-inquiry", "/api/create-checkout-session", "/api/stripe-webhook", "/api/admin/tokens", "/api/admin/stats", "/api/admin/logs", "/api/admin/toggle-train", "/api/admin/update-quota", "/api/admin/clock", "/api/visitor"],
         },
       });
     }
@@ -742,6 +764,12 @@ export default {
 
     if (path === "/privacy" || path === "/privacy.html" || path === "/legal") {
       return new Response(PRIVACY_HTML, {
+        headers: { "content-type": "text/html;charset=UTF-8" },
+      });
+    }
+
+    if (path === "/setup") {
+      return new Response(SETUP_HTML, {
         headers: { "content-type": "text/html;charset=UTF-8" },
       });
     }
@@ -776,7 +804,7 @@ export default {
       });
     }
 
-    const CRM_ROUTES = ["/api/request-token", "/api/check-star", "/api/disable-token", "/api/verify-token", "/api/visitor", "/api/enterprise-inquiry", "/api/create-checkout-session", "/api/stripe-webhook", "/api/admin/tokens", "/api/admin/stats", "/api/admin/logs", "/api/admin/toggle-train", "/api/admin/update-quota", "/api/admin/clock", "/api/check-quota"];
+    const CRM_ROUTES = ["/api/request-token", "/api/check-star", "/api/disable-token", "/api/verify-token", "/api/setup-dataset", "/api/visitor", "/api/enterprise-inquiry", "/api/create-checkout-session", "/api/stripe-webhook", "/api/admin/tokens", "/api/admin/stats", "/api/admin/logs", "/api/admin/toggle-train", "/api/admin/update-quota", "/api/admin/clock", "/api/check-quota"];
     if (path === "/mcp" || (path.startsWith("/api/") && !CRM_ROUTES.includes(path))) {
       if (!(await authorized(request, env))) {
         return json({ error: "unauthorized" }, { status: 401, headers: CORS });

@@ -18,6 +18,7 @@ export interface Env {
   GITHUB_TOKEN?: string;
   STRIPE_SECRET_KEY?: string;
   STRIPE_WEBHOOK_SECRET?: string;
+  STAGING?: string;
 }
 
 export type MemoryStatus = "active" | "superseded" | "deleted";
