@@ -110,6 +110,8 @@ footer p{font-size:14px;color:var(--text-muted)}footer a{color:var(--accent-cyan
 <div style="display:flex;gap:24px;align-items:center">
 
 <a href="#crm" style="color:var(--text-muted);text-decoration:none;font-size:14px">Get Token</a>
+<a href="/docs" style="color:var(--text-muted);text-decoration:none;font-size:14px">Documentation</a>
+
 <a href="https://github.com/ctaxnagomi/dgui-hypermem" target="_blank" style="color:var(--accent);border:1px solid var(--border-accent);border-radius:9999px;padding:8px 20px;font-size:14px;text-decoration:none"><i class="fab fa-github"></i> GitHub</a>
 </div></nav>
 <section class="hero">
@@ -249,7 +251,7 @@ footer p{font-size:14px;color:var(--text-muted)}footer a{color:var(--accent-cyan
 <div class="container" style="max-width:1200px;margin:0 auto;padding:0 24px">
 <p>DGUI-HyperMem — a <a href="https://deckergui.my">DeckerGUI</a> project</p>
 <div class="footer-links">
-<a href="https://github.com/ctaxnagomi/dgui-hypermem#readme"><i class="fas fa-book"></i> How to Use</a>
+<a href="/docs"><i class="fas fa-book"></i> How to Use</a>
 <a href="/privacy"><i class="fas fa-shield-alt"></i> Privacy</a>
 <a href="/terms"><i class="fas fa-file-signature"></i> Terms</a>
 <a href="/return-policy"><i class="fas fa-undo"></i> Returns</a>

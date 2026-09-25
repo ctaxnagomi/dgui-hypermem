@@ -22,6 +22,7 @@ import { PRIVACY_HTML } from "./privacy";
 import { HOWTO_HTML } from "./howto";
 import { TERMS_HTML } from "./terms";
 import { SETUP_HTML } from "./setup";
+import { DOCS_HTML } from "./docs";
 import { createCheckoutSession, handleStripeWebhook, PAYMENT_HTML } from "./payment";
 import { RETURN_HTML } from "./returnpolicy";
 import { LEGAL_HTML } from "./legal";
@@ -34,22 +35,24 @@ const SERVER_VERSION = "1.0.0";
 const HELP = `DGUI-HyperMem (DeckerGUI HyperMemory) - hybrid long-term memory with a JEV reasoning layer.
 
 Tools
-  add      Store a memory. JEV types it (choice), scores its salience (score), and drops
-           anything it considers non-durable. Optionally supersedes memories it contradicts.
+  add      Store a memory. JEV assigns type, salience, confidence, and durability metadata,
+           and can supersede a nearby memory when it detects a contradiction.
   search   Hybrid recall: vector + keyword candidates, fused, then JEV re-ranked.
   list     Browse recent memories in a scope.
   profile  Summarise a scope: counts by type, top tags, average salience.
   forget   Delete by id, by search query, or everything in a scope.
   sync_jev_dataset
-           Flush queued JEV decisions to the DGUI_HYPERMEM-JEV training dataset (also runs hourly).
+           Flush queued JEV decisions to the configured training dataset (also runs hourly).
   jev_queue_stats
            Show how many JEV examples are queued, uploaded, or failed, and the target dataset.
   help     This text.
 
 Memory types (choice): ${Object.keys(MEMORY_TYPES).join(", ")}
-Scopes are independent memory spaces; use one per user, project, or agent.
+Scopes are independent memory spaces; use one per user, project, or agent. They are not
+authorization boundaries in the current implementation.
 JEV backend is reported by the "provider" field: typesafe | workers-ai | off.
-Every JEV decision is logged to ctaxnagomi/DGUI_HYPERMEM-JEV and flushed hourly.`;
+When a JEV provider and dataset export are configured, analysis and supersede decisions may
+be queued for dataset synchronization.`;
 
 type ToolText = { content: { type: "text"; text: string }[]; isError?: boolean };
 
@@ -744,6 +747,7 @@ export default {
         default_scope: env.DEFAULT_SCOPE || "default",
         dataset: env.HF_TOKEN ? (env.HF_DATASET || "ctaxnagomi/DGUI_HYPERMEM-JEV") : null,
         endpoints: {
+          docs: "/docs",
           mcp: "/mcp",
           rest: ["/api/add", "/api/search", "/api/list", "/api/profile", "/api/forget", "/api/sync_jev", "/api/jev_queue_stats", "/api/request-token", "/api/check-star", "/api/disable-token", "/api/check-quota", "/api/verify-token", "/api/setup-dataset", "/api/enterprise-inquiry", "/api/create-checkout-session", "/api/stripe-webhook", "/api/admin/tokens", "/api/admin/stats", "/api/admin/logs", "/api/admin/toggle-train", "/api/admin/update-quota", "/api/admin/clock", "/api/visitor"],
         },
@@ -771,6 +775,12 @@ export default {
     if (path === "/setup") {
       return new Response(SETUP_HTML, {
         headers: { "content-type": "text/html;charset=UTF-8" },
+      });
+    }
+
+    if (path === "/docs" || path === "/documentation") {
+      return new Response(DOCS_HTML, {
+        headers: { "content-type": "text/html;charset=UTF-8", "cache-control": "no-store" },
       });
     }
 
