@@ -116,19 +116,44 @@ failure. `docs.ts:250` documents `/mcp` correctly.
 
 ---
 
+## Fixed: fail-open MCP auth and the shared hardcoded passkey
+
+**Fail-open.** `authorized()` ended with `if (!token) return !mcpToken;`, so a
+deployment with no `MCP_TOKEN` configured authorised every anonymous request on
+`/mcp` and the non-CRM `/api/*` routes. Now fails closed. Verified: an
+unauthenticated `POST /mcp` returns 401.
+
+**Shared passkey.** `PASSKEY` was a `plain_text` var in `wrangler.jsonc` holding
+`"0866"`, *and* both call sites carried a redundant `env.PASSKEY || "0866"`
+fallback — so a deployment that forgot to set the var silently accepted a
+credential that was, until this change, printed in the public docs. Now:
+
+- A single `checkPasskey()` helper is the only authority for passkey checks
+  (the logic was previously duplicated verbatim in `handleRequestToken` and
+  `handleDisableToken`).
+- No hardcoded fallback. With neither `PASSKEY` nor `MASTER_PASSKEY` set,
+  nothing can authenticate.
+- Comparison is constant-time via `timeSafeEqual`, replacing `===`.
+- `PASSKEY` moved out of `wrangler.jsonc` into a `secret_text` binding.
+- The passkey input's `maxlength` went from 20 to 128 to accommodate a
+  high-entropy value.
+
+**Breaking change.** The shared passkey was rotated, so `0866` no longer issues
+tokens. Anyone relying on it must be given the new value. It is recorded in the
+gitignored `.dev.vars` as `PASSKEY`.
+
+**Still a design limitation.** One shared passkey gates all self-serve signups,
+so anyone who obtains it can claim a token for any email. Rotating and hiding it
+raises the bar but does not fix the model. A per-user invitation or email
+magic-link flow would be the real answer.
+
 ## Outstanding security work
 
-- **Shared passkey published in docs.** `howto.ts:34` prints the user passkey
-  (`0866`) in the public documentation, and `PASSKEY` is a plain-text var
-  defaulting to `"0866"`. Restoring the token portal makes this reachable
-  again — rotate at the same time.
-- **Fail-open MCP auth.** When `MCP_TOKEN` is unset, `authorized()` does not
-  reject. The master-token usage-tracking exemption added in `7be60f6` is
-  correct, but the unset case is still open.
 - **Setup-token logging.** Tokens are written to logs on the setup path.
 - **Incomplete migrations.** `migrations/0001_init.sql` … `0006_logs.sql` do not
   fully reproduce the live schema, so clean self-host installs remain broken.
-  `schema.sql` in the migration bundle is the authoritative version.
+  `schema.sql` in the migration bundle is the authoritative version. New OAuth
+  tables need migrations here too, or self-hosters break again.
 - **Credential in the working tree.** `token-wan.md` holds a Cloudflare API
   token in plaintext. It is untracked and gitignored (`.gitignore:23`) and has
   never been committed, but it should not sit at the repo root.

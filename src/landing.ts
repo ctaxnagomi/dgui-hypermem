@@ -206,7 +206,7 @@ footer p{font-size:14px;color:var(--text-muted)}footer a{color:var(--accent-cyan
 </div>
 <div class="crm-card" id="crm-form" style="display:none">
 <input type="email" id="crm-email" placeholder="Email" autocomplete="email">
-<input type="password" id="crm-passkey" placeholder="Passkey" maxlength="20" autocomplete="off">
+<input type="password" id="crm-passkey" placeholder="Passkey" maxlength="128" autocomplete="off">
 <button class="btn-primary" onclick="requestToken()"><i class="fas fa-paper-plane"></i> Get Token</button>
 </div>
 <div class="crm-card" id="crm-status" style="display:none">

@@ -33,7 +33,6 @@
     "EMBED_MODEL": "@cf/baai/bge-base-en-v1.5",
     "FALLBACK_MODEL": "@cf/meta/llama-3.1-8b-fast-v2",
     "DEFAULT_SCOPE": "default",
-    "HF_DATASET": "ctaxnagomi/DGUI_HYPERMEM-JEV",
-    "PASSKEY": "0866"
+    "HF_DATASET": "ctaxnagomi/DGUI_HYPERMEM-JEV"
   }
 }

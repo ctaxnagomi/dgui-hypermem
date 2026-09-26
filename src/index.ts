@@ -293,7 +293,9 @@ async function authorized(request: Request, env: Env): Promise<boolean> {
   const apiKey = request.headers.get("x-api-key") || "";
   const queryToken = new URL(request.url).searchParams.get("token") || "";
   const token = bearer || apiKey || queryToken;
-  if (!token) return !mcpToken;
+  // Fail closed. Previously this returned `!mcpToken`, which meant that with no
+  // MCP_TOKEN configured the worker authorised every anonymous request.
+  if (!token) return false;
   if (mcpToken && (timeSafeEqual(bearer, mcpToken) || timeSafeEqual(apiKey, mcpToken) || timeSafeEqual(queryToken, mcpToken))) return true;
   try {
     const row = await env.DB.prepare("SELECT status FROM tokens WHERE token = ? AND status = 'active'").bind(token).first<{ status: string }>();
@@ -497,14 +499,32 @@ async function handleVisitor(env: Env): Promise<Record<string, any>> {
   return { count: row?.count || 0 };
 }
 
+type PasskeyResult = { ok: true; isMaster: boolean } | { ok: false; error: string };
+
+/**
+ * Single authority for passkey checks.
+ *
+ * Previously both call sites carried their own copy of this logic with a
+ * hardcoded `env.PASSKEY || "0866"` fallback, which meant a deployment that
+ * forgot to set PASSKEY silently accepted a publicly documented credential.
+ * Fails closed: with no PASSKEY and no MASTER_PASSKEY nothing can authenticate.
+ */
+function checkPasskey(env: Env, passkey: string): PasskeyResult {
+  const master = env.MASTER_PASSKEY;
+  if (master && timeSafeEqual(passkey, master)) return { ok: true, isMaster: true };
+  const user = env.PASSKEY;
+  if (!user) return { ok: false, error: "server passkey not configured (set the PASSKEY secret)" };
+  if (timeSafeEqual(passkey, user)) return { ok: true, isMaster: false };
+  return { ok: false, error: "invalid passkey" };
+}
+
 async function handleRequestToken(env: Env, body: Record<string, any>, request: Request): Promise<Record<string, any>> {
   const { email, passkey, tc_agreed } = body;
   if (!email || !passkey) return { error: "email and passkey are required" };
   if (!email.includes("@") || email.length < 5) return { error: "invalid email" };
-  const userPasskey = env.PASSKEY || "0866";
-  const masterPasskey = env.MASTER_PASSKEY;
-  const isMaster = masterPasskey && passkey === masterPasskey;
-  if (passkey !== userPasskey && !isMaster) return { error: "invalid passkey" };
+  const auth = checkPasskey(env, passkey);
+  if (!auth.ok) return { error: auth.error };
+  const isMaster = auth.isMaster;
   if (!isMaster && !tc_agreed) {
     // Allow the request but mark tc_agreed as 0 - token still works
   }
@@ -543,10 +563,9 @@ async function handleCheckStar(env: Env, body: Record<string, any>): Promise<Rec
 async function handleDisableToken(env: Env, body: Record<string, any>, request: Request): Promise<Record<string, any>> {
   const { email, passkey } = body;
   if (!email || !passkey) return { error: "email and passkey are required" };
-  const userPasskey = env.PASSKEY || "0866";
-  const masterPasskey = env.MASTER_PASSKEY;
-  const isMaster = masterPasskey && passkey === masterPasskey;
-  if (passkey !== userPasskey && !isMaster) return { error: "invalid passkey" };
+  const auth = checkPasskey(env, passkey);
+  if (!auth.ok) return { error: auth.error };
+  const isMaster = auth.isMaster;
   const row = await env.DB.prepare("SELECT id, status FROM tokens WHERE email = ?").bind(email).first<{ id: string; status: string }>();
   if (!row) return { error: "no token found" };
   if (row.status === "disabled") {
