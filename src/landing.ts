@@ -196,8 +196,33 @@ footer p{font-size:14px;color:var(--text-muted)}footer a{color:var(--accent-cyan
 <a href="/pay" class="btn-primary" style="text-align:center;width:100%;display:block;box-sizing:border-box"><i class="fas fa-credit-card"></i> Subscribe $11.99/mo</a>
 </div>
 </div>
-</section>
-<section class="enterprise-section" id="enterprise">
+</section>
+<section id="crm" class="crm-section">
+<div class="section-header"><div class="caption-mono"><i class="fas fa-key"></i> Access</div><h2>Get your bearer token.</h2><p>Enter your email and passkey to claim one token per email.</p></div>
+<div class="crm-form-wrap">
+<div class="crm-card" id="crm-phase-start" style="display:block">
+<p style="font-size:14px;color:var(--text-secondary);margin-bottom:20px;line-height:1.6">Before you can get a token, you must agree to the <strong>Terms &amp; Agreement</strong> and <strong>Privacy Policy</strong>.</p>
+<button class="btn-primary" onclick="showTerms()" id="btn-review"><i class="fas fa-file-contract"></i> Review &amp; Agree</button>
+</div>
+<div class="crm-card" id="crm-form" style="display:none">
+<input type="email" id="crm-email" placeholder="Email" autocomplete="email">
+<input type="password" id="crm-passkey" placeholder="Passkey" maxlength="20" autocomplete="off">
+<button class="btn-primary" onclick="requestToken()"><i class="fas fa-paper-plane"></i> Get Token</button>
+</div>
+<div class="crm-card" id="crm-status" style="display:none">
+<div class="status-line" id="crm-status-text">⏳ Issuing token...</div>
+<div id="crm-token-result" style="display:none">
+<div class="status-line" style="border-color:#4ade80;color:#4ade80">🎉 Token ready!</div>
+<p style="font-size:13px;color:var(--text-muted);margin-bottom:8px">Your token:</p>
+<code class="token-display" id="crm-token-value"></code>
+<p style="font-size:13px;color:var(--text-muted);margin-bottom:8px">MCP config:</p>
+<pre class="status-line" id="crm-config" style="white-space:pre;overflow-x:auto;font-size:12px;line-height:20px"></pre>
+<button class="btn-outline" style="margin-top:16px;width:100%;text-align:center;display:block" onclick="disableToken()"><i class="fas fa-ban"></i> Revoke Token</button>
+</div>
+</div>
+</div>
+</section>
+<section class="enterprise-section" id="enterprise">
 <div class="section-header"><div class="caption-mono"><i class="fas fa-building"></i> Enterprise</div><h2>Need more?</h2></div>
 <div class="enterprise-grid">
 <div class="enterprise-info">

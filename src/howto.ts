@@ -31,7 +31,7 @@ strong{color:var(--text-primary)}
 
 <h2>Quick Start</h2>
 <h3>1. Get a Token</h3>
-<p>Go to the <a href="/#crm">landing page</a>, review and agree to the Terms &amp; Agreement, then enter your email and passkey (<code>0866</code> for regular users, or the master key for admins). You'll receive a bearer token immediately.</p>
+<p>Go to the <a href="/#crm">landing page</a>, review and agree to the Terms &amp; Agreement, then enter your email and the passkey you were issued. You'll receive a bearer token immediately.</p>
 
 <h3>2. Connect Your MCP Client</h3>
 <p>Add this configuration to your MCP client (opencode, Claude Desktop, etc.):</p>
