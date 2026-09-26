@@ -269,7 +269,23 @@ pre code{padding:0;border:0;background:transparent;color:inherit;border-radius:0
 
       <section id="authentication">
         <h2>Authentication</h2>
-        <p>Hosted requests use an active CRM token in the <code>Authorization</code> header. The Worker also accepts <code>X-API-Key</code> and a <code>token</code> query parameter for compatibility, but bearer headers are preferred because query strings are commonly retained in logs and proxies.</p>
+        <p>The <code>/mcp</code> endpoint accepts two credential forms. <b>OAuth 2.1</b> is the recommended path for MCP clients: the client discovers the endpoints, registers itself, and the user signs in through a browser consent flow &mdash; no token to copy or store. A <b>bearer token</b> remains supported for scripts and for clients with no OAuth support.</p>
+        <h3>OAuth 2.1</h3>
+        <p>The Worker is its own authorization server, so there is no third-party identity provider and no per-user vendor cost. Clients discover the configuration, then run an authorization-code flow with PKCE:</p>
+        <div class="code-shell">
+          <div class="code-title"><span>Discovery documents</span><button class="copy-btn" type="button">Copy</button></div>
+          <pre><code>GET /.well-known/oauth-protected-resource
+GET /.well-known/oauth-authorization-server
+
+POST /register     dynamic client registration (RFC 7591)
+GET  /authorize    consent + sign-in
+POST /token        code exchange and refresh
+POST /revoke       token revocation (RFC 7009)</code></pre>
+        </div>
+        <p>PKCE with <code>S256</code> is mandatory, and authorization codes are single-use with a ten-minute lifetime. Access tokens last one hour and are rotated on refresh. All three token classes &mdash; authorization codes, access tokens, and refresh tokens &mdash; are stored only as SHA-256 digests, so a database leak does not yield usable credentials. Signing in uses the same email and passkey as the token page, so an OAuth grant resolves to the same account, quota, and usage history as a pasted token. Disabling an account immediately invalidates every OAuth session derived from it.</p>
+        <p>Most clients need nothing beyond the server URL &mdash; leave <code>Authorization</code> unset and let the client run the flow. When a request arrives unauthenticated, the endpoint answers <code>401</code> with a <code>WWW-Authenticate</code> header pointing at the resource metadata, which is how a standards-compliant client knows to begin.</p>
+        <h3>Bearer tokens</h3>
+        <p>Hosted requests also accept an active CRM token in the <code>Authorization</code> header. The Worker accepts <code>X-API-Key</code> and a <code>token</code> query parameter for compatibility, but bearer headers are preferred because query strings are commonly retained in logs and proxies.</p>
         <div class="code-shell">
           <div class="code-title"><span>Preferred authorization header</span><button class="copy-btn" type="button">Copy</button></div>
           <pre><code>Authorization: Bearer \${DGUI_HYPERMEM_TOKEN}</code></pre>
@@ -278,7 +294,7 @@ pre code{padding:0;border:0;background:transparent;color:inherit;border-radius:0
           <li><code>GET /api/verify-token</code> validates status, terms acceptance, and quota state.</li>
           <li><code>GET /api/check-quota</code> returns plan, usage, remaining allowance, and reset time.</li>
           <li>Do not paste a token into a prompt, URL, issue, screenshot, or tracked configuration file.</li>
-          <li>Self-hosted deployments must set <code>MCP_TOKEN</code> as a Worker secret. The current authorization path fails open when it is unset, so an unset secret must be treated as a deployment error.</li>
+          <li>Self-hosted deployments must set <code>MCP_TOKEN</code> as a Worker secret. Authorization fails closed when it is unset, so an unset secret denies every request rather than admitting them.</li>
         </ul>
       </section>
 
@@ -817,10 +833,7 @@ Scopes organize memories but are not tenant authorization boundaries in the curr
       "type": "remote",
       "url": "https://dgui-hypermem.ctaxnagomi.workers.dev/mcp",
       "enabled": true,
-      "headers": {
-        "Authorization": "Bearer {env:DGUI_HYPERMEM_TOKEN}"
-      },
-      "oauth": false
+      "oauth": true
     }
   }
 }</code></pre>

@@ -16,7 +16,16 @@ import type { Env } from "./types";
 import { addMemory, forgetMemories, listMemories, profile, searchMemories } from "./store";
 import { MEMORY_TYPES, resolveMode } from "./jev";
 import { flushJevExamples, jevQueueStats } from "./dataset";
-import { json, now, timeSafeEqual, uuid } from "./util";
+import { json, now, uuid } from "./util";
+import { checkPasskey, extractToken, resolveCredential, type Credential } from "./auth";
+import {
+  authorizationServerMetadata,
+  handleAuthorize,
+  handleRegister,
+  handleRevoke,
+  handleToken,
+  protectedResourceMetadata,
+} from "./oauth";
 import { ADMIN_HTML } from "./admin";
 import { PRIVACY_HTML } from "./privacy";
 import { HOWTO_HTML } from "./howto";
@@ -286,23 +295,6 @@ async function handleMcp(request: Request, env: Env): Promise<Response> {
   }
 }
 
-async function authorized(request: Request, env: Env): Promise<boolean> {
-  const mcpToken = env.MCP_TOKEN;
-  const header = request.headers.get("authorization") || "";
-  const bearer = header.toLowerCase().startsWith("bearer ") ? header.slice(7).trim() : "";
-  const apiKey = request.headers.get("x-api-key") || "";
-  const queryToken = new URL(request.url).searchParams.get("token") || "";
-  const token = bearer || apiKey || queryToken;
-  // Fail closed. Previously this returned `!mcpToken`, which meant that with no
-  // MCP_TOKEN configured the worker authorised every anonymous request.
-  if (!token) return false;
-  if (mcpToken && (timeSafeEqual(bearer, mcpToken) || timeSafeEqual(apiKey, mcpToken) || timeSafeEqual(queryToken, mcpToken))) return true;
-  try {
-    const row = await env.DB.prepare("SELECT status FROM tokens WHERE token = ? AND status = 'active'").bind(token).first<{ status: string }>();
-    return !!row;
-  } catch { return false; }
-}
-
 const CORS = {
   "access-control-allow-origin": "*",
   "access-control-allow-headers": "content-type, authorization, x-api-key",
@@ -499,25 +491,6 @@ async function handleVisitor(env: Env): Promise<Record<string, any>> {
   return { count: row?.count || 0 };
 }
 
-type PasskeyResult = { ok: true; isMaster: boolean } | { ok: false; error: string };
-
-/**
- * Single authority for passkey checks.
- *
- * Previously both call sites carried their own copy of this logic with a
- * hardcoded `env.PASSKEY || "0866"` fallback, which meant a deployment that
- * forgot to set PASSKEY silently accepted a publicly documented credential.
- * Fails closed: with no PASSKEY and no MASTER_PASSKEY nothing can authenticate.
- */
-function checkPasskey(env: Env, passkey: string): PasskeyResult {
-  const master = env.MASTER_PASSKEY;
-  if (master && timeSafeEqual(passkey, master)) return { ok: true, isMaster: true };
-  const user = env.PASSKEY;
-  if (!user) return { ok: false, error: "server passkey not configured (set the PASSKEY secret)" };
-  if (timeSafeEqual(passkey, user)) return { ok: true, isMaster: false };
-  return { ok: false, error: "invalid passkey" };
-}
-
 async function handleRequestToken(env: Env, body: Record<string, any>, request: Request): Promise<Record<string, any>> {
   const { email, passkey, tc_agreed } = body;
   if (!email || !passkey) return { error: "email and passkey are required" };
@@ -574,7 +547,13 @@ async function handleDisableToken(env: Env, body: Record<string, any>, request: 
   }
   await Promise.all([
     env.DB.prepare("UPDATE tokens SET status = 'disabled', updated_at = ? WHERE id = ?").bind(now(), row.id).run(),
-    logCrmAction(env, email, isMaster ? "token_master_disabled" : "token_disabled", "token revoked", request).run(),
+    // Disable is a kill switch, not a temporary gate. Any OAuth grant this
+    // account authorised is revoked outright, so re-enabling the account later
+    // does not silently resurrect access tokens the user never re-consented to.
+    env.DB.prepare("UPDATE oauth_access_tokens SET revoked = 1 WHERE user_id = ?").bind(row.id).run(),
+    env.DB.prepare("UPDATE oauth_codes SET used = 1 WHERE user_id = ? AND used = 0").bind(row.id).run(),
+    logCrmAction(env, email, isMaster ? "token_master_disabled" : "token_disabled",
+      isMaster ? "token and OAuth grants revoked" : "token revoked, OAuth grants revoked", request).run(),
   ]);
   return { status: "disabled" };
 }
@@ -710,22 +689,21 @@ async function handleEnterpriseInquiry(env: Env, body: Record<string, any>): Pro
   }
 }
 
-function extractToken(request: Request): string | null {
-  const auth = request.headers.get("authorization") || "";
-  if (auth.toLowerCase().startsWith("bearer ")) return auth.slice(7).trim();
-  const apiKey = request.headers.get("x-api-key");
-  if (apiKey) return apiKey;
-  const q = new URL(request.url).searchParams.get("token");
-  if (q) return q;
-  return null;
-}
+/**
+ * Quota enforcement and usage accounting.
+ *
+ * Takes the already-resolved credential so the request is only authenticated
+ * once. OAuth grants are billed to the account that authorised them, keyed by
+ * `tokens.id`, which is what keeps quota and attribution identical whether a
+ * client presents a pasted token or an OAuth access token.
+ */
+async function checkAndTrackUsage(env: Env, request: Request, credential: Credential | null): Promise<{ allowed: boolean; reason?: string }> {
+  if (!credential) return { allowed: true };
+  if (credential.kind === "master") return { allowed: true };
 
-async function checkAndTrackUsage(env: Env, request: Request): Promise<{ allowed: boolean; reason?: string }> {
-  const token = extractToken(request);
-  if (!token) return { allowed: true };
-  const mcpToken = env.MCP_TOKEN;
-  if (mcpToken && timeSafeEqual(token, mcpToken)) return { allowed: true };
-  const row = await env.DB.prepare("SELECT id, status, plan, quota_monthly, requests_used, requests_reset_at, email FROM tokens WHERE token = ?").bind(token).first<{ id: string; status: string; plan: string; quota_monthly: number; requests_used: number; requests_reset_at: number | null; email: string }>();
+  const row = credential.kind === "oauth"
+    ? await env.DB.prepare("SELECT id, status, plan, quota_monthly, requests_used, requests_reset_at, email FROM tokens WHERE id = ?").bind(credential.userId).first<{ id: string; status: string; plan: string; quota_monthly: number; requests_used: number; requests_reset_at: number | null; email: string }>()
+    : await env.DB.prepare("SELECT id, status, plan, quota_monthly, requests_used, requests_reset_at, email FROM tokens WHERE token = ?").bind(credential.tokenValue).first<{ id: string; status: string; plan: string; quota_monthly: number; requests_used: number; requests_reset_at: number | null; email: string }>();
   if (!row || row.status !== "active") return { allowed: false, reason: "token invalid or disabled" };
   const now_ = now();
   let used = row.requests_used || 0;
@@ -738,9 +716,13 @@ async function checkAndTrackUsage(env: Env, request: Request): Promise<{ allowed
   if (used >= maxQuota) return { allowed: false, reason: "monthly quota exceeded" };
   const path = new URL(request.url).pathname;
   const context = classifyPath(path);
+  // usage_events.token holds the presented bearer token. For OAuth there is no
+  // reusable per-user token, so the grant is recorded by its hash instead --
+  // enough to correlate a session, without writing a live credential to the log.
+  const loggedToken = credential.kind === "oauth" ? `oauth:${credential.tokenHash.slice(0, 16)}` : credential.tokenValue;
   await Promise.all([
     env.DB.prepare("UPDATE tokens SET requests_used = requests_used + 1, requests_reset_at = ?, has_connected = 1, updated_at = ? WHERE id = ?").bind(resetAt, now_, row.id).run(),
-    env.DB.prepare("INSERT INTO usage_events (token, email, path, event_at) VALUES (?, ?, ?, ?)").bind(token, row.email || "", context, now_).run(),
+    env.DB.prepare("INSERT INTO usage_events (token, email, path, event_at) VALUES (?, ?, ?, ?)").bind(loggedToken, row.email || "", context, now_).run(),
   ]);
   return { allowed: true };
 }
@@ -835,12 +817,40 @@ export default {
       });
     }
 
+    // --- OAuth 2.1 authorization server (MCP only) -------------------------
+    // Public by design: these are the discovery, registration and grant
+    // endpoints a client needs *before* it holds a credential.
+    if (path === "/.well-known/oauth-authorization-server" || path === "/.well-known/oauth-authorization-server/mcp") {
+      return authorizationServerMetadata(request);
+    }
+    if (path === "/.well-known/oauth-protected-resource" || path === "/.well-known/oauth-protected-resource/mcp") {
+      return protectedResourceMetadata(request);
+    }
+    if (path === "/register") return handleRegister(env, request);
+    if (path === "/authorize") return handleAuthorize(env, request);
+    if (path === "/token") return handleToken(env, request);
+    if (path === "/revoke") return handleRevoke(env, request);
+
     const CRM_ROUTES = ["/api/request-token", "/api/check-star", "/api/disable-token", "/api/verify-token", "/api/setup-dataset", "/api/visitor", "/api/enterprise-inquiry", "/api/create-checkout-session", "/api/stripe-webhook", "/api/admin/tokens", "/api/admin/stats", "/api/admin/logs", "/api/admin/toggle-train", "/api/admin/update-quota", "/api/admin/clock", "/api/check-quota"];
     if (path === "/mcp" || (path.startsWith("/api/") && !CRM_ROUTES.includes(path))) {
-      if (!(await authorized(request, env))) {
-        return json({ error: "unauthorized" }, { status: 401, headers: CORS });
+      const credential = await resolveCredential(env, request);
+      if (!credential) {
+        // Point an OAuth-capable client at the resource metadata instead of
+        // returning a bare 401. A 401 with no WWW-Authenticate leaves clients
+        // such as opencode guessing at an OAuth endpoint it then fails to find.
+        const resource = new URL(request.url).origin;
+        return json(
+          { error: "unauthorized" },
+          {
+            status: 401,
+            headers: {
+              ...CORS,
+              "www-authenticate": `Bearer resource_metadata="${resource}/.well-known/oauth-protected-resource"`,
+            },
+          },
+        );
       }
-      const quota = await checkAndTrackUsage(env, request);
+      const quota = await checkAndTrackUsage(env, request, credential);
       if (!quota.allowed) {
         return json({ error: quota.reason }, { status: 429, headers: CORS });
       }
