@@ -704,6 +704,8 @@ function extractToken(request: Request): string | null {
 async function checkAndTrackUsage(env: Env, request: Request): Promise<{ allowed: boolean; reason?: string }> {
   const token = extractToken(request);
   if (!token) return { allowed: true };
+  const mcpToken = env.MCP_TOKEN;
+  if (mcpToken && timeSafeEqual(token, mcpToken)) return { allowed: true };
   const row = await env.DB.prepare("SELECT id, status, plan, quota_monthly, requests_used, requests_reset_at, email FROM tokens WHERE token = ?").bind(token).first<{ id: string; status: string; plan: string; quota_monthly: number; requests_used: number; requests_reset_at: number | null; email: string }>();
   if (!row || row.status !== "active") return { allowed: false, reason: "token invalid or disabled" };
   const now_ = now();
