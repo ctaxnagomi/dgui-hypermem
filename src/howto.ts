@@ -1,3 +1,5 @@
+import { PLANS, PAYG_MICRO_PER_REQUEST } from "./billing";
+
 export const HOWTO_HTML = `<!DOCTYPE html>
 <html lang="en" data-theme="dark">
 <head>
@@ -64,7 +66,8 @@ strong{color:var(--text-primary)}
 <li>You can <strong>revoke</strong> your token anytime from the landing page by clicking "Revoke Token"</li>
 <li>Each email gets <strong>one token</strong> — requesting again returns the same token</li>
 <li>If revoked, requesting a new token will issue a fresh one</li>
-<li>Monthly quota: <strong>1,000 requests</strong> per token</li>
+<li>Monthly quota: <strong>${PLANS.free.quota.toLocaleString("en-US")} requests</strong> per token on Free, up to <strong>${PLANS.enterprise.quota.toLocaleString("en-US")}</strong> on Enterprise</li>
+<li>Past your plan allowance you can upgrade, or top up pay-as-you-go at <strong>$${(PAYG_MICRO_PER_REQUEST / 1_000_000).toFixed(3)} per request</strong> &mdash; credit never expires</li>
 <li>Check your remaining quota via <code>curl -H "authorization: Bearer YOUR_TOKEN" https://dgui-hypermem.ctaxnagomi.workers.dev/api/check-quota</code></li>
 </ul>
 

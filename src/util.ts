@@ -1,3 +1,5 @@
+import type { Env } from "./types";
+
 export function now(): number {
   return Date.now();
 }
@@ -71,4 +73,25 @@ export function firstJson<T>(text: string): T | null {
   } catch {
     return null;
   }
+}
+
+/**
+ * Append-only CRM audit row.
+ *
+ * Lives in util rather than index because the billing endpoints need it too, and
+ * importing index from a sibling module would create a cycle. Returns the
+ * prepared statement rather than running it so callers can batch it with other
+ * writes and await them together.
+ */
+export function logCrmAction(
+  env: Env,
+  email: string,
+  action: string,
+  detail: string | null,
+  request: Request,
+): D1PreparedStatement {
+  const ip = request.headers.get("cf-connecting-ip") || request.headers.get("x-forwarded-for") || "";
+  const device = (request.headers.get("user-agent") || "").substring(0, 200);
+  return env.DB.prepare("INSERT INTO crm_logs (email, action, detail, ip, device, created_at) VALUES (?, ?, ?, ?, ?, ?)")
+    .bind(email, action, detail, ip, device, now());
 }

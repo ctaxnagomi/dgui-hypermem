@@ -1,3 +1,11 @@
+import { PLANS, PAYG_MICRO_PER_REQUEST, TRIAL_DAYS, requestsPerDollar, type PlanDef } from "./billing";
+
+/** Quota with a thousands separator, so the page matches the enforced value. */
+const q = (plan: PlanDef): string => plan.quota.toLocaleString("en-US");
+/** Subscription price in dollars, e.g. 1199 -> "11.99". */
+const usd = (plan: PlanDef): string => (plan.priceCents / 100).toFixed(2);
+const paygPrice = (PAYG_MICRO_PER_REQUEST / 1_000_000).toFixed(3);
+
 export const LANDING_HTML = `<!DOCTYPE html>
 <html lang="en" data-theme="bright">
 <head>
@@ -71,7 +79,9 @@ footer p{font-size:14px;color:var(--text-muted)}footer a{color:var(--accent-cyan
 .footer-links a:hover{color:var(--accent-cyan)}
 /* Pricing */
 .pricing-section{padding:30px 24px 60px}
-.pricing-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;max-width:1000px;margin:32px auto 0;padding:0 24px}
+.pricing-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;max-width:1000px;margin:32px auto 0;padding:0 24px}
+.payg-strip{max-width:1000px;margin:16px auto 0;padding:18px 24px;border:1px solid var(--border);border-radius:12px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;font-size:13px;color:var(--text-secondary);line-height:1.6}
+.payg-strip i{color:var(--accent)}
 .pricing-card{background:var(--bg-surface);border:1px solid var(--border-glass);border-radius:12px;padding:32px;transition:border-color .2s;display:flex;flex-direction:column}
 .pricing-card:hover{border-color:var(--border-accent)}
 .pricing-card.featured{border-color:var(--accent-cyan)}
@@ -155,47 +165,51 @@ footer p{font-size:14px;color:var(--text-muted)}footer a{color:var(--accent-cyan
 </section>
 <section class="pricing-section" id="pricing">
 <div class="section-header"><div class="caption-mono"><i class="fas fa-tags"></i> Plans</div><h2>Choose your plan.</h2></div>
-<div class="pricing-grid">
-<div class="pricing-card">
-<div class="plan-name"><i class="fas fa-leaf"></i> Free</div>
-<div class="price">$0 <span>/ month</span></div>
-<div class="desc">For individuals and hobbyists getting started with AI agent memory.</div>
-<ul class="features">
-<li><i class="fas fa-check"></i> 1 token per email</li>
-<li><i class="fas fa-check"></i> 1,000 requests / month</li>
-<li><i class="fas fa-check"></i> MCP tools: add, search, list, profile, forget</li>
-<li><i class="fas fa-check"></i> JEV reasoning layer (Choice/Noul/Score)</li>
-<li><i class="fas fa-check"></i> Community support</li>
-</ul>
-<a href="#crm" class="btn-primary" style="text-align:center"><i class="fas fa-key"></i> Get Free Token</a>
-</div>
-<div class="pricing-card featured">
-<div class="plan-name"><i class="fas fa-rocket"></i> Median</div>
-<div class="price">$2.99 <span>/ month</span></div>
-<div class="desc">For power users who need more capacity and priority support.</div>
-<ul class="features">
-<li><i class="fas fa-check"></i> Everything in Free</li>
-<li><i class="fas fa-check"></i> 7,800 requests / month</li>
-<li><i class="fas fa-check"></i> Priority queue</li>
-<li><i class="fas fa-check"></i> Email support</li>
-<li><i class="fas fa-check"></i> Early access to new features</li>
-</ul>
-<a href="/pay" class="btn-primary" style="text-align:center;width:100%;display:block;box-sizing:border-box"><i class="fas fa-credit-card"></i> Subscribe $2.99/mo</a>
-</div>
-<div class="pricing-card">
-<div class="plan-name"><i class="fas fa-crown"></i> Pro</div>
-<div class="price">$11.99 <span>/ month</span></div>
-<div class="desc">For professionals and teams needing high throughput and premium support.</div>
-<ul class="features">
-<li><i class="fas fa-check"></i> Everything in Median</li>
-<li><i class="fas fa-check"></i> 10,000 requests / month</li>
-<li><i class="fas fa-check"></i> Highest priority queue</li>
-<li><i class="fas fa-check"></i> Priority email & chat support</li>
-<li><i class="fas fa-check"></i> Beta feature access</li>
-</ul>
-<a href="/pay" class="btn-primary" style="text-align:center;width:100%;display:block;box-sizing:border-box"><i class="fas fa-credit-card"></i> Subscribe $11.99/mo</a>
-</div>
-</div>
+<div class="pricing-grid">
+<div class="pricing-card">
+<div class="plan-name"><i class="fas fa-leaf"></i> ${PLANS.free.name}</div>
+<div class="price">$0 <span>/ month</span></div>
+<div class="desc">For individuals and hobbyists getting started with AI agent memory.</div>
+<ul class="features">
+<li><i class="fas fa-check"></i> 1 token per email</li>
+<li><i class="fas fa-check"></i> ${q(PLANS.free)} requests / month</li>
+<li><i class="fas fa-check"></i> MCP tools: add, search, list, profile, forget</li>
+<li><i class="fas fa-check"></i> JEV reasoning layer (Choice/Noul/Score)</li>
+<li><i class="fas fa-check"></i> Community support</li>
+</ul>
+<a href="#crm" class="btn-primary" style="text-align:center"><i class="fas fa-key"></i> Get Free Token</a>
+</div>
+<div class="pricing-card featured">
+<div class="plan-name"><i class="fas fa-rocket"></i> ${PLANS.median.name}</div>
+<div class="price">$${usd(PLANS.median)} <span>/ month</span></div>
+<div class="desc">For power users who need more capacity and priority support.</div>
+<ul class="features">
+<li><i class="fas fa-check"></i> Everything in Free</li>
+<li><i class="fas fa-check"></i> ${q(PLANS.median)} requests / month</li>
+<li><i class="fas fa-check"></i> Priority queue</li>
+<li><i class="fas fa-check"></i> Email support</li>
+<li><i class="fas fa-check"></i> Early access to new features</li>
+</ul>
+<a href="/pay" class="btn-primary" style="text-align:center;width:100%;display:block;box-sizing:border-box"><i class="fas fa-credit-card"></i> Subscribe $${usd(PLANS.median)}/mo</a>
+</div>
+<div class="pricing-card">
+<div class="plan-name"><i class="fas fa-crown"></i> ${PLANS.pro.name}</div>
+<div class="price">$${usd(PLANS.pro)} <span>/ month</span></div>
+<div class="desc">For professionals and teams needing high throughput and premium support.</div>
+<ul class="features">
+<li><i class="fas fa-check"></i> Everything in Median</li>
+<li><i class="fas fa-check"></i> ${q(PLANS.pro)} requests / month</li>
+<li><i class="fas fa-check"></i> Highest priority queue</li>
+<li><i class="fas fa-check"></i> Priority email & chat support</li>
+<li><i class="fas fa-check"></i> ${TRIAL_DAYS}-day free trial</li>
+</ul>
+<a href="/pay" class="btn-primary" style="text-align:center;width:100%;display:block;box-sizing:border-box"><i class="fas fa-credit-card"></i> Subscribe $${usd(PLANS.pro)}/mo</a>
+</div>
+</div>
+<div class="payg-strip">
+<div><i class="fas fa-bolt"></i> <b>Pay as you go</b> &mdash; $${paygPrice} per request, about ${requestsPerDollar().toLocaleString("en-US")} requests per $1. No subscription, credit never expires, spend only what you use.</div>
+<a href="/pay#packs" class="btn-outline" style="flex:0 0 auto;width:auto">Top up credit</a>
+</div>
 </section>
 <section id="crm" class="crm-section">
 <div class="section-header"><div class="caption-mono"><i class="fas fa-key"></i> Access</div><h2>Get your bearer token.</h2><p>Enter your email and passkey to claim one token per email.</p></div>
@@ -227,7 +241,7 @@ footer p{font-size:14px;color:var(--text-muted)}footer a{color:var(--accent-cyan
 <div class="enterprise-grid">
 <div class="enterprise-info">
 <p>DGUI-HyperMem Enterprise is designed for organizations that need dedicated infrastructure, custom quotas, SLAs, and white-label deployment.</p>
-<p><i class="fas fa-check" style="color:var(--accent-cyan)"></i> Unlimited requests &amp; users</p>
+<p><i class="fas fa-check" style="color:var(--accent-cyan)"></i> ${PLANS.enterprise.quota.toLocaleString("en-US")}+ requests / month, custom allowances on request</p>
 <p><i class="fas fa-check" style="color:var(--accent-cyan)"></i> Self-hosted or managed deployment</p>
 <p><i class="fas fa-check" style="color:var(--accent-cyan)"></i> Dedicated support &amp; SLA</p>
 <p><i class="fas fa-check" style="color:var(--accent-cyan)"></i> Custom integrations</p>
@@ -262,7 +276,7 @@ footer p{font-size:14px;color:var(--text-muted)}footer a{color:var(--accent-cyan
 <h3>4. Limitation of Liability</h3>
 <p>The service is provided "as is" without warranty. The maintainers are not liable for any damages arising from use of the service.</p>
 <h3>5. Quota &amp; Rate Limits</h3>
-<p>Each user receives 1,000 requests per month. The total number of active users is capped at 100. Exceeding either limit will result in a temporary suspension until the next cycle or contact with the admin.</p>
+<p>Each user receives ${PLANS.free.quota.toLocaleString("en-US")} requests per month on the Free plan, with paid plans up to ${PLANS.enterprise.quota.toLocaleString("en-US")} and pay-as-you-go available beyond any plan allowance. The total number of active users is capped at 100. Exceeding either limit will result in a temporary suspension until the next cycle or contact with the admin.</p>
 <h3>6. Termination</h3>
 <p>The admin reserves the right to revoke any token for violation of these terms.</p>
 <label><input type="checkbox" id="tc-checkbox"> I have read and agree to the <strong>Terms &amp; Agreement</strong> and <strong><a href="/privacy" target="_blank" style="color:var(--accent-cyan)">Privacy Policy</a></strong>.</label>

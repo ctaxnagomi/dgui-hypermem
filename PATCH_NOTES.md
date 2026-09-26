@@ -77,9 +77,9 @@ incomplete for the current `tokens` and `admin_logs` schema.
 
 ---
 
-## Known issue: token portal missing from the landing page
+## Fixed: token portal missing from the landing page
 
-**Severity:** high — it breaks all self-serve onboarding.
+**Severity:** high — it broke all self-serve onboarding. Fixed in `fcc8498`.
 
 Commit `fbd0760` (*Consumer-friendly landing: suitability, compatibility,
 visitor counter, GitHub star prompt*) rewrote `src/landing.ts` with 303
@@ -193,6 +193,72 @@ variant is tested by real clients; no consent *scoping* screen (the user sees a
 fixed description); no client-initiated logout endpoint; no rate limiting on
 `/token` or `/register`, so registration is unbounded and can be used to grow
 `oauth_clients` without limit.
+
+## Billing: plan ladder, Pro trial, and pay-as-you-go
+
+Shipped. `src/billing.ts` is the single source of truth for every number a
+customer can see, and the marketing pages, the docs, the quota gate, the
+`/pay` pricing page, and the 429 upgrade message all read from it. Before this
+the page advertised Free as 1,000 requests while the gate enforced 5,600, and
+`docs.ts` quoted a third set (3,500 / 6,500 / 999,999) matching nothing at all.
+
+| Plan | Price | Requests / month |
+| --- | --- | --- |
+| Free | $0 | 2,000 |
+| Median | $2.99 | 8,500 |
+| Pro | $11.99 | 15,000 |
+| Enterprise | $29.99 | 25,000 |
+| Pay as you go | $0.002 / request | after the plan allowance |
+
+- **Money is integers only** — micro-dollars (1e-6 USD) in the database, cents
+  in Stripe. No float ever touches a balance.
+- **Plan-first, then wallet.** The allowance is spent first; only once it is
+  exhausted does a request draw on prepaid credit. A request that neither can
+  fund is refused with `429`, a `code` of `quota_exceeded`, and an `upgrade`
+  block naming the next plan, enterprise, and pay-as-you-go with prices.
+- **Wallet debits are guarded** (`WHERE payg_credits_micro >= ?` plus a
+  `meta.changes === 1` check), so concurrent requests cannot overdraw. Verified:
+  a balance one micro-unit short is refused, and a zero balance is not treated
+  as truthy.
+- **The 15-day Pro trial is enforced lazily on the request path and
+  persisted**, so the plan that is enforced and the plan that is displayed can
+  never disagree. Claiming is guarded by `trial_started_at IS NULL`, so a
+  concurrent double-claim gets one trial. A lapsed trial reverts the stored
+  plan as well as the reported one.
+- **`quota_override` is nullable and authoritative when set**, so the ladder
+  drives billing while an operator can still grant a custom cap. Legacy
+  per-row `quota_monthly` literals were normalised to `NULL` in
+  `migrations/0010_quota_authority.sql`.
+- **Stripe webhooks are idempotent.** Each event id is claimed in `stripe_events`
+  *before* effects are applied, so at-least-once delivery cannot double-credit.
+  The plan is re-derived from the price Stripe actually charged, never from
+  session metadata, so forged metadata cannot grant an unpaid plan.
+
+### Blockers — no money can move until these are done
+
+1. **`STRIPE_WEBHOOK_SECRET` is not set.** `constructEvent` cannot verify a
+   signature without it. The endpoint now returns `500` with an explicit message
+   rather than `400`, because a `4xx` tells Stripe the event is permanently bad
+   and stops it retrying — an operator mistake would silently discard real
+   payments. Confirmed against live bindings: no Stripe purchase has ever
+   completed (`crm_logs` has zero `stripe_subscription` / `payg_topup` rows).
+2. **`CREDIT_PRICE_IDS` is empty.** The $10 / $25 / $50 one-time prices must be
+   created in the Stripe dashboard. `POST /api/buy-credits` deliberately refuses
+   rather than taking a payment it cannot deliver credit for.
+3. `PLAN_PRICE_IDS` must name real recurring prices for Median and Pro;
+   Enterprise is intentionally contact-sales and has no self-serve price.
+
+Both are plain Worker secrets, set with `wrangler secret put`. Neither can be
+read back out of Cloudflare once written.
+
+### Cost control added alongside metering
+
+`add`'s `content` had no length bound. With cost now metered, that was an
+abuse vector: embedding and JEV both bill per token while pay-as-you-go is a
+flat per request, so one call could cost far more than the price charged for it.
+Now capped at 64,000 characters.
+
+---
 
 ## Outstanding security work
 

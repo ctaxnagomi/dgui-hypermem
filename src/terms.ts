@@ -1,3 +1,5 @@
+import { PLANS } from "./billing";
+
 export const TERMS_HTML = `<!DOCTYPE html>
 <html lang="en" data-theme="dark">
 <head>
@@ -55,7 +57,7 @@ ul{padding-left:20px;margin:8px 0 16px}
 <p>The Service is provided with the following limits:</p>
 <ul>
 <li>Maximum 100 active users globally</li>
-<li>1,000 requests per token per month</li>
+<li>${PLANS.free.quota.toLocaleString("en-US")} requests per token per month on the Free plan; higher plans and pay-as-you-go are available</li>
 <li>Quota resets monthly</li>
 </ul>
 <p>Exceeding these limits may result in temporary suspension. Contact the admin to discuss increased limits.</p>

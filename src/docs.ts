@@ -1,3 +1,5 @@
+import { PLANS, PAYG_MICRO_PER_REQUEST, TRIAL_DAYS } from "./billing";
+
 export const DOCS_HTML = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -323,7 +325,11 @@ POST /revoke       token revocation (RFC 7009)</code></pre>
           <tr><td><code>/profile</code></td><td><span class="method post">POST</span></td><td><code>scope</code></td><td>Summarize a scope</td></tr>
           <tr><td><code>/forget</code></td><td><span class="method post">POST</span></td><td><code>ids</code>, <code>query</code>, <code>scope</code>, or <code>all</code></td><td>Delete memories</td></tr>
           <tr><td><code>/verify-token</code></td><td><span class="method get">GET</span></td><td>Bearer token</td><td>Validate a token</td></tr>
-          <tr><td><code>/check-quota</code></td><td><span class="method get">GET</span></td><td>Bearer token</td><td>Inspect effective usage</td></tr>
+          <tr><td><code>/check-quota</code></td><td><span class="method get">GET</span></td><td>Bearer token</td><td>Inspect effective usage, trial and wallet</td></tr>
+          <tr><td><code>/billing-summary</code></td><td><span class="method post">POST</span></td><td><code>email</code>, <code>passkey</code></td><td>Plan, trial and wallet before you hold a token</td></tr>
+          <tr><td><code>/start-trial</code></td><td><span class="method post">POST</span></td><td><code>email</code>, <code>passkey</code></td><td>Claim the one-time ${TRIAL_DAYS}-day Pro trial</td></tr>
+          <tr><td><code>/create-checkout-session</code></td><td><span class="method post">POST</span></td><td><code>plan</code>, <code>email</code></td><td>Start a subscription checkout</td></tr>
+          <tr><td><code>/buy-credits</code></td><td><span class="method post">POST</span></td><td><code>pack</code>, <code>email</code></td><td>Top up pay-as-you-go credit</td></tr>
           <tr><td><code>/sync_jev</code></td><td><span class="method post">POST</span></td><td><code>limit</code></td><td>Flush queued JEV examples</td></tr>
           <tr><td><code>/jev_queue_stats</code></td><td><span class="method get">GET</span></td><td>Optional <code>scope</code> query</td><td>Inspect dataset queue state</td></tr>
         </tbody></table></div>
@@ -353,7 +359,7 @@ curl -X POST "https://dgui-hypermem.ctaxnagomi.workers.dev/api/search" \\
 
       <section id="quotas">
         <h2>Quotas</h2>
-        <p>Usage is tracked per token. The default Worker plan limits are 1,000 requests for Free, 3,500 for Median, 6,500 for Pro, and 999,999 for Enterprise. The first quota check starts a 30-day reset window; operators can override the allowance stored on a token.</p>
+        <p>Usage is tracked per token against the plan allowance on a 30-day reset window: ${PLANS.free.quota.toLocaleString("en-US")} requests for Free, ${PLANS.median.quota.toLocaleString("en-US")} for Median, ${PLANS.pro.quota.toLocaleString("en-US")} for Pro, and ${PLANS.enterprise.quota.toLocaleString("en-US")} for Enterprise. Once the plan allowance is spent, requests continue against any prepaid pay-as-you-go balance before the request is refused.</p>
         <div class="code-shell">
           <div class="code-title"><span>Check effective quota</span><button class="copy-btn" type="button">Copy</button></div>
           <pre><code>curl "https://dgui-hypermem.ctaxnagomi.workers.dev/api/check-quota" \\
@@ -445,17 +451,18 @@ for row in ds.stream():
         <p>The hosted service already meters usage per token and exposes the billing plumbing, so monetizing it is a matter of pricing, checkout, and packaging rather than new instrumentation. Everything below runs on the current Worker.</p>
 
         <h3 id="monetize-plans">Plans and quotas</h3>
-        <p>Each token carries a <code>plan</code> and a <code>quota_monthly</code> allowance, counted per request with a 30-day reset window. The plan defaults are 1,000 requests for Free, 3,500 for Median, 6,500 for Pro, and 999,999 for Enterprise. An operator override on the token always wins over the plan default, which is what makes custom enterprise allowances possible without a code change.</p>
+        <p>Each token carries a <code>plan</code>, counted per request on a 30-day reset window. Plan allowances are ${PLANS.free.quota.toLocaleString("en-US")} for Free, ${PLANS.median.quota.toLocaleString("en-US")} for Median, ${PLANS.pro.quota.toLocaleString("en-US")} for Pro, and ${PLANS.enterprise.quota.toLocaleString("en-US")} for Enterprise. A <code>quota_override</code> on the token, when set, always wins over the plan &mdash; that is how a custom enterprise allowance is granted without a code change. Leaving it NULL is what lets the plan ladder take effect.</p>
         <div class="table-wrap"><table>
           <thead><tr><th>Plan</th><th>Default monthly requests</th><th>Typical use</th></tr></thead>
           <tbody>
-            <tr><td>Free</td><td>1,000</td><td>Evaluation and a single small project.</td></tr>
-            <tr><td>Median</td><td>3,500</td><td>One active agent or a small team.</td></tr>
-            <tr><td>Pro</td><td>6,500</td><td>Multi-agent setups and CI integrations.</td></tr>
-            <tr><td>Enterprise</td><td>999,999</td><td>Self-hosted or custom allowance.</td></tr>
+            <tr><td>Free</td><td>${PLANS.free.quota.toLocaleString("en-US")}</td><td>Evaluation and a single small project.</td></tr>
+            <tr><td>Median</td><td>${PLANS.median.quota.toLocaleString("en-US")}</td><td>One active agent or a small team.</td></tr>
+            <tr><td>Pro</td><td>${PLANS.pro.quota.toLocaleString("en-US")}</td><td>Multi-agent setups and CI integrations.</td></tr>
+            <tr><td>Enterprise</td><td>${PLANS.enterprise.quota.toLocaleString("en-US")}</td><td>Self-hosted or a custom override.</td></tr>
+            <tr><td>Pay as you go</td><td>unlimited</td><td>Billed per request once the plan allowance is spent.</td></tr>
           </tbody>
         </table></div>
-        <p><code>/api/check-quota</code> returns <code>plan</code>, <code>quota_monthly</code>, <code>requests_used</code>, <code>requests_remaining</code>, <code>resets_at</code>, and 30-day and yearly totals. Use that response as the billing source of truth rather than the plan name, since operator overrides take precedence.</p>
+        <p><code>/api/check-quota</code> returns <code>plan</code>, <code>quota_monthly</code>, <code>requests_used</code>, <code>requests_remaining</code>, <code>resets_at</code>, 30-day and yearly totals, and a <code>payg</code> block with the wallet balance, what it buys at the current rate, and lifetime spend. When the plan allowance is spent it also returns <code>exhausted: true</code> and an <code>upgrade</code> block naming each option and its price, so a client can present the choices rather than a bare refusal. Use that response as the billing source of truth rather than the plan name, since operators can override a plan's allowance. Pay-as-you-go is charged at <b>$${(PAYG_MICRO_PER_REQUEST / 1_000_000).toFixed(3)} per request</b>, debited from the wallet only after the plan allowance is exhausted, and the debit is a guarded conditional update so concurrent requests cannot overdraw the balance.</p>
 
         <h3 id="monetize-checkout">Checkout and upgrades</h3>
         <p>Upgrades run through Stripe. <code>/api/create-checkout-session</code> starts a Checkout session and <code>/api/stripe-webhook</code> applies the result to the token — moving <code>plan</code>, <code>status</code>, and <code>quota_monthly</code> once payment settles. The upgrade page is served at <code>/pay</code>, with <code>/payment</code> and <code>/upgrade</code> as aliases. <code>/api/admin/update-quota</code> handles manual plan changes and overrides for accounts that cannot use card checkout.</p>

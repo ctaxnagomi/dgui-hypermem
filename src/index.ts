@@ -16,8 +16,18 @@ import type { Env } from "./types";
 import { addMemory, forgetMemories, listMemories, profile, searchMemories } from "./store";
 import { MEMORY_TYPES, resolveMode } from "./jev";
 import { flushJevExamples, jevQueueStats } from "./dataset";
-import { json, now, uuid } from "./util";
+import { json, logCrmAction, now, uuid } from "./util";
 import { checkPasskey, extractToken, resolveCredential, type Credential } from "./auth";
+import {
+  ACCOUNT_COLUMNS,
+  effectiveQuota,
+  PAYG_MICRO_PER_REQUEST,
+  TRIAL_PLAN,
+  planQuota,
+  resolveTrial,
+  upgradeOptions,
+  type AccountState,
+} from "./billing";
 import {
   authorizationServerMetadata,
   handleAuthorize,
@@ -32,7 +42,8 @@ import { HOWTO_HTML } from "./howto";
 import { TERMS_HTML } from "./terms";
 import { SETUP_HTML } from "./setup";
 import { DOCS_HTML } from "./docs";
-import { createCheckoutSession, handleStripeWebhook, PAYMENT_HTML } from "./payment";
+import { createCheckoutSession, createCreditCheckout, handleStripeWebhook, PAYMENT_HTML } from "./payment";
+import { billingSummary, handleStartTrial } from "./billing_api";
 import { RETURN_HTML } from "./returnpolicy";
 import { LEGAL_HTML } from "./legal";
 import { ICON_180_B64, ICON_152_B64, ICON_120_B64, ICON_192_B64, ICON_48_B64, FAVICON_B64, ADMIN_180_B64, ADMIN_152_B64, ADMIN_120_B64, ADMIN_192_B64, ADMIN_48_B64 } from "./icons";
@@ -85,7 +96,12 @@ function buildServer(env: Env): McpServer {
       title: "Add memory",
       description: "Store a durable memory. JEV assigns a type and salience, and supersedes contradicted memories.",
       inputSchema: {
-        content: z.string().describe("The memory text to store."),
+        // Bounded because cost now scales with input length. Embedding and JEV
+        // both bill per token, and pay-as-you-go is a flat per request, so an
+        // unbounded `content` would let one call cost far more than the price
+        // charged for it. 64k characters is far above any real memory and bounds
+        // the worst case to roughly $0.003 of model time.
+        content: z.string().max(64_000).describe("The memory text to store (max 64,000 characters)."),
         scope: z.string().optional().describe("Memory space; defaults to the server default scope."),
         tags: z.array(z.string()).optional().describe("Optional tags for filtering and keyword search."),
         source: z.string().optional().describe("Where this memory came from (agent, file, url)."),
@@ -363,6 +379,15 @@ async function handleRest(request: Request, env: Env, path: string): Promise<Res
       return json(await handleEnterpriseInquiry(env, body), { headers: CORS });
     case "/api/create-checkout-session":
       return json(await createCheckoutSession(env, body), { headers: CORS });
+    case "/api/buy-credits":
+      return json(await createCreditCheckout(env, body), { headers: CORS });
+    case "/api/start-trial":
+      // handleStartTrial already builds its own Response, so it must not be
+      // wrapped in json() again -- that serialises the Response to `{}` and the
+      // caller gets an empty body with a 200.
+      return await handleStartTrial(env, body, request);
+    case "/api/billing-summary":
+      return json(await handleBillingSummary(env, body, request), { headers: CORS });
     case "/api/stripe-webhook":
       return await handleStripeWebhook(env, request);
     case "/api/admin/stats":
@@ -381,13 +406,6 @@ async function handleAdminTokens(env: Env, body: Record<string, any>, url: URL, 
   await logCrmAction(env, "admin", "admin_login_success", "viewed token list", request).run().catch(() => {});
   const { results } = await env.DB.prepare("SELECT id, email, status, token, plan, quota_monthly, requests_used, requests_reset_at, train_with_all, has_connected, tc_agreed, created_at, updated_at FROM tokens ORDER BY created_at DESC LIMIT 500").bind().all<{ id: string; email: string; status: string; token: string | null; plan: string; quota_monthly: number; requests_used: number; requests_reset_at: number | null; train_with_all: number; has_connected: number; tc_agreed: number; created_at: number; updated_at: number }>();
   return { tokens: results || [] };
-}
-
-function logCrmAction(env: Env, email: string, action: string, detail: string | null, request: Request): D1PreparedStatement {
-  const ip = request.headers.get("cf-connecting-ip") || request.headers.get("x-forwarded-for") || "";
-  const device = (request.headers.get("user-agent") || "").substring(0, 200);
-  return env.DB.prepare("INSERT INTO crm_logs (email, action, detail, ip, device, created_at) VALUES (?, ?, ?, ?, ?, ?)")
-    .bind(email, action, detail, ip, device, now());
 }
 
 function classifyPath(path: string): string {
@@ -558,24 +576,37 @@ async function handleDisableToken(env: Env, body: Record<string, any>, request: 
   return { status: "disabled" };
 }
 
-function planQuota(plan: string | null): number {
-  switch (plan) {
-    case "free": return 5600;
-    case "median": return 7800;
-    case "pro": return 10000;
-    case "enterprise": return 999999;
-    default: return 5600;
+/**
+ * Current plan, trial, wallet and upgrade state for the pricing and account
+ * pages. Passkey-authenticated rather than bearer-authenticated, because it is
+ * reached from the pricing page where the visitor may not hold a token yet.
+ */
+async function handleBillingSummary(env: Env, body: Record<string, any>, request: Request): Promise<Record<string, any>> {
+  const { email, passkey } = body;
+  if (!email || !passkey) return { error: "email and passkey are required" };
+  const auth = checkPasskey(env, passkey);
+  if (!auth.ok) return { error: auth.error };
+  try {
+    return await billingSummary(env, email);
+  } catch {
+    return { error: "no account for that email -- request a token first" };
   }
 }
 
 async function handleCheckQuota(env: Env, request: Request): Promise<Record<string, any>> {
   const token = extractToken(request);
   if (!token) return { error: "no token provided" };
-  const row = await env.DB.prepare("SELECT email, status, plan, quota_monthly, requests_used, requests_reset_at FROM tokens WHERE token = ?").bind(token).first<{ email: string; status: string; plan: string; quota_monthly: number; requests_used: number; requests_reset_at: number | null }>();
+  const row = await env.DB.prepare(
+    `SELECT ${ACCOUNT_COLUMNS} FROM tokens WHERE token = ?`,
+  ).bind(token).first<AccountState>();
   if (!row) return { error: "invalid token" };
-  const plan = row.plan || "free";
   const now_ = now();
-  let quota = row.quota_monthly || planQuota(plan);
+
+  // Report the plan that will actually be enforced, not the stale stored one,
+  // so a lapsed trial does not keep advertising Pro until the next write.
+  const trial = resolveTrial(row);
+  const plan = trial.plan;
+  const quota = effectiveQuota(row, plan);
   let used = row.requests_used || 0;
   let resetAt = row.requests_reset_at;
   if (!resetAt || now_ > resetAt) {
@@ -588,6 +619,8 @@ async function handleCheckQuota(env: Env, request: Request): Promise<Record<stri
   const year = 365 * day;
   const user30d = await env.DB.prepare("SELECT COUNT(*) as c FROM usage_events WHERE email = ? AND event_at > ?").bind(row.email, now_ - month).first<{ c: number }>();
   const userYear = await env.DB.prepare("SELECT COUNT(*) as c FROM usage_events WHERE email = ? AND event_at > ?").bind(row.email, now_ - year).first<{ c: number }>();
+  const exhausted = used >= quota;
+  const creditsMicro = row.payg_credits_micro || 0;
   return {
     email: row.email,
     plan,
@@ -598,6 +631,17 @@ async function handleCheckQuota(env: Env, request: Request): Promise<Record<stri
     resets_at: resetAt,
     usage_30d: user30d?.c || 0,
     usage_year: userYear?.c || 0,
+    trial: row.trial_ends_at ? { active: row.trial_ends_at > now_, ends_at: row.trial_ends_at, plan: TRIAL_PLAN } : null,
+    payg: {
+      // Remaining wallet, and what that buys at the current per-request rate.
+      credits_usd: creditsMicro / 1_000_000,
+      requests_remaining: Math.floor(creditsMicro / PAYG_MICRO_PER_REQUEST),
+      price_per_request_usd: PAYG_MICRO_PER_REQUEST / 1_000_000,
+      spent_usd: (row.payg_spent_micro || 0) / 1_000_000,
+    },
+    // Included whenever the plan allowance is spent, so a client can surface the
+    // upgrade paths instead of a bare "quota exceeded".
+    ...(exhausted ? { exhausted: true, upgrade: upgradeOptions(plan) } : {}),
   };
 }
 
@@ -689,42 +733,105 @@ async function handleEnterpriseInquiry(env: Env, body: Record<string, any>): Pro
   }
 }
 
+export type QuotaDecision =
+  | { allowed: true; source: "master" | "plan" | "payg" }
+  | { allowed: false; status: number; code: string; error: string; upgrade?: ReturnType<typeof upgradeOptions> };
+
 /**
- * Quota enforcement and usage accounting.
+ * Quota enforcement, usage accounting, and pay-as-you-go settlement.
  *
  * Takes the already-resolved credential so the request is only authenticated
  * once. OAuth grants are billed to the account that authorised them, keyed by
- * `tokens.id`, which is what keeps quota and attribution identical whether a
- * client presents a pasted token or an OAuth access token.
+ * `tokens.id`, which keeps quota and attribution identical whether a client
+ * presents a pasted token or an OAuth access token.
+ *
+ * Funding order is: plan quota first, then the prepaid wallet. The wallet is
+ * additive and never resets, so exhausting a plan does not cut the user off
+ * while they still have credit -- it just starts charging them per request.
  */
-async function checkAndTrackUsage(env: Env, request: Request, credential: Credential | null): Promise<{ allowed: boolean; reason?: string }> {
-  if (!credential) return { allowed: true };
-  if (credential.kind === "master") return { allowed: true };
+async function checkAndTrackUsage(env: Env, request: Request, credential: Credential | null): Promise<QuotaDecision> {
+  if (!credential) return { allowed: true, source: "plan" };
+  if (credential.kind === "master") return { allowed: true, source: "master" };
 
-  const row = credential.kind === "oauth"
-    ? await env.DB.prepare("SELECT id, status, plan, quota_monthly, requests_used, requests_reset_at, email FROM tokens WHERE id = ?").bind(credential.userId).first<{ id: string; status: string; plan: string; quota_monthly: number; requests_used: number; requests_reset_at: number | null; email: string }>()
-    : await env.DB.prepare("SELECT id, status, plan, quota_monthly, requests_used, requests_reset_at, email FROM tokens WHERE token = ?").bind(credential.tokenValue).first<{ id: string; status: string; plan: string; quota_monthly: number; requests_used: number; requests_reset_at: number | null; email: string }>();
-  if (!row || row.status !== "active") return { allowed: false, reason: "token invalid or disabled" };
+  const lookup = credential.kind === "oauth" ? "id = ?" : "token = ?";
+  const account = await env.DB.prepare(
+    `SELECT ${ACCOUNT_COLUMNS} FROM tokens WHERE ${lookup}`,
+  )
+    .bind(credential.kind === "oauth" ? credential.userId : credential.tokenValue)
+    .first<AccountState>();
+
+  if (!account || account.status !== "active") {
+    return { allowed: false, status: 401, code: "token_invalid", error: "token invalid or disabled" };
+  }
+
   const now_ = now();
-  let used = row.requests_used || 0;
-  let resetAt = row.requests_reset_at;
+
+  // Lapse an expired trial before measuring usage, so a lapsed trial cannot be
+  // billed at the trial plan's quota. Persisted, not just computed, so the plan
+  // reported to the user matches the plan enforced here.
+  const trial = resolveTrial(account);
+  if (trial.expired) {
+    await env.DB.prepare(
+      "UPDATE tokens SET plan = 'free', quota_monthly = ?, trial_ends_at = NULL, trial_started_at = NULL, requests_used = 0, requests_reset_at = ?, updated_at = ? WHERE id = ?",
+    )
+      .bind(planQuota("free"), now_ + 30 * 86400 * 1000, now_, account.id)
+      .run();
+  }
+  const effectivePlan = trial.plan;
+
+  let used = account.requests_used || 0;
+  let resetAt = account.requests_reset_at;
   if (!resetAt || now_ > resetAt) {
     used = 0;
     resetAt = now_ + 30 * 86400 * 1000;
   }
-  const maxQuota = row.quota_monthly || planQuota(row.plan);
-  if (used >= maxQuota) return { allowed: false, reason: "monthly quota exceeded" };
-  const path = new URL(request.url).pathname;
-  const context = classifyPath(path);
+  const maxQuota = effectiveQuota(account, effectivePlan);
+
   // usage_events.token holds the presented bearer token. For OAuth there is no
   // reusable per-user token, so the grant is recorded by its hash instead --
   // enough to correlate a session, without writing a live credential to the log.
   const loggedToken = credential.kind === "oauth" ? `oauth:${credential.tokenHash.slice(0, 16)}` : credential.tokenValue;
-  await Promise.all([
-    env.DB.prepare("UPDATE tokens SET requests_used = requests_used + 1, requests_reset_at = ?, has_connected = 1, updated_at = ? WHERE id = ?").bind(resetAt, now_, row.id).run(),
-    env.DB.prepare("INSERT INTO usage_events (token, email, path, event_at) VALUES (?, ?, ?, ?)").bind(loggedToken, row.email || "", context, now_).run(),
-  ]);
-  return { allowed: true };
+  const context = classifyPath(new URL(request.url).pathname);
+
+  if (used < maxQuota) {
+    await Promise.all([
+      env.DB.prepare(
+        "UPDATE tokens SET requests_used = requests_used + 1, requests_reset_at = ?, has_connected = 1, updated_at = ? WHERE id = ?",
+      ).bind(resetAt, now_, account.id).run(),
+      env.DB.prepare(
+        "INSERT INTO usage_events (token, email, path, event_at, funding, cost_micro) VALUES (?, ?, ?, ?, 'plan', 0)",
+      ).bind(loggedToken, account.email || "", context, now_).run(),
+    ]);
+    return { allowed: true, source: "plan" };
+  }
+
+  // Plan allowance is spent. Fall through to the prepaid wallet.
+  const balance = account.payg_credits_micro || 0;
+  if (balance >= PAYG_MICRO_PER_REQUEST) {
+    // Guarded UPDATE: the balance check and the debit are one atomic step, so
+    // two concurrent requests cannot both pass the check and overdraw the wallet.
+    const debited = await env.DB.prepare(
+      "UPDATE tokens SET payg_credits_micro = payg_credits_micro - ?, payg_spent_micro = payg_spent_micro + ?, has_connected = 1, updated_at = ? WHERE id = ? AND payg_credits_micro >= ?",
+    )
+      .bind(PAYG_MICRO_PER_REQUEST, PAYG_MICRO_PER_REQUEST, now_, account.id, PAYG_MICRO_PER_REQUEST)
+      .run();
+    const debitedOk = Number(debited?.meta?.changes ?? 0) === 1;
+    if (debitedOk) {
+      await env.DB.prepare(
+        "INSERT INTO usage_events (token, email, path, event_at, funding, cost_micro) VALUES (?, ?, ?, ?, 'payg', ?)",
+      ).bind(loggedToken, account.email || "", context, now_, PAYG_MICRO_PER_REQUEST).run();
+      return { allowed: true, source: "payg" };
+    }
+    // Lost the race; fall through to the limit response.
+  }
+
+  return {
+    allowed: false,
+    status: 429,
+    code: "quota_exceeded",
+    error: "monthly quota exceeded",
+    upgrade: upgradeOptions(effectivePlan),
+  };
 }
 
 export default {
@@ -831,7 +938,7 @@ export default {
     if (path === "/token") return handleToken(env, request);
     if (path === "/revoke") return handleRevoke(env, request);
 
-    const CRM_ROUTES = ["/api/request-token", "/api/check-star", "/api/disable-token", "/api/verify-token", "/api/setup-dataset", "/api/visitor", "/api/enterprise-inquiry", "/api/create-checkout-session", "/api/stripe-webhook", "/api/admin/tokens", "/api/admin/stats", "/api/admin/logs", "/api/admin/toggle-train", "/api/admin/update-quota", "/api/admin/clock", "/api/check-quota"];
+    const CRM_ROUTES = ["/api/request-token", "/api/check-star", "/api/disable-token", "/api/verify-token", "/api/setup-dataset", "/api/visitor", "/api/enterprise-inquiry", "/api/create-checkout-session", "/api/buy-credits", "/api/start-trial", "/api/billing-summary", "/api/stripe-webhook", "/api/admin/tokens", "/api/admin/stats", "/api/admin/logs", "/api/admin/toggle-train", "/api/admin/update-quota", "/api/admin/clock", "/api/check-quota"];
     if (path === "/mcp" || (path.startsWith("/api/") && !CRM_ROUTES.includes(path))) {
       const credential = await resolveCredential(env, request);
       if (!credential) {
@@ -852,7 +959,17 @@ export default {
       }
       const quota = await checkAndTrackUsage(env, request, credential);
       if (!quota.allowed) {
-        return json({ error: quota.reason }, { status: 429, headers: CORS });
+        // Surface the upgrade paths in the 429 body. A client that only surfaces
+        // "quota exceeded" leaves the user with no idea a cheaper or more flexible
+        // option exists, which is the whole point of metering.
+        return json(
+          {
+            error: quota.error,
+            code: quota.code,
+            ...(quota.upgrade ? { upgrade: quota.upgrade } : {}),
+          },
+          { status: quota.status, headers: { ...CORS, "retry-after": "3600" } },
+        );
       }
     }
 
