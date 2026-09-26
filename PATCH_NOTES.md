@@ -147,13 +147,67 @@ so anyone who obtains it can claim a token for any email. Rotating and hiding it
 raises the bar but does not fix the model. A per-user invitation or email
 magic-link flow would be the real answer.
 
+## OAuth 2.1 authorization server (`/mcp` only)
+
+The worker is its own authorization server and resource server — no external
+IdP, no per-user vendor cost. Clients that speak MCP OAuth connect with a
+browser consent flow instead of pasting a token.
+
+| Endpoint | Purpose |
+| --- | --- |
+| `GET /.well-known/oauth-protected-resource` | RFC 9728 resource metadata |
+| `GET /.well-known/oauth-authorization-server` | AS metadata |
+| `POST /register` | RFC 7591 dynamic client registration |
+| `GET /authorize` | Consent page + sign-in |
+| `POST /token` | Code exchange and refresh |
+| `POST /revoke` | RFC 7009 revocation |
+
+`src/oauth.ts` holds the server, `src/auth.ts` holds the shared credential
+resolver. The REST routes deliberately keep bearer tokens: they are called from
+curl and scripts where a browser consent flow is pure friction.
+
+**Properties enforced, each with a test:** PKCE S256 only; codes single-use and
+burned by conditional `UPDATE` before minting; `redirect_uri` matched by exact
+string against the registered value; `http` redirect only for loopback;
+`client_credentials` refused; codes 10 min, access 1 h, refresh 30 d with
+rotation; refresh preserves the original absolute lifetime rather than sliding;
+all three token classes stored only as SHA-256 digests.
+
+**Disable is a kill switch, not a gate.** Disabling an account revokes its
+OAuth grants and burns its pending codes. The first draft only checked account
+status per request, which meant re-enabling an account silently resurrected
+access tokens the user had never re-consented to — bad if the disable was a
+response to a compromise. `oauth_flow_test.py` caught this.
+
+**401 now carries `WWW-Authenticate`.** A bare 401 left opencode guessing at an
+OAuth endpoint it could not find, surfacing as a confusing 404 three steps
+downstream (this is the original opencode 404, now fixed at the source rather
+than worked around by reactivating a token).
+
+**Scope is advisory.** The single `mcp` scope is metadata; it is not enforced
+per tool. Fine while every client gets the full catalog, but it is not
+least-privilege. Per-tool scopes would need a check in each handler.
+
+**Not done:** no `/.well-known/oauth-protected-resource/mcp` path-suffixed
+variant is tested by real clients; no consent *scoping* screen (the user sees a
+fixed description); no client-initiated logout endpoint; no rate limiting on
+`/token` or `/register`, so registration is unbounded and can be used to grow
+`oauth_clients` without limit.
+
 ## Outstanding security work
 
 - **Setup-token logging.** Tokens are written to logs on the setup path.
 - **Incomplete migrations.** `migrations/0001_init.sql` … `0006_logs.sql` do not
   fully reproduce the live schema, so clean self-host installs remain broken.
-  `schema.sql` in the migration bundle is the authoritative version. New OAuth
-  tables need migrations here too, or self-hosters break again.
+  `schema.sql` in the migration bundle is the authoritative version.
+  `0007_oauth.sql` was added for the new tables, but it only helps if the
+  earlier gaps are closed — otherwise a self-hoster who runs migrations in
+  order still ends up with a broken schema.
+- **Shared passkey gates all signups.** One passkey serves every self-serve
+  signup, so anyone who obtains it can claim a token for any email. Rotating
+  and hiding it raises the bar but does not fix the model. This now also gates
+  the OAuth consent flow, so it is worth more attention than before. A per-user
+  invitation or email magic-link flow would be the real answer.
 - **Credential in the working tree.** `token-wan.md` holds a Cloudflare API
   token in plaintext. It is untracked and gitignored (`.gitignore:23`) and has
   never been committed, but it should not sit at the repo root.
