@@ -18,6 +18,7 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+from html.parser import HTMLParser
 from pathlib import Path
 
 BASE = (sys.argv[1] if len(sys.argv) > 1 else "https://dgui-hypermem.ctaxnagomi.workers.dev").rstrip("/")
@@ -121,6 +122,36 @@ def authorize_params(client_id, challenge, redirect=REDIRECT, state="xyz"):
 def sign_in(params, email=EMAIL, passkey=None):
     payload = urllib.parse.urlencode({**params, "email": email, "passkey": passkey or PASSKEY})
     return request(f"{BASE}/authorize", payload.encode(), FORM)
+
+
+class HiddenFields(HTMLParser):
+    """Collects the hidden inputs a consent form will actually submit.
+
+    Parsing the rendered page instead of reusing the params the test built means
+    the GET -> form -> POST round trip is exercised the way a browser performs
+    it. Reusing the test's own dict hid a bug where the form silently dropped
+    every parameter whose wire name differed from its internal one, so the POST
+    arrived with no client_id at all.
+    """
+
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.fields = {}
+
+    def handle_starttag(self, tag, attrs):
+        a = dict(attrs)
+        if tag == "input" and a.get("type") == "hidden" and a.get("name"):
+            self.fields[a["name"]] = a.get("value", "")
+
+
+def consent_form(params):
+    """GET the consent page and return the hidden fields it would submit."""
+    status, _, body = request(f"{BASE}/authorize?{urllib.parse.urlencode(params)}")
+    if status != 200:
+        return status, {}
+    parser = HiddenFields()
+    parser.feed(body)
+    return status, parser.fields
 
 
 def exchange(code, verifier, client_id, redirect=REDIRECT):
@@ -238,6 +269,21 @@ params = authorize_params(client["client_id"], challenge)
 status, _, body = request(f"{BASE}/authorize?{urllib.parse.urlencode(params)}")
 check("consent page renders", status == 200 and "<form" in body)
 check("client name shown to user", "oauth-smoke-test" in body)
+
+# The consent form has to carry the OAuth parameters back to the server. Sign in
+# using the fields the server rendered, not the ones this test built, so a form
+# that drops a parameter fails here instead of at the user's sign-in attempt.
+form_status, form = consent_form(params)
+check("consent form renders for round-trip", form_status == 200, f"got {form_status}")
+for required in ("client_id", "redirect_uri", "scope", "code_challenge", "code_challenge_method"):
+    check(f"consent form carries {required}", required in form, f"form has {sorted(form)}")
+check("consent form carries state", form.get("state") == "xyz", form.get("state", ""))
+check("consent form does not echo error", "error" not in form)
+
+status, headers, _ = sign_in({**form, "email": EMAIL, "passkey": PASSKEY})
+roundtrip_code = urllib.parse.parse_qs(urllib.parse.urlparse(location_of(headers)).query).get("code", [""])[0]
+check("sign-in via the rendered form yields a code", status == 302 and bool(roundtrip_code),
+      f"got {status}")
 
 status, headers, _ = sign_in(params, passkey="definitely-wrong")
 check("wrong passkey denied", status == 401, f"got {status}")

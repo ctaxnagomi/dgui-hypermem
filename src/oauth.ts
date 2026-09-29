@@ -202,6 +202,22 @@ interface AuthorizeParams {
   errorDescription: string | null;
 }
 
+/**
+ * Every OAuth parameter the consent form must round-trip back on POST, as
+ * [AuthorizeParams key, wire parameter name]. `error` and `errorDescription`
+ * are deliberately absent: they are only ever read from an inbound redirect
+ * and must never be echoed back into a form we then act on.
+ */
+const CONSENT_FIELDS: ReadonlyArray<[keyof AuthorizeParams, string]> = [
+  ["clientId", "client_id"],
+  ["redirectUri", "redirect_uri"],
+  ["state", "state"],
+  ["scope", "scope"],
+  ["codeChallenge", "code_challenge"],
+  ["codeChallengeMethod", "code_challenge_method"],
+  ["resource", "resource"],
+];
+
 function readAuthorizeParams(q: URLSearchParams): AuthorizeParams {
   return {
     clientId: q.get("client_id") || "",
@@ -255,10 +271,17 @@ function escapeHtml(value: string): string {
 
 function loginPage(p: AuthorizeParams, clientName: string, message: string, messageKind: "error" | "info"): string {
   const color = messageKind === "error" ? "#b91c1c" : "#047857";
-  const hidden = ["client_id", "redirect_uri", "state", "scope", "code_challenge", "code_challenge_method", "resource"]
-    .map((k) => {
-      const v = (p as unknown as Record<string, string | null>)[k];
-      return v ? `<input type="hidden" name="${k}" value="${escapeHtml(v)}">` : "";
+  // The consent form has to carry the OAuth parameters back to us on POST under
+  // their wire names, while AuthorizeParams holds them in camelCase. The two
+  // lists are written out explicitly rather than derived from one another: an
+  // earlier version iterated the wire names and read them off the camelCase
+  // object, which silently emitted nothing for every name that differed and so
+  // dropped client_id, redirect_uri, code_challenge and code_challenge_method.
+  // Typing the keys as keyof AuthorizeParams makes that a compile error instead.
+  const hidden = CONSENT_FIELDS
+    .map(([prop, wire]) => {
+      const v = p[prop];
+      return v ? `<input type="hidden" name="${wire}" value="${escapeHtml(v)}">` : "";
     })
     .join("");
   return `<!DOCTYPE html>
