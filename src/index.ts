@@ -394,6 +394,22 @@ async function handleRest(request: Request, env: Env, path: string): Promise<Res
   const url = new URL(request.url);
   const scope = body.scope || url.searchParams.get("scope") || undefined;
 
+  // Admin APIs are only reachable on the admin hostname. On the public host
+  // they return 404 so the admin surface is not guessable there.
+  const ADMIN_HOST = env.ADMIN_HOST || "hmem-admin.deckergui.my";
+  const ADMIN_API = new Set([
+    "/api/admin/tokens",
+    "/api/admin/logs",
+    "/api/admin/toggle-train",
+    "/api/admin/update-quota",
+    "/api/admin/clock",
+    "/api/admin/stats",
+    "/api/setup-dataset",
+  ]);
+  if (ADMIN_API.has(path) && url.hostname !== ADMIN_HOST) {
+    return json({ error: "not found" }, { status: 404, headers: CORS });
+  }
+
   switch (path) {
     case "/api/add":
       return json(await addMemory(env, { content: body.content, scope, tags: body.tags, source: body.source }), {
@@ -954,15 +970,28 @@ export default {
       });
     }
 
+    // Admin CRM is served on its own hostname (ADMIN_HOST) instead of a public
+    // URL path. The admin UI and the /api/admin/* endpoints live behind this
+    // door; the public hostname redirects /admin here and refuses the admin
+    // API routes outright (404, so scanners cannot distinguish them).
+    const ADMIN_HOST = env.ADMIN_HOST || "hmem-admin.deckergui.my";
+    const onAdminHost = url.hostname === ADMIN_HOST;
+
     if (path === "/") {
-      return new Response(LANDING_HTML, {
+      return new Response(onAdminHost ? ADMIN_HTML : LANDING_HTML, {
         headers: { "content-type": "text/html;charset=UTF-8" },
       });
     }
 
     if (path === "/admin") {
-      return new Response(ADMIN_HTML, {
-        headers: { "content-type": "text/html;charset=UTF-8" },
+      if (onAdminHost) {
+        return new Response(ADMIN_HTML, {
+          headers: { "content-type": "text/html;charset=UTF-8" },
+        });
+      }
+      return new Response(null, {
+        status: 302,
+        headers: { location: `https://${ADMIN_HOST}/` },
       });
     }
 

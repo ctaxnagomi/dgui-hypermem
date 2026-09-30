@@ -63,15 +63,28 @@ MAINTENANCE) as the rollback path until cutover is commanded.
 4. Re-run `billing_flow_test.py` / `oauth_flow_test.py` against the target.
 5. Re-check D1 upgrade (Workers Paid) and OpenAI Plugins listing decisions.
 
-### Follow-up patch (next): admin CRM on its own hostname
+### Follow-up patch: admin CRM on its own hostname — DEPLOYED (30 Sep 2026)
 
-The admin CRM currently lives at the `/admin` URL path on the public worker.
-Planned: serve it on **`hmem-admin.deckergui.my`** (a fresh subdomain; the
+The admin CRM now runs on **`hmem-admin.deckergui.my`** (a fresh subdomain; the
 user's first choice `emitter.deckergui.my` is already taken by "DGUI Emitter
-Studio" on the Cloudflare Tunnel). `ADMIN_HOST` becomes a config var; the
-public host 302s `/admin` to the admin host and 404s `/api/admin/*` +
-`/api/setup-dataset`; MAINTENANCE gate stays first so both hosts show the
-notice until cutover. Prepared in `hmem-migration/admin-crm-patch.md`.
+Studio" on the Cloudflare Tunnel). Implemented and deployed on the target:
+
+- `Env.ADMIN_HOST` added (`src/types.ts`).
+- `src/index.ts` fetch handler branches on `url.hostname === ADMIN_HOST`:
+  admin host serves `ADMIN_HTML` at `/`; the public host 302s `/admin` →
+  `https://hmem-admin.deckergui.my/` so legacy `/admin` links keep working.
+- `handleRest` gates `/api/admin/*` + `/api/setup-dataset` to the admin host
+  only — the public hostname returns 404 for them (admin surface not
+  guessable on the public domain).
+- `wrangler.target.jsonc`: second `custom_domain` route
+  `hmem-admin.deckergui.my` + `ADMIN_HOST` var.
+- MAINTENANCE gate stays first in the fetch handler, so both hostnames show
+  the migration notice until cutover is commanded (verified live).
+- Verified: `tsc --noEmit` clean, dry-run deploy clean, deployed
+  (version `602d2c90-74c4-43a6-9bfd-fd041d988570`), DNS custom domains
+  registered (`dgui-hmem.deckergui.my` + `hmem-admin.deckergui.my`).
+- Admin HTML needed zero changes — it already calls `/api/admin/*` relatively,
+  so it works same-origin on the admin host.
 
 ---
 

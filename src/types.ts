@@ -22,6 +22,7 @@ export interface Env {
   OPENAI_APPS_CHALLENGE?: string;
   MAINTENANCE?: string;
   STAGING?: string;
+  ADMIN_HOST?: string;
 }
 
 export type MemoryStatus = "active" | "low_signal" | "superseded" | "deleted";
