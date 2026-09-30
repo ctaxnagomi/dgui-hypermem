@@ -19,6 +19,7 @@ export interface Env {
   GITHUB_TOKEN?: string;
   STRIPE_SECRET_KEY?: string;
   STRIPE_WEBHOOK_SECRET?: string;
+  OPENAI_APPS_CHALLENGE?: string;
   STAGING?: string;
 }
 

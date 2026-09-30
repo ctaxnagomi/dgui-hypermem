@@ -4,6 +4,46 @@ Postponed work and known issues, carried forward between releases.
 
 ---
 
+## Added: OpenAI Plugins Directory submission readiness (pending deploy)
+
+dgui-hypermem is now shaped for a *remote MCP-only* submission to OpenAI's
+universal Plugins Directory (shared by ChatGPT + Codex). Nothing here touches
+money or the write path — annotations are metadata, the challenge route is a
+plain GET.
+
+- **Tool annotations on all 8 MCP tools** (`readOnlyHint`, `destructiveHint`,
+  `openWorldHint`, `idempotentHint`) in `buildServer`. OpenAI's Scan Tools
+  imports these and the portal requires all three hints + a justification on
+  every tool. Summary: read-only = search/list/profile/help/jev_queue_stats;
+  destructive = forget (`all:true` wipes a scope); open-world = add (JEV
+  analysis + HF dataset queue) and sync_jev_dataset (uploads to the external
+  HF repo).
+- **`/.well-known/openai-apps-challenge` route** serves the domain-verification
+  token verbatim as `text/plain` (404 when unset). At submission time the
+  portal gives a per-submission token; set it once as the `OPENAI_APPS_CHALLENGE`
+  var/secret — no code change needed. The token is public by design (OpenAI
+  fetches it to prove domain control), so treating it as a non-secret var is
+  fine, but keeping it out of the repo still avoids churn.
+- **Listing URLs already exist**: `/privacy`, `/terms`, `/docs`, `/legal`,
+  `/return-policy`. For the portal's required website/support/privacy/terms
+  URLs, use the worker origin + `/docs` (or `deckergui.my` if preferred).
+
+### OpenAI submission checklist (user-actionable, at submission time)
+
+1. In the portal choose **With MCP → Universal**; enter the production URL
+   `https://dgui-hypermem.ctaxnagomi.workers.dev/mcp`.
+2. Complete the domain-verification challenge — place the token OpenAI
+   generates at `/.well-known/openai-apps-challenge` (set `OPENAI_APPS_CHALLENGE`).
+3. Provide reviewer demo credentials (an MCP token via the normal
+   `/api/request-token` flow) — no MFA. Ensure a scoped demo account has sample
+   data.
+4. Fill in privacy policy, terms, support, and website URLs; write 5 positive +
+   3 negative test cases and a short demo recording.
+5. Note OpenAI pays **no revenue share** — this is distribution only. Own
+   Stripe billing remains the money mechanism.
+
+---
+
 ## Fixed: Stripe webhook could not settle any payment (deployed `af4905c0`)
 
 Two runtime bugs, both only visible once `STRIPE_WEBHOOK_SECRET` was set — which

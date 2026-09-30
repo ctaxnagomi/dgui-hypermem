@@ -110,6 +110,17 @@ function buildServer(env: Env): McpServer {
           .optional()
           .describe("Run the JEV supersede check against nearby memories (default true)."),
       },
+      annotations: {
+        // Writes a new memory row and marks contradicted memories superseded.
+        // Data stays in the account's own store (nothing user-visible is
+        // dropped), so this is not destructive. It does run JEV analysis and
+        // queue dataset rows that later flush to an external HF repo, so it
+        // is open-world. Two identical adds create two memories: not idempotent.
+        readOnlyHint: false,
+        destructiveHint: false,
+        openWorldHint: true,
+        idempotentHint: false,
+      },
     },
     async (args) => {
       try {
@@ -146,6 +157,15 @@ function buildServer(env: Env): McpServer {
         limit: z.number().int().min(1).max(50).optional().describe("Max results (default 10)."),
         type: z.enum(Object.keys(MEMORY_TYPES) as [string, ...string[]]).optional().describe("Restrict to one memory type."),
         durable_only: z.boolean().optional().describe("Drop memories JEV considered non-durable."),
+      },
+      annotations: {
+        // Searches the account's own store only; nothing is written and no
+        // external service is consulted beyond model inference already covered
+        // by the account's quota. Same query, same store -> same result.
+        readOnlyHint: true,
+        destructiveHint: false,
+        openWorldHint: false,
+        idempotentHint: true,
       },
     },
     async (args) => {
@@ -187,6 +207,12 @@ function buildServer(env: Env): McpServer {
         type: z.enum(Object.keys(MEMORY_TYPES) as [string, ...string[]]).optional(),
         status: z.enum(["active", "superseded", "deleted"]).optional(),
       },
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        openWorldHint: false,
+        idempotentHint: true,
+      },
     },
     async (args) => {
       try {
@@ -220,6 +246,12 @@ function buildServer(env: Env): McpServer {
       title: "Memory profile",
       description: "Summarise a scope: totals, counts by type, top tags, average salience, and the newest memories.",
       inputSchema: { scope: z.string().optional() },
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        openWorldHint: false,
+        idempotentHint: true,
+      },
     },
     async (args) => {
       try {
@@ -241,6 +273,15 @@ function buildServer(env: Env): McpServer {
         scope: z.string().optional(),
         all: z.boolean().optional().describe("Delete everything in the scope. Use with care."),
       },
+      annotations: {
+        // Deletes memory rows (by id, by query match, or the whole scope when
+        // all:true). Destructive: prompt for explicit confirmation. Idempotent:
+        // deleting an already-deleted id is a no-op after the first call.
+        readOnlyHint: false,
+        destructiveHint: true,
+        openWorldHint: false,
+        idempotentHint: true,
+      },
     },
     async (args) => {
       try {
@@ -256,7 +297,17 @@ function buildServer(env: Env): McpServer {
 
   server.registerTool(
     "help",
-    { title: "Help", description: "Describe DGUI-HyperMem and its tools.", inputSchema: {} },
+    {
+      title: "Help",
+      description: "Describe DGUI-HyperMem and its tools.",
+      inputSchema: {},
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        openWorldHint: false,
+        idempotentHint: true,
+      },
+    },
     async () => ({ content: [{ type: "text", text: HELP }] }),
   );
 
@@ -267,6 +318,14 @@ function buildServer(env: Env): McpServer {
       description: "Flush pending JEV decision examples to the DGUI_HYPERMEM-JEV HuggingFace dataset (also runs on an hourly schedule).",
       inputSchema: {
         limit: z.number().int().min(1).max(500).optional().describe("Max rows to flush this call (default 200)."),
+      },
+      annotations: {
+        // Uploads queued JEV rows to the external HF dataset repo and rewrites
+        // metadata.json there; not read-only, and an external side effect.
+        readOnlyHint: false,
+        destructiveHint: false,
+        openWorldHint: true,
+        idempotentHint: false,
       },
     },
     async (args) => {
@@ -284,6 +343,12 @@ function buildServer(env: Env): McpServer {
       title: "JEV queue stats",
       description: "Queue status for the DGUI_HYPERMEM-JEV training dataset: pending/uploaded/error counts, breakdown by use case, target repo.",
       inputSchema: {},
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        openWorldHint: false,
+        idempotentHint: true,
+      },
     },
     async () => {
       try {
@@ -947,6 +1012,18 @@ export default {
     }
     if (path === "/.well-known/oauth-protected-resource" || path === "/.well-known/oauth-protected-resource/mcp") {
       return protectedResourceMetadata(request);
+    }
+    // OpenAI Plugins Directory domain-verification challenge. The portal gives
+    // a per-submission token; it lives in OPENAI_APPS_CHALLENGE and is served
+    // verbatim as text/plain so the host proves it controls the workers.dev
+    // origin. The token is public by design (the directory fetches it), so it
+    // is a plain var, not a secret. 404 when unset.
+    if (path === "/.well-known/openai-apps-challenge") {
+      const token = env.OPENAI_APPS_CHALLENGE;
+      if (!token) return new Response("not found", { status: 404 });
+      return new Response(token, {
+        headers: { "content-type": "text/plain;charset=UTF-8", "cache-control": "no-store" },
+      });
     }
     if (path === "/register") return handleRegister(env, request);
     if (path === "/authorize") return handleAuthorize(env, request);
