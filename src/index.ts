@@ -36,6 +36,7 @@ import {
   handleToken,
   protectedResourceMetadata,
 } from "./oauth";
+import { MAINTENANCE_HTML } from "./maintenance";
 import { ADMIN_HTML } from "./admin";
 import { PRIVACY_HTML } from "./privacy";
 import { HOWTO_HTML } from "./howto";
@@ -941,6 +942,15 @@ export default {
           mcp: "/mcp",
           rest: ["/api/add", "/api/search", "/api/list", "/api/profile", "/api/forget", "/api/sync_jev", "/api/jev_queue_stats", "/api/request-token", "/api/check-star", "/api/disable-token", "/api/check-quota", "/api/verify-token", "/api/setup-dataset", "/api/enterprise-inquiry", "/api/create-checkout-session", "/api/stripe-webhook", "/api/admin/tokens", "/api/admin/stats", "/api/admin/logs", "/api/admin/toggle-train", "/api/admin/update-quota", "/api/admin/clock", "/api/visitor"],
         },
+      });
+    }
+
+    // Maintenance mode: an operator flips this on (env.MAINTENANCE set) while the
+    // service is migrated or upgraded. /health stays live so monitoring and
+    // migration verification keep working; every other page shows a notice.
+    if (env.MAINTENANCE) {
+      return new Response(MAINTENANCE_HTML, {
+        headers: { "content-type": "text/html;charset=UTF-8" },
       });
     }
 
