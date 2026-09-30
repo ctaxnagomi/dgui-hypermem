@@ -4,6 +4,51 @@ Postponed work and known issues, carried forward between releases.
 
 ---
 
+## Fixed: Stripe webhook could not settle any payment (deployed `af4905c0`)
+
+Two runtime bugs, both only visible once `STRIPE_WEBHOOK_SECRET` was set — which
+is exactly what "test the product purchase" was for. Before this, no purchase
+could ever have completed, and both failures presented as a raw Cloudflare
+`500 error code: 1101` with no log line:
+
+1. **Request body consumed before the webhook handler ran.** `handleRest`
+   pre-parses every POST body with `request.json()`. The handler then called
+   `request.text()` to verify the Stripe signature and threw
+   `TypeError: Body is unusable: Body has already been read` — *outside* its
+   try/catch. Fix: `/api/stripe-webhook` is dispatched before the generic body
+   parse in `handleRest`.
+2. **`constructEvent()` is unusable on workerd.** stripe-node v22 verifies
+   signatures with WebCrypto, which is async-only on Workers:
+   `SubtleCryptoProvider cannot be used in a synchronous context`. Fix: the
+   handler now awaits `constructEventAsync(...)` (v22 API, works on Node and
+   workerd).
+
+Verified live after deploy:
+
+- Forged/bad signature → **HTTP 400 JSON** ("signature verification failed"),
+  as the billing test asserts; Stripe stops retrying a permanently-bad event.
+- A validly-signed `checkout.session.completed` event (HMAC over the raw body
+  with the endpoint secret) passes verification, the handler unwraps the paid
+  session and reaches the credit/D1 stage — currently it stops at the D1
+  free-tier daily write limit (below), not at any code error.
+
+### D1 free tier: daily row-write limit is a live production constraint
+
+Since **2026-09-01** Cloudflare *enforces* D1 daily limits: any query that
+exceeds **100,000 rows written / day** (5M rows read / day) fails with
+`D1_ERROR` (surfaced as HTTP 500). This is a per-account ceiling, shared across
+all D1 databases, and it resets at **midnight UTC**.
+
+Today the account exhausted the daily write budget (real usage + the test
+suites + index backfills all count), so every write path on the worker —
+`/api/request-token`, the OAuth `/token` grant, checkout settlement, trial
+claim — 500s with the D1_ERROR until the reset. Reads and Stripe calls are
+unaffected. The full `billing_flow_test.py` / `oauth_flow_test.py` runs cannot
+pass until the budget resets (or the account moves to Workers Paid, which
+includes the first 50M rows written / month). Re-run them after midnight UTC.
+
+---
+
 ## Changed: salience admission gate (deployed `284143cd`)
 
 Memories are now classified at write time: `status = 'active'` when salience

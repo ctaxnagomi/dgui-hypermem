@@ -160,7 +160,11 @@ export async function handleStripeWebhook(env: any, request: Request): Promise<R
   const raw = await request.text();
   let event: Stripe.Event;
   try {
-    event = stripe.webhooks.constructEvent(raw, sig, env.STRIPE_WEBHOOK_SECRET);
+    // constructEventAsync (not constructEvent): stripe-node v22 verifies
+    // signatures with WebCrypto on workerd, which is async-only. The sync
+    // variant throws "SubtleCryptoProvider cannot be used in a synchronous
+    // context" on this runtime.
+    event = await stripe.webhooks.constructEventAsync(raw, sig, env.STRIPE_WEBHOOK_SECRET);
   } catch (e: any) {
     return jsonResponse({ error: `signature verification failed: ${e.message}` }, 400);
   }

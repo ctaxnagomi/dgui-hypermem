@@ -318,6 +318,12 @@ const CORS = {
 };
 
 async function handleRest(request: Request, env: Env, path: string): Promise<Response> {
+  // The Stripe webhook needs the raw body to verify its signature, so it is
+  // dispatched before the generic body parse below (which consumes request
+  // bodies and would leave request.text() with a "body already read" error).
+  if (path === "/api/stripe-webhook") {
+    return await handleStripeWebhook(env, request);
+  }
   const body = request.method === "POST" ? ((await request.json().catch(() => ({}))) as Record<string, any>) : {};
   const url = new URL(request.url);
   const scope = body.scope || url.searchParams.get("scope") || undefined;
@@ -388,8 +394,6 @@ async function handleRest(request: Request, env: Env, path: string): Promise<Res
       return await handleStartTrial(env, body, request);
     case "/api/billing-summary":
       return json(await handleBillingSummary(env, body, request), { headers: CORS });
-    case "/api/stripe-webhook":
-      return await handleStripeWebhook(env, request);
     case "/api/admin/stats":
       return adminJson(await handleAdminStats(env, body, url, request));
     default:
