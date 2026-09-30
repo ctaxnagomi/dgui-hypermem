@@ -4,6 +4,77 @@ Postponed work and known issues, carried forward between releases.
 
 ---
 
+## Moved: production account migration to wan.mohd.azizi.seggaf — DEPLOYED (30 Sep 2026)
+
+dgui-hypermem now runs from the **wan.mohd.azizi.seggaf** Cloudflare account
+(`155c4982c49d57ce2ff8c5a27e599cbd`) at **https://dgui-hmem.deckergui.my**,
+no longer the ctaxnagomi account. A Workers custom domain must live in the same
+account as the zone, so the Worker and its account-scoped resources were
+recreated there; the source Worker in ctaxnagomi was left untouched (still in
+MAINTENANCE) as the rollback path until cutover is commanded.
+
+- **New D1** `dgui-hypermem-20260930-2300`
+  (`735892ec-f246-4106-b770-4a9541ef982c`) — schema.sql (40 objects) + full
+  data dump (12 tables) applied in 43 chunked batches. Verified live:
+  **13 tokens, 137 memories, 229 crm_logs, 83,623 usage_events**.
+  The pre-existing leftover `dgui-hypermem` D1 (`fb61c1d7-...`) in the target
+  account was **not** touched, per the brand-new-resources policy.
+- **New Vectorize index** `dgui-hypermem-20260930-2300` (768 dims, cosine) —
+  61 vectors inserted.
+- **Deployed** with `wrangler.target.jsonc`: custom domain `dgui-hmem.deckergui.my`,
+  cron `17 * * * *`, `JEV_MODE=auto`, `HF_DATASET=ctaxnagomi/DGUI_HYPERMEM-JEV`.
+- **9 secrets** set as write-only (ADMIN_PASSKEY_2, GITHUB_TOKEN, HF_TOKEN,
+  MASTER_PASSKEY, MCP_TOKEN, PASSKEY, STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET,
+  TYPESAFE_API_KEY). PASSKEY was regenerated fresh for the target (never shared
+  from source).
+- **`MAINTENANCE=1` set on the target** — the target serves the migration notice
+  ("We are migrating this page under DeckerGUI project.") until the cutover is
+  commanded; `/health` stays live.
+
+### Auth & tooling
+
+- `wrangler login` OAuth session now bound to the target account (no
+  `CLOUDFLARE_API_TOKEN` needed; `migrate.sh` falls back to the OAuth session).
+- `cf` CLI installed and OAuth-logged into the same account, per the Cloudflare
+  agent setup.
+
+### Migration-bundle fixes made while running
+
+- `insert_vectors.py` printed wrangler's output after the insert; on Windows the
+  console's cp1252 encoding crashed `print()` on the unicode response *before*
+  `rc` was checked — the insert had actually succeeded. Fixed with
+  `sys.stdout.reconfigure(encoding="utf-8", errors="replace")`; vector insert
+  re-run idempotently confirmed (61 enqueued).
+- `wrangler.target.jsonc` `main` must be an **absolute path** to the repo
+  (`D:/dgui-cli/dgui-hypermem/src/index.ts`) because wrangler resolves
+  config-relative paths against the config file's directory, and the config
+  lives in the bundle, not the repo.
+- Secrets are read by `extract_secrets.py` (KEY=VALUE parse, no shell eval) and
+  piped straight into `wrangler secret put` via stdin — values never printed.
+
+### Cutover checklist (user-driven, not yet done)
+
+1. `wrangler secret delete MAINTENANCE --config <target config>` — take the
+   target live.
+2. Re-point the Stripe webhook URL to
+   `https://dgui-hmem.deckergui.my/api/stripe-webhook`.
+3. Single-writer: delete `HF_TOKEN` from the **source** Worker (ctaxnagomi) and
+   remove its dataset cron.
+4. Re-run `billing_flow_test.py` / `oauth_flow_test.py` against the target.
+5. Re-check D1 upgrade (Workers Paid) and OpenAI Plugins listing decisions.
+
+### Follow-up patch (next): admin CRM on its own hostname
+
+The admin CRM currently lives at the `/admin` URL path on the public worker.
+Planned: serve it on **`hmem-admin.deckergui.my`** (a fresh subdomain; the
+user's first choice `emitter.deckergui.my` is already taken by "DGUI Emitter
+Studio" on the Cloudflare Tunnel). `ADMIN_HOST` becomes a config var; the
+public host 302s `/admin` to the admin host and 404s `/api/admin/*` +
+`/api/setup-dataset`; MAINTENANCE gate stays first so both hosts show the
+notice until cutover. Prepared in `hmem-migration/admin-crm-patch.md`.
+
+---
+
 ## Added: OpenAI Plugins Directory submission readiness (pending deploy)
 
 dgui-hypermem is now shaped for a *remote MCP-only* submission to OpenAI's
