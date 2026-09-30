@@ -8,6 +8,7 @@ export interface Env {
   EMBED_MODEL: string;
   FALLBACK_MODEL: string;
   DEFAULT_SCOPE: string;
+  SALIENCE_GATE?: number | string;
   TYPESAFE_API_KEY?: string;
   MCP_TOKEN?: string;
   HF_TOKEN?: string;
@@ -21,7 +22,7 @@ export interface Env {
   STAGING?: string;
 }
 
-export type MemoryStatus = "active" | "superseded" | "deleted";
+export type MemoryStatus = "active" | "low_signal" | "superseded" | "deleted";
 
 export interface MemoryRow {
   id: string;

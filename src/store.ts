@@ -3,13 +3,20 @@
 // Write path: content -> JEV analyze -> embed -> D1 row + Vectorize vector -> JEV contradiction check.
 // Read path:  query -> [Vectorize ANN + D1 FTS5 BM25] -> reciprocal-rank fusion -> JEV rerank -> score.
 
-import type { Env, Memory, MemoryRow, MemoryAnalysis, ScoredMemory } from "./types";
+import type { Env, Memory, MemoryRow, MemoryAnalysis, MemoryStatus, ScoredMemory } from "./types";
 import { analyzeMemory, rerank, resolveMode, supersedeScore } from "./jev";
 import { buildAnalyzeRow, buildRerankRow, buildSupersedeRow, enqueueJevExample } from "./dataset";
 import { clamp01, normalizeContent, now, parseTags, sha256, uuid } from "./util";
 
 const RRF_K = 60;
 const SUPERSEDE_THRESHOLD = 0.8;
+
+function salienceGate(env: Env): number {
+  const v = (env as any).SALIENCE_GATE;
+  const n = typeof v === "string" ? parseFloat(v) : (typeof v === "number" ? v : NaN);
+  if (Number.isFinite(n) && n >= 0 && n <= 5) return n;
+  return 3.0; // calibrated to model distribution (p50); 4.0 filtered everything in this dataset
+}
 
 function toMemory(row: MemoryRow): Memory {
   return {
@@ -111,12 +118,13 @@ export async function addMemory(env: Env, input: AddInput): Promise<AddResult> {
   const [vector] = await embed(env, [content]);
   const timestamp = now();
   const id = existing?.id ?? uuid();
+  const status: MemoryStatus = analysis.salience >= salienceGate(env) ? "active" : "low_signal";
 
   if (existing) {
     await env.DB.prepare(
       `UPDATE memories
          SET content = ?, tags = ?, memory_type = ?, salience = ?, durable = ?, confidence = ?,
-             type_probabilities = ?, source = ?, status = 'active', superseded_by = NULL, updated_at = ?
+             type_probabilities = ?, source = ?, status = ?, superseded_by = NULL, updated_at = ?
        WHERE id = ?`,
     )
       .bind(
@@ -128,6 +136,7 @@ export async function addMemory(env: Env, input: AddInput): Promise<AddResult> {
         analysis.confidence,
         analysis.type_probabilities ? JSON.stringify(analysis.type_probabilities) : null,
         input.source ?? existing.source,
+        status,
         timestamp,
         id,
       )
@@ -137,7 +146,7 @@ export async function addMemory(env: Env, input: AddInput): Promise<AddResult> {
       `INSERT INTO memories
          (id, scope, content, memory_type, tags, salience, durable, confidence, type_probabilities,
           source, hash, status, access_count, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', 0, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)`,
     )
       .bind(
         id,
@@ -151,6 +160,7 @@ export async function addMemory(env: Env, input: AddInput): Promise<AddResult> {
         analysis.type_probabilities ? JSON.stringify(analysis.type_probabilities) : null,
         input.source ?? null,
         hash,
+        status,
         timestamp,
         timestamp,
       )
@@ -164,7 +174,7 @@ export async function addMemory(env: Env, input: AddInput): Promise<AddResult> {
       metadata: {
         scope,
         memory_type: analysis.memory_type,
-        status: "active",
+        status,
         salience: analysis.salience ?? 2,
       },
     },

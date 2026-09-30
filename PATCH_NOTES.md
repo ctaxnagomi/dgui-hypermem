@@ -4,6 +4,33 @@ Postponed work and known issues, carried forward between releases.
 
 ---
 
+## Changed: salience admission gate (deployed `284143cd`)
+
+Memories are now classified at write time: `status = 'active'` when salience
+meets the gate, `status = 'low_signal'` when not. `low_signal` memories stay
+stored (never deleted) but are excluded from every recall path — vector search,
+keyword search, list, profile, and supersede candidates — because all of them
+filter on `status = 'active'` and re-validate shortlists against D1.
+
+- **Gate value:** `SALIENCE_GATE` Worker var, default **3.0**. The originally
+  proposed 4.0 was empirically untenable: the JEV salience distribution tops out
+  at 3.89, so 4.0 would have archived 100% of actives. 3.0 is the distribution's
+  p50 and lands at the target: 64 actives became 34 active / 30 low_signal.
+- **Backfill done:** existing actives below 3.0 were reclassified to
+  `low_signal` (30 rows) with a plain D1 update — no Vectorize re-embed needed,
+  because every recall path re-validates ids against D1 `status='active'`.
+- **Verified live:** salience 1.58 → `low_signal`, salience 3.69 → `active`;
+  search results contained zero `low_signal` rows.
+- **Follow-ups:** `task-record`-shaped residue in `default` is now low-signal but
+  could be physically deleted if wanted; the two REDACTION GATE TEST fixtures and
+  their queued JEV rows were deleted after verification.
+
+Note on `0a051744` (the leaked-passkey memory): it came back as low_signal
+(salience 3.61 ≥ 3.0 → actually stayed active). It is scrubbed, its hash was
+recomputed, and its queued row was scrubbed in place.
+
+---
+
 ## Postponed: migrate `dgui-hypermem` to the `deckergui.my` account
 
 **Status:** prepared, not executed. Blocked on credentials, not on design.
