@@ -313,14 +313,27 @@ check("lapsed trial clears trial_ends_at", row()["trial_ends_at"] is None, row()
 # --- credit pack and checkout guards ------------------------------------
 print("\ncheckout guards")
 status, _, body = post("/api/buy-credits", {"pack": "small", "email": EMAIL})
-check("credit packs refuse until priced", status == 200 and "error" in json.loads(body), body[:120])
-check("the refusal says it is not yet on sale", "not yet on sale" in body, body[:120])
+parsed = json.loads(body)
+# Packs are priced now, so the checkout session must be offered -- and the
+# price must match the pack (Small = $10), cross-checked by the request count
+# quoted at the $0.002 rate.
+check("credit packs are on sale", status == 200 and "url" in parsed, body[:120])
+check("small pack quotes the right session", "session_id" in parsed and parsed.get("credits_usd") == 10.0, body[:120])
+check("small pack buys ~5000 requests at $0.002", parsed.get("requests") == 5000, body[:120])
 
 status, _, body = post("/api/buy-credits", {"pack": "gigantic", "email": EMAIL})
 check("unknown pack rejected", "unknown credit pack" in body, body[:100])
 
+status, _, body = post("/api/buy-credits", {"pack": "small", "email": "nobody@nowhere.test"})
+check("credit checkout needs an existing account", "no account for that email" in body, body[:120])
+
 status, _, body = post("/api/create-checkout-session", {"plan": "enterprise", "email": EMAIL})
 check("enterprise is not self-serve purchasable", "not available for self-serve" in body, body[:120])
+
+status, _, body = post("/api/create-checkout-session", {"plan": "pro", "email": EMAIL})
+parsed = json.loads(body)
+check("pro checkout is offered once the account exists", status == 200 and "url" in parsed, body[:120])
+check("pro checkout carries the 15000 quota", parsed.get("quota_monthly") == 15000, body[:120])
 
 status, _, body = post("/api/create-checkout-session", {"plan": "pro", "email": "nobody@nowhere.test"})
 check("checkout needs an existing account", "no account for that email" in body, body[:120])
@@ -339,13 +352,14 @@ print("\nstripe webhook")
 st, _, body = request(f"{BASE}/api/stripe-webhook", b'{"id":"evt_1","type":"checkout.session.completed"}',
                       {"stripe-signature": "t=1,v1=deadbeef", "user-agent": UA})
 parsed = json.loads(body)
-# STRIPE_WEBHOOK_SECRET is unset in this environment, so the endpoint must
-# refuse before touching any data. 5xx rather than 4xx is the important part: a
-# 4xx tells Stripe the event is permanently bad and stops retrying, so a
-# transient operator mistake would silently discard a real payment.
-check("webhook refuses to process with no secret configured", "error" in parsed, body[:120])
-check("unconfigured webhook returns 5xx so Stripe keeps retrying", 500 <= st < 600, f"got {st}")
-check("refusal names the missing secret", "webhook secret not configured" in body, body[:120])
+# STRIPE_WEBHOOK_SECRET is now configured, so the endpoint verifies the
+# signature before touching any data. A forged signature is permanently bad,
+# so 4xx is correct here (Stripe will not retry it); the guard that prevents
+# a real payment being discarded is the 5xx returned when the secret itself
+# is missing, which is a deployment-level check.
+check("webhook refuses a bad signature", "error" in parsed, body[:120])
+check("forged signature gets 4xx so Stripe stops retrying", 400 <= st < 500, f"got {st}")
+check("refusal names a signature failure", "signature" in parsed.get("error", "").lower(), body[:120])
 check("no event was recorded from an unverified request",
       d1("SELECT COUNT(*) AS n FROM stripe_events")[0]["n"] == 0)
 

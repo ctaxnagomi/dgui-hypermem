@@ -31,6 +31,58 @@ recomputed, and its queued row was scrubbed in place.
 
 ---
 
+## Changed: Stripe account wired (prices + webhook live; worker code pending deploy)
+
+The Stripe side of the self-serve payment path now exists: prices are created,
+the webhook endpoint receives events, and the signing secret is set. Payments
+still cannot settle until the worker code (`CREDIT_PRICE_IDS` in `payment.ts`)
+deploys — until then `/api/buy-credits` keeps replying "not yet on sale".
+
+- **Credit pack prices created** (one-time, live account: DeckerGUI Unified
+  Agentic Integrated Ecosystem): small $10 `price_1ULIC3LjoFSWfKc7oCXagupp`,
+  medium $25 `price_1ULIC7LjoFSWfKc7lUNe6KjM`, large $50
+  `price_1ULIC8LjoFSWfKc7GrFe7Cc9`; wired into the `CREDIT_PRICE_IDS` map in
+  `payment.ts` so `/api/buy-credits` now mints a real Checkout Session instead
+  of replying "credit packs are not yet on sale".
+- **Plan prices verified live** and unchanged: Median $2.99/mo
+  `price_1UICicLjoFSWfKc7s3edXQzs`, Pro $11.99/mo
+  `price_1UICitLjoFSWfKc7PYVoJ5hj` — both `active`, monthly recurring, matching
+  the ladder exactly. No stray or duplicate prices exist in the account.
+- **Webhook endpoint created**: `we_1ULICCLjoFSWfKc74zqPs4h3` →
+  `/api/stripe-webhook` (events: `checkout.session.completed`,
+  `charge.refunded`); the signing secret was set as the write-only
+  `STRIPE_WEBHOOK_SECRET` Worker secret (never logged). `STRIPE_SECRET_KEY` was
+  already present.
+- **`billing_flow_test.py` updated** to assert the wired state: packs are on
+  sale with the correct $10 session and 5000-request quote, pro checkout
+  carries the 15000 quota, forged webhook signatures get 4xx (permanently bad
+  → Stripe stops retrying) and record no event.
+
+## Changes: D1 row-read indexes + admin auth status codes (pending deploy)
+
+- **`migrations/0011_row_read_indexes.sql`** applied and verified via
+  `EXPLAIN QUERY PLAN`:
+  - `tokens(token)` **UNIQUE** — per-request credential lookup was a full
+    `SCAN tokens`; now `SEARCH … USING INDEX`. UNIQUE because tokens are
+    credentials (duplicate would be ambiguous); 0 duplicates in live data,
+    the 1 NULL row is legal under SQLite UNIQUE.
+  - `oauth_access_tokens(refresh_token_hash)` — refresh lookup went from
+    `SCAN` to `SEARCH`.
+  - `usage_events(email, event_at)` — admin stats now a **COVERING** index.
+  - `crm_logs(email, action, created_at)` — admin logs page filter+sort;
+    the email-only shape still uses `idx_crm_logs_email` + temp B-tree
+    (deliberate: an extra composite costs D1 writes for a rare query).
+  - `code_hash` / `token_hash` already had UNIQUE autoindexes — no action.
+- **Admin routes now return 401** (not 200) when auth fails: `adminJson()`
+  promotes `{error:"unauthorized"}` to HTTP 401 at the dispatch for all seven
+  `isAdmin`-gated handlers (`admin/{tokens,logs,toggle-train,update-quota,
+  clock,stats}` + `setup-dataset`). Verified: 15/15 status cases, `tsc` clean.
+- **`billing_flow_test.py`** no longer asserts the pre-wiring refusal messages
+  (see above) — those broke by design once packs were priced.
+- `.gitignore` covers `__pycache__/` from the Python test runs.
+
+---
+
 ## Postponed: migrate `dgui-hypermem` to the `deckergui.my` account
 
 **Status:** prepared, not executed. Blocked on credentials, not on design.

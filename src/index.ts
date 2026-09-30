@@ -358,15 +358,15 @@ async function handleRest(request: Request, env: Env, path: string): Promise<Res
     case "/api/disable-token":
       return json(await handleDisableToken(env, body, request), { headers: CORS });
     case "/api/admin/tokens":
-      return json(await handleAdminTokens(env, body, url, request), { headers: CORS });
+      return adminJson(await handleAdminTokens(env, body, url, request));
     case "/api/admin/logs":
-      return json(await handleAdminLogs(env, body, url, request), { headers: CORS });
+      return adminJson(await handleAdminLogs(env, body, url, request));
     case "/api/admin/toggle-train":
-      return json(await handleToggleTrain(env, body), { headers: CORS });
+      return adminJson(await handleToggleTrain(env, body));
     case "/api/admin/update-quota":
-      return json(await handleUpdateQuota(env, body), { headers: CORS });
+      return adminJson(await handleUpdateQuota(env, body));
     case "/api/admin/clock":
-      return json(await handleAdminClock(env, body), { headers: CORS });
+      return adminJson(await handleAdminClock(env, body));
     case "/api/visitor":
       return json(await handleVisitor(env), { headers: CORS });
     case "/api/check-quota":
@@ -374,7 +374,7 @@ async function handleRest(request: Request, env: Env, path: string): Promise<Res
     case "/api/verify-token":
       return json(await handleVerifyToken(env, request), { headers: CORS });
     case "/api/setup-dataset":
-      return json(await handleSetupDataset(env, body), { headers: CORS });
+      return adminJson(await handleSetupDataset(env, body));
     case "/api/enterprise-inquiry":
       return json(await handleEnterpriseInquiry(env, body), { headers: CORS });
     case "/api/create-checkout-session":
@@ -391,10 +391,21 @@ async function handleRest(request: Request, env: Env, path: string): Promise<Res
     case "/api/stripe-webhook":
       return await handleStripeWebhook(env, request);
     case "/api/admin/stats":
-      return json(await handleAdminStats(env, body, url, request), { headers: CORS });
+      return adminJson(await handleAdminStats(env, body, url, request));
     default:
       return json({ error: "not found" }, { status: 404, headers: CORS });
   }
+}
+
+/**
+ * Wraps an admin handler result with the proper HTTP status. Admin handlers
+ * signal auth failure as `{ error: "unauthorized" }`; the dispatch must
+ * surface that as a real 401 so clients (and scanners) don't mistake a
+ * rejected request for a success.
+ */
+function adminJson(result: Record<string, any>): Response {
+  const status = result && result.error === "unauthorized" ? 401 : 200;
+  return json(result, { status, headers: CORS });
 }
 
 async function handleAdminTokens(env: Env, body: Record<string, any>, url: URL, request: Request): Promise<Record<string, any>> {

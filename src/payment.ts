@@ -23,7 +23,11 @@ const PLAN_PRICE_IDS: Record<string, string> = {
  * /api/buy-credits then refuses rather than silently accepting a payment it
  * cannot deliver credit for.
  */
-const CREDIT_PRICE_IDS: Record<string, string> = {};
+const CREDIT_PRICE_IDS: Record<string, string> = {
+  small: "price_1ULIC3LjoFSWfKc7oCXagupp",
+  medium: "price_1ULIC7LjoFSWfKc7lUNe6KjM",
+  large: "price_1ULIC8LjoFSWfKc7GrFe7Cc9",
+};
 
 export function getStripe(env: { STRIPE_SECRET_KEY?: string }): Stripe | null {
   const key = env.STRIPE_SECRET_KEY;

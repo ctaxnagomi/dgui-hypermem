@@ -15,6 +15,10 @@ dist/
 *.log
 npm-debug.log*
 
+# Python test residue
+__pycache__/
+*.pyc
+
 # OS / editor
 .DS_Store
 Thumbs.db
