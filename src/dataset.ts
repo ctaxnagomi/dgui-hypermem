@@ -9,6 +9,7 @@
 
 import type { Env, MemoryAnalysis } from "./types";
 import { analyzeQuestions, rerankQuestions, resolveMode, supersedeQuestions } from "./jev";
+import { scrubJevRow, summariseFindings } from "./redact";
 import { now, uuid } from "./util";
 
 export type JevUseCase = "analyze" | "rerank" | "supersede";
@@ -142,12 +143,34 @@ export function buildSupersedeRow(
 
 export async function enqueueJevExample(env: Env, row: JevExampleRow): Promise<void> {
   if (row.provider === "off") return;
+
+  // Gate the corpus here rather than at flush time. All three use cases funnel
+  // through this function, and a row that never enters the queue means the
+  // secret is never written to D1 and can never reach HuggingFace. Scrubbing in
+  // flushJevExamples instead would leave it sitting in the queue forever.
+  let safe: JevExampleRow;
+  try {
+    const { row: scrubbed, findings } = scrubJevRow(row as unknown as Record<string, unknown>);
+    safe = scrubbed as unknown as JevExampleRow;
+    if (findings.length) {
+      // Rule names only. The values are the thing being protected.
+      console.warn(
+        `enqueueJevExample: redacted [${summariseFindings(findings)}] from ${row.use_case} row ${row.id}`,
+      );
+    }
+  } catch (err) {
+    // Fail closed: an unvetted row is exactly what leaked the admin passkey to a
+    // public dataset. Dropping one training example is cheaper than that.
+    console.error("enqueueJevExample: redaction failed, refusing to enqueue:", String(err));
+    return;
+  }
+
   try {
     await env.DB.prepare(
       `INSERT INTO jev_examples (id, use_case, payload, status, attempts, error, created_at)
        VALUES (?, ?, ?, 'pending', 0, NULL, ?)`,
     )
-      .bind(row.id, row.use_case, JSON.stringify(row), row.created_at)
+      .bind(safe.id, safe.use_case, JSON.stringify(safe), safe.created_at)
       .run();
   } catch (err) {
     console.error("enqueueJevExample failed:", String(err));

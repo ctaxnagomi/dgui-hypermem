@@ -48,7 +48,9 @@ strong{color:var(--text-primary)}
 <p>Toggle this setting anytime via the <a href="/admin">Admin Dashboard</a> — your admin can view and change your preference.</p>
 
 <h2>3. Secrets &amp; Content Safety</h2>
-<p>Memory content is scanned before storage. If potential secrets (API keys, tokens, passwords) are detected, they are redacted from training data. The memory itself is stored as-is for your use, but training extraction skips rows with detected secrets.</p>
+<p><strong>Your memories are stored exactly as you wrote them.</strong> We do not rewrite your content, and a secret in a memory stays in that memory &mdash; it is your record, and altering it silently would be worse than the risk.</p>
+<p>What we <em>do</em> protect is the training corpus. When a JEV decision is queued for dataset export, the row is passed through a redaction pass first, before it is ever written to the queue. Anything matching a known credential format (Stripe, GitHub, HuggingFace, Cloudflare, AWS, Google, Slack, OpenAI keys; webhook secrets; JWTs; bearer headers) or a keyword assignment such as <code>passkey = …</code> is replaced with <code>[REDACTED:&lt;rule&gt;]</code> in the training row only.</p>
+<p>Two honest limits. Redaction is pattern-based, so a secret that is a single lowercase dictionary word with no digits, no format prefix and no surrounding keyword will pass through. And if the redaction pass itself errors, the row is dropped rather than exported unvetted. If you are storing something that must never leave your account, the reliable control is turning training off for your token &mdash; see section 2 &mdash; rather than relying on the scanner to guess.</p>
 
 <h2>4. Data Storage &amp; Retention</h2>
 <ul>
