@@ -170,7 +170,15 @@ deploys — until then `/api/buy-credits` keeps replying "not yet on sale".
 
 ## Postponed: migrate `dgui-hypermem` to the `deckergui.my` account
 
-**Status:** prepared, not executed. Blocked on credentials, not on design.
+**Status:** staged + re-validated (30 Sep), maintenance page live on the
+source, awaiting the target-account API token and 6 write-only secrets.
+Blocked on credentials, not on design.
+
+**Maintenance.** Worker gains an operator-toggled `MAINTENANCE` env var:
+every page serves "We are migrating this page under DeckerGUI project."
+(`src/maintenance.ts`), `/health` stays live for monitoring and migration
+verification. Deployed live (`5672f293`), `MAINTENANCE=1` set as a secret,
+verified: `/` and `/mcp` and `/api/*` gated, `/health` still `status: ok`.
 
 **Goal.** Deploy `dgui-hypermem` into the `wan.mohd.azizi.seggaf` account
 (`155c4982c49d57ce2ff8c5a27e599cbd`) and serve it at
@@ -179,20 +187,28 @@ account as the zone, and `deckergui.my` belongs to that account, so the Worker
 has to be **redeployed there** — it cannot stay in ctaxnagomi
 (`683ac31435f3bd2c649bdfbbb6d1b5c1`) and simply gain a domain.
 
-**Staged and verified** in `D:/dgui-cli/hmem-migration`:
+**Staged and verified** in `D:/dgui-cli/hmem-migration` (refreshed 30 Sep —
+source was quiesced behind the maintenance page before export):
 
 | File | Contents |
 | --- | --- |
-| `schema.sql` | 27 DDL objects captured from the **live** database |
-| `dgui-hypermem-data.sql` | 18,446 statements, 8 data tables |
-| `vectors.json` | 56 vectors x 768 dims with metadata |
+| `schema.sql` | 40 DDL objects captured from the **live** database |
+| `dgui-hypermem-data.sql` | 84,742 statements, 12 data tables |
+| `vectors.json` | 61 vectors x 768 dims with metadata |
 | `wrangler.target.jsonc` | target config incl. the `custom_domain` route |
 | `migrate.sh` | one-shot driver, chunked data load |
-| `README.md` | full runbook |
+| `export_schema.py` | regenerates `schema.sql` (new) |
+| `export_d1.py` | regenerates the data dump |
+| `export_vectors.py` | regenerates the vector dump |
+| `insert_vectors.py` | pushes `vectors.json` into the target index |
+| `README.md` | full runbook (updated: cutover checklist) |
 
-Validated by replaying the bundle into a throwaway SQLite database: all eight
-table counts matched, and `active memories = 56` matched the 56 exported
-vectors exactly, proving the Vectorize export is complete.
+Validated by replaying the bundle into a throwaway SQLite database: all twelve
+table counts matched the live DB exactly. Vector export is complete — all 61
+ids exist in `memories`, no duplicates/orphans. Note the old `active = 56 =
+vectors` invariant no longer holds (test activity left ~25 stale `active`-
+tagged vectors for memories now marked deleted/low-signal); the export copies
+the live index 1:1, and the residue is a post-migration hygiene item.
 
 `wrangler d1 export` cannot be used here — it refuses databases with virtual
 tables (`fts5`). FTS5 shadow tables are excluded from the bundle because the
