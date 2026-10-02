@@ -327,7 +327,7 @@ function showToken(e,t){
   document.getElementById('crm-token-result').style.display='block';
   document.getElementById('crm-status-text').textContent='';
   document.getElementById('crm-token-value').textContent=t;
-  document.getElementById('crm-config').textContent=JSON.stringify({mcp:{"dgui-hypermem":{type:"remote",url:"https://dgui-hypermem.ctaxnagomi.workers.dev/mcp",enabled:true,headers:{Authorization:"Bearer "+t}}}},null,2);
+  document.getElementById('crm-config').textContent=JSON.stringify({mcp:{"dgui-hypermem":{type:"remote",url:"https://dgui-hmem.deckergui.my/mcp",enabled:true,headers:{Authorization:"Bearer "+t}}}},null,2);
 }
 async function disableToken(){const e=document.getElementById('crm-email').value.trim(),p=prompt('Passkey to revoke:');if(!p)return;const r=await fetch('/api/disable-token',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email:e,passkey:p})});const d=await r.json();if(d.error)return alert(d.error);alert('Token revoked');location.reload();}
 async function sendEnterprise(){

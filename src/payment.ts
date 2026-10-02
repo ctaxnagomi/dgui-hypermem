@@ -44,7 +44,7 @@ function planForPriceId(priceId: string | null | undefined): string | null {
   return null;
 }
 
-const CHECKOUT_BASE = "https://dgui-hypermem.ctaxnagomi.workers.dev";
+const CHECKOUT_BASE = "https://dgui-hmem.deckergui.my";
 
 /**
  * Subscription checkout for a paid plan.

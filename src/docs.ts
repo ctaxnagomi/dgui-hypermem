@@ -186,7 +186,7 @@ pre code{padding:0;border:0;background:transparent;color:inherit;border-radius:0
           <article class="card"><div class="card-kicker">For developers</div><h3>Use MCP or REST</h3><p>Use the authenticated MCP endpoint for agents or the REST mirror for scripts, services, and diagnostics.</p><a href="#developer-guide">Inspect the interface</a></article>
           <article class="card"><div class="card-kicker">For operators</div><h3>Run your own</h3><p>Deploy the Worker with D1, Vectorize, Workers AI, and secrets managed by your Cloudflare account.</p><a href="#self-host">Self-host the service</a></article>
         </div>
-        <div class="notice"><strong>Hosted endpoint:</strong> <code>https://dgui-hypermem.ctaxnagomi.workers.dev</code>. The MCP endpoint is <code>/mcp</code>; the service status endpoint is <code>/health</code>.</div>
+        <div class="notice"><strong>Hosted endpoint:</strong> <code>https://dgui-hmem.deckergui.my</code>. The MCP endpoint is <code>/mcp</code>; the service status endpoint is <code>/health</code>.</div>
       </section>
 
       <section id="establish">
@@ -201,7 +201,7 @@ pre code{padding:0;border:0;background:transparent;color:inherit;border-radius:0
         </div>
         <div class="code-shell">
           <div class="code-title"><span>REST verification</span><button class="copy-btn" type="button">Copy</button></div>
-          <pre><code>curl "https://dgui-hypermem.ctaxnagomi.workers.dev/api/verify-token" \\
+          <pre><code>curl "https://dgui-hmem.deckergui.my/api/verify-token" \\
   -H "Authorization: Bearer \${DGUI_HYPERMEM_TOKEN}"</code></pre>
         </div>
         <div class="notice"><strong>Agent instruction:</strong> “Before starting a project, search DGUI-HyperMem for relevant decisions and preferences. After a durable decision is made, add a concise memory with a stable project scope and useful tags. Never store credentials or private keys.”</div>
@@ -249,9 +249,9 @@ pre code{padding:0;border:0;background:transparent;color:inherit;border-radius:0
         <p><code>add</code> accepts every non-empty memory that passes the content filter. JEV assigns type, salience, confidence, and durability metadata; a durability score is not an automatic deletion rule. A nearby active record can be marked superseded when the contradiction score reaches the configured threshold.</p>
         <h3>Base URLs</h3>
         <div class="table-wrap"><table><thead><tr><th>Purpose</th><th>URL</th><th>Authentication</th></tr></thead><tbody>
-          <tr><td>MCP</td><td><code>https://dgui-hypermem.ctaxnagomi.workers.dev/mcp</code></td><td>Bearer token</td></tr>
-          <tr><td>REST</td><td><code>https://dgui-hypermem.ctaxnagomi.workers.dev/api/*</code></td><td>Bearer token</td></tr>
-          <tr><td>Status</td><td><code>https://dgui-hypermem.ctaxnagomi.workers.dev/health</code></td><td>Public</td></tr>
+          <tr><td>MCP</td><td><code>https://dgui-hmem.deckergui.my/mcp</code></td><td>Bearer token</td></tr>
+          <tr><td>REST</td><td><code>https://dgui-hmem.deckergui.my/api/*</code></td><td>Bearer token</td></tr>
+          <tr><td>Status</td><td><code>https://dgui-hmem.deckergui.my/health</code></td><td>Public</td></tr>
         </tbody></table></div>
       </section>
 
@@ -335,12 +335,12 @@ POST /revoke       token revocation (RFC 7009)</code></pre>
         </tbody></table></div>
         <div class="code-shell">
           <div class="code-title"><span>Add and search over REST</span><button class="copy-btn" type="button">Copy</button></div>
-          <pre><code>curl -X POST "https://dgui-hypermem.ctaxnagomi.workers.dev/api/add" \\
+          <pre><code>curl -X POST "https://dgui-hmem.deckergui.my/api/add" \\
   -H "Authorization: Bearer \${DGUI_HYPERMEM_TOKEN}" \\
   -H "Content-Type: application/json" \\
   -d '{"content":"The project uses Cloudflare Workers.","scope":"project:example","tags":["cloudflare","workers"]}'
 
-curl -X POST "https://dgui-hypermem.ctaxnagomi.workers.dev/api/search" \\
+curl -X POST "https://dgui-hmem.deckergui.my/api/search" \\
   -H "Authorization: Bearer \${DGUI_HYPERMEM_TOKEN}" \\
   -H "Content-Type: application/json" \\
   -d '{"query":"What platform does the project use?","scope":"project:example","limit":5}'</code></pre>
@@ -362,7 +362,7 @@ curl -X POST "https://dgui-hypermem.ctaxnagomi.workers.dev/api/search" \\
         <p>Usage is tracked per token against the plan allowance on a 30-day reset window: ${PLANS.free.quota.toLocaleString("en-US")} requests for Free, ${PLANS.median.quota.toLocaleString("en-US")} for Median, ${PLANS.pro.quota.toLocaleString("en-US")} for Pro, and ${PLANS.enterprise.quota.toLocaleString("en-US")} for Enterprise. Once the plan allowance is spent, requests continue against any prepaid pay-as-you-go balance before the request is refused.</p>
         <div class="code-shell">
           <div class="code-title"><span>Check effective quota</span><button class="copy-btn" type="button">Copy</button></div>
-          <pre><code>curl "https://dgui-hypermem.ctaxnagomi.workers.dev/api/check-quota" \\
+          <pre><code>curl "https://dgui-hmem.deckergui.my/api/check-quota" \\
   -H "Authorization: Bearer \${DGUI_HYPERMEM_TOKEN}"</code></pre>
         </div>
         <p>The response includes <code>plan</code>, <code>quota_monthly</code>, <code>requests_used</code>, <code>requests_remaining</code>, <code>resets_at</code>, 30-day usage, and yearly usage. Use the response as the source of truth for an account because operator overrides take precedence over plan defaults.</p>
@@ -515,7 +515,7 @@ for row in ds.stream():
   "remotes": [
     {
       "type": "streamable-http",
-      "url": "https://dgui-hypermem.ctaxnagomi.workers.dev/mcp"
+      "url": "https://dgui-hmem.deckergui.my/mcp"
     }
   ]
 }</code></pre>
@@ -668,7 +668,7 @@ Boundaries
 
 Use the DGUI-HyperMem remote MCP server for durable memory.
 
-- Endpoint: https://dgui-hypermem.ctaxnagomi.workers.dev/mcp
+- Endpoint: https://dgui-hmem.deckergui.my/mcp
 - Transport: MCP Streamable HTTP
 - Authentication: Authorization: Bearer DGUI_HYPERMEM_TOKEN
 - Default hosted scope: default
@@ -698,7 +698,7 @@ Scopes organize memories but are not tenant authorization boundaries in the curr
   "mcpServers": {
     "dgui-hypermem": {
       "type": "http",
-      "url": "https://dgui-hypermem.ctaxnagomi.workers.dev/mcp",
+      "url": "https://dgui-hmem.deckergui.my/mcp",
       "headers": {
         "Authorization": "Bearer \${DGUI_HYPERMEM_TOKEN}"
       }
@@ -714,7 +714,7 @@ Scopes organize memories but are not tenant authorization boundaries in the curr
   "name": "dgui-hypermem",
   "version": "1.0.0",
   "transport": "streamable-http",
-  "url": "https://dgui-hypermem.ctaxnagomi.workers.dev/mcp",
+  "url": "https://dgui-hmem.deckergui.my/mcp",
   "authentication": {
     "type": "bearer",
     "header": "Authorization",
@@ -742,7 +742,7 @@ Scopes organize memories but are not tenant authorization boundaries in the curr
   "servers": {
     "dgui-hypermem": {
       "type": "http",
-      "url": "https://dgui-hypermem.ctaxnagomi.workers.dev/mcp",
+      "url": "https://dgui-hmem.deckergui.my/mcp",
       "headers": {
         "Authorization": "Bearer \${input:dgui_hypermem_token}"
       }
@@ -763,7 +763,7 @@ Scopes organize memories but are not tenant authorization boundaries in the curr
         <div class="code-shell">
           <div class="code-title"><span>Claude Code CLI</span><button class="copy-btn" type="button">Copy</button></div>
           <pre><code>claude mcp add --transport http dgui-hypermem \\
-  https://dgui-hypermem.ctaxnagomi.workers.dev/mcp \\
+  https://dgui-hmem.deckergui.my/mcp \\
   --header "Authorization: Bearer \${DGUI_HYPERMEM_TOKEN}"</code></pre>
         </div>
 
@@ -774,7 +774,7 @@ Scopes organize memories but are not tenant authorization boundaries in the curr
   "mcpServers": {
     "dgui-hypermem": {
       "type": "http",
-      "url": "https://dgui-hypermem.ctaxnagomi.workers.dev/mcp",
+      "url": "https://dgui-hmem.deckergui.my/mcp",
       "headers": {
         "Authorization": "Bearer \${DGUI_HYPERMEM_TOKEN}"
       }
@@ -790,7 +790,7 @@ Scopes organize memories but are not tenant authorization boundaries in the curr
           <pre><code>{
   "mcpServers": {
     "dgui-hypermem": {
-      "url": "https://dgui-hypermem.ctaxnagomi.workers.dev/mcp",
+      "url": "https://dgui-hmem.deckergui.my/mcp",
       "headers": {
         "Authorization": "Bearer \${DGUI_HYPERMEM_TOKEN}"
       }
@@ -805,7 +805,7 @@ Scopes organize memories but are not tenant authorization boundaries in the curr
           <pre><code>{
   "mcp_servers": {
     "dgui-hypermem": {
-      "url": "https://dgui-hypermem.ctaxnagomi.workers.dev/mcp",
+      "url": "https://dgui-hmem.deckergui.my/mcp",
       "headers": {
         "Authorization": "Bearer \${DGUI_HYPERMEM_TOKEN}"
       }
@@ -820,7 +820,7 @@ Scopes organize memories but are not tenant authorization boundaries in the curr
           <pre><code>{
   "mcpServers": {
     "dgui-hypermem": {
-      "url": "https://dgui-hypermem.ctaxnagomi.workers.dev/mcp",
+      "url": "https://dgui-hmem.deckergui.my/mcp",
       "transport": "streamable-http",
       "headers": {
         "Authorization": "Bearer \${DGUI_HYPERMEM_TOKEN}"
@@ -838,7 +838,7 @@ Scopes organize memories but are not tenant authorization boundaries in the curr
   "mcp": {
     "dgui-hypermem": {
       "type": "remote",
-      "url": "https://dgui-hypermem.ctaxnagomi.workers.dev/mcp",
+      "url": "https://dgui-hmem.deckergui.my/mcp",
       "enabled": true,
       "oauth": true
     }
@@ -853,7 +853,7 @@ Scopes organize memories but are not tenant authorization boundaries in the curr
           <pre><code># ~/.codex/config.toml
 
 [mcp_servers.dgui-hypermem]
-url = "https://dgui-hypermem.ctaxnagomi.workers.dev/mcp"
+url = "https://dgui-hmem.deckergui.my/mcp"
 bearer_token_env_var = "DGUI_HYPERMEM_TOKEN"
 required = true
 startup_timeout_sec = 20
@@ -905,7 +905,7 @@ output_token_limit = 4000</code></pre>
   "tools": [
     {
       "type": "mcp",
-      "server_url": "https://dgui-hypermem.ctaxnagomi.workers.dev/mcp",
+      "server_url": "https://dgui-hmem.deckergui.my/mcp",
       "server_label": "dgui-hypermem",
       "server_description": "Hybrid long-term memory with a JEV reasoning layer. Use search before answering and add after a durable decision.",
       "authorization": "Bearer \${DGUI_HYPERMEM_TOKEN}",

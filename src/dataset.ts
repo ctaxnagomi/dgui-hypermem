@@ -276,7 +276,7 @@ DGUI-HyperMem is a **DeckerGUI** project.
 
 const META_DEFAULTS = {
   name: "DGUI_HYPERMEM-JEV",
-  updated_from: "dgui-hypermem.ctaxnagomi.workers.dev",
+  updated_from: "dgui-hmem.deckergui.my",
   rows_total: 0,
   by_use_case: { analyze: 0, rerank: 0, supersede: 0 },
   providers: {},

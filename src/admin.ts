@@ -69,7 +69,7 @@ a{color:var(--accent-cyan);text-decoration:none}
 </div>
 </div>
 <div id="dashboard" style="display:none">
-<div class="topbar"><div><h1>Token Dashboard</h1><div class="sub">dgui-hypermem.ctaxnagomi.workers.dev</div></div><div style="text-align:right"><a class="logout" onclick="document.getElementById('dashboard').style.display='none';document.getElementById('login').style.display='block'" style="color:var(--text-muted);font-size:13px;cursor:pointer;display:block">Logout</a><a href="/privacy" class="privacy-link" style="margin-top:4px;display:inline-block;font-size:12px;color:var(--text-muted)">Privacy</a></div></div>
+<div class="topbar"><div><h1>Token Dashboard</h1><div class="sub">dgui-hmem.deckergui.my</div></div><div style="text-align:right"><a class="logout" onclick="document.getElementById('dashboard').style.display='none';document.getElementById('login').style.display='block'" style="color:var(--text-muted);font-size:13px;cursor:pointer;display:block">Logout</a><a href="/privacy" class="privacy-link" style="margin-top:4px;display:inline-block;font-size:12px;color:var(--text-muted)">Privacy</a></div></div>
 <div class="stats" id="stats-row"></div>
 <div class="table-wrap" id="table-wrap"><table><thead><tr><th>Email</th><th>Plan</th><th>Status</th><th>MCP</th><th>T&amp;C</th><th>Token</th><th>Quota</th><th>Train</th><th>Created</th><th>Action</th></tr></thead><tbody id="token-rows"></tbody></table></div>
 <div style="margin-top:24px;padding-top:16px;border-top:1px solid var(--border-glass);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">

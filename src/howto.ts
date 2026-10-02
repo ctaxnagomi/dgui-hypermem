@@ -41,7 +41,7 @@ strong{color:var(--text-primary)}
   "mcp": {
     "dgui-hypermem": {
       "type": "remote",
-      "url": "https://dgui-hypermem.ctaxnagomi.workers.dev/mcp",
+      "url": "https://dgui-hmem.deckergui.my/mcp",
       "enabled": true,
       "headers": {
         "Authorization": "Bearer YOUR_TOKEN_HERE"
@@ -68,7 +68,7 @@ strong{color:var(--text-primary)}
 <li>If revoked, requesting a new token will issue a fresh one</li>
 <li>Monthly quota: <strong>${PLANS.free.quota.toLocaleString("en-US")} requests</strong> per token on Free, up to <strong>${PLANS.enterprise.quota.toLocaleString("en-US")}</strong> on Enterprise</li>
 <li>Past your plan allowance you can upgrade, or top up pay-as-you-go at <strong>$${(PAYG_MICRO_PER_REQUEST / 1_000_000).toFixed(3)} per request</strong> &mdash; credit never expires</li>
-<li>Check your remaining quota via <code>curl -H "authorization: Bearer YOUR_TOKEN" https://dgui-hypermem.ctaxnagomi.workers.dev/api/check-quota</code></li>
+<li>Check your remaining quota via <code>curl -H "authorization: Bearer YOUR_TOKEN" https://dgui-hmem.deckergui.my/api/check-quota</code></li>
 </ul>
 
 <h2>Admin Features</h2>
@@ -92,7 +92,7 @@ strong{color:var(--text-primary)}
       "command": "npx",
       "args": [
         "mcp-remote",
-        "https://dgui-hypermem.ctaxnagomi.workers.dev/mcp"
+        "https://dgui-hmem.deckergui.my/mcp"
       ],
       "env": {
         "MCP_TOKEN": "YOUR_TOKEN_HERE"
@@ -106,12 +106,12 @@ strong{color:var(--text-primary)}
 <pre># Grok uses OpenAI-compatible function calling.
 # Bridge MCP tools via Cloudflare Workers AI Playground:
 # https://playground.ai.cloudflare.com
-# Add MCP Server URL: https://dgui-hypermem.ctaxnagomi.workers.dev/mcp
+# Add MCP Server URL: https://dgui-hmem.deckergui.my/mcp
 # Connect with Bearer token authentication.</pre>
 
 <h3>ChatGPT / OpenAI</h3>
 <p>ChatGPT supports MCP directly. Add a custom MCP connector:</p>
-<pre>MCP Server URL: https://dgui-hypermem.ctaxnagomi.workers.dev/mcp
+<pre>MCP Server URL: https://dgui-hmem.deckergui.my/mcp
 Headers: { "Authorization": "Bearer YOUR_TOKEN_HERE" }</pre>
 
 <h3>Cloudflare AI Playground</h3>
@@ -122,7 +122,7 @@ Headers: { "Authorization": "Bearer YOUR_TOKEN_HERE" }</pre>
 <pre>{
   "mcpServers": {
     "dgui-hypermem": {
-      "url": "https://dgui-hypermem.ctaxnagomi.workers.dev/mcp",
+      "url": "https://dgui-hmem.deckergui.my/mcp",
       "headers": {
         "Authorization": "Bearer YOUR_TOKEN_HERE"
       }
