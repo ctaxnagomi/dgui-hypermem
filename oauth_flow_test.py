@@ -11,6 +11,7 @@ Reads PASSKEY from .dev.vars (never printed).
 import base64
 import hashlib
 import json
+import os
 import secrets
 import subprocess
 import sys
@@ -166,11 +167,30 @@ def exchange(code, verifier, client_id, redirect=REDIRECT):
 
 
 def d1(sql: str) -> list:
-    """Run a D1 statement and return rows, using the same account as the worker."""
-    out = subprocess.run(
-        ["npx.cmd", "wrangler", "d1", "execute", "dgui-hypermem", "--remote", "--json", "--command", sql],
-        capture_output=True, cwd=str(Path(__file__).parent), timeout=300)
-    return json.loads(out.stdout.decode("utf-8", "replace"))[0]["results"]
+    """Run a D1 statement and return rows, using the same account as the worker.
+
+    WRANGLER_TEST_CONFIG points at the target worker's config when testing the
+    deployed production worker (whose D1 lives in a different account than the
+    source this repo originally deployed to). The command list is passed to
+    subprocess directly (no shell), which avoids the cmd.exe quoting issues
+    that break --command via a shell.
+    """
+    cfg = os.environ.get("WRANGLER_TEST_CONFIG")
+    db = "dgui-hypermem"
+    if cfg:
+        db = json.load(open(cfg, encoding="utf-8"))["d1_databases"][0]["database_name"]
+    cmd = ["npx.cmd", "wrangler", "d1", "execute", db, "--remote", "--json", "--command", sql]
+    if cfg:
+        cmd += ["--config", cfg]
+    out = subprocess.run(cmd, capture_output=True, cwd=str(Path(__file__).parent), timeout=300)
+    if out.returncode != 0:
+        raise SystemExit(f"d1 failed: {out.stderr.decode('utf-8', 'replace')[-400:]}")
+    # wrangler prints an upload banner before the JSON document on stdout
+    text = out.stdout.decode("utf-8", "replace").lstrip()
+    start = text.find("[")
+    if start < 0:
+        raise SystemExit(f"d1 no JSON: {text[:200]}")
+    return json.loads(text[start:])[0]["results"]
 
 
 def ensure_fixture_account() -> str:

@@ -52,16 +52,38 @@ MAINTENANCE) as the rollback path until cutover is commanded.
 - Secrets are read by `extract_secrets.py` (KEY=VALUE parse, no shell eval) and
   piped straight into `wrangler secret put` via stdin — values never printed.
 
-### Cutover checklist (user-driven, not yet done)
+### Cutover — COMPLETED (30 Sep → 1 Oct 2026)
 
-1. `wrangler secret delete MAINTENANCE --config <target config>` — take the
-   target live.
-2. Re-point the Stripe webhook URL to
-   `https://dgui-hmem.deckergui.my/api/stripe-webhook`.
-3. Single-writer: delete `HF_TOKEN` from the **source** Worker (ctaxnagomi) and
-   remove its dataset cron.
-4. Re-run `billing_flow_test.py` / `oauth_flow_test.py` against the target.
-5. Re-check D1 upgrade (Workers Paid) and OpenAI Plugins listing decisions.
+1. `wrangler secret delete MAINTENANCE` on the target — **done**; target live
+   (`/health` OK, landing page served, `/admin` → 302 to the admin host).
+2. Stripe webhook re-pointed to
+   `https://dgui-hmem.deckergui.my/api/stripe-webhook` — **done** (same webhook
+   `we_1ULICCLjoFSWfKc74zqPs4h3`, so `STRIPE_WEBHOOK_SECRET` unchanged).
+3. Single-writer: `HF_TOKEN` deleted from the **source** Worker (ctaxnagomi) and
+   its dataset cron removed (`schedules: []`). `flushJevExamples` fails safe
+   without the token, so the source can no longer write the HF dataset.
+4. **Workers Paid upgrade** — user upgraded the target account
+   (`155c4982…`) to Workers Paid ($5/mo, subscription `57971311…`,
+   rate_plan `workers_paid`, scope `account`). Reason: the free-tier D1 daily
+   write cap (100K rows/day) was exhausted on 30 Sep by the migration writes
+   (83,623 usage_events alone) plus test fixtures, and every DB-write path on
+   the live worker was 500ing with `D1_ERROR: ... free tier daily row write
+   limit`. Paid removes the daily cap (50M rows written/month included).
+5. Flow tests re-run against the target — **both green**:
+   `billing_flow_test.py` all checks passed; `oauth_flow_test.py` all checks
+   passed (incl. "no raw token stored in D1").
+6. Test-harness fixes made during the run (uncommitted → this commit):
+   - `d1()` helper in both tests now reads the `database_name` from
+     `WRANGLER_TEST_CONFIG` and runs via `--command` in a no-shell subprocess
+     so it returns actual **rows** (the `--file` variant only returns summary
+     metadata); banner lines are stripped before JSON parsing.
+   - Stripe-webhook check in `billing_flow_test.py` now snapshots
+     `COUNT(*)` before the forged request and asserts no new row, instead of
+     assuming the table starts empty. (The two `evt_test_*` rows were stale
+     artifacts carried over by the migration dump and were deleted from the
+     target D1.)
+7. Deferred (still open): OpenAI Plugins Directory listing, and rotating
+   `milkawee@gmail.com`'s token.
 
 ### Follow-up patch: admin CRM on its own hostname — DEPLOYED (30 Sep 2026)
 

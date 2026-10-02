@@ -13,6 +13,7 @@ Reads PASSKEY from .dev.vars (never printed).
 """
 
 import json
+import os
 import subprocess
 import sys
 import time
@@ -69,10 +70,27 @@ def post(path, payload, headers=None):
 
 
 def d1(sql: str) -> list:
-    out = subprocess.run(
-        ["npx.cmd", "wrangler", "d1", "execute", "dgui-hypermem", "--remote", "--json", "--command", sql],
-        capture_output=True, cwd=str(Path(__file__).parent), timeout=300)
-    return json.loads(out.stdout.decode("utf-8", "replace"))[0]["results"]
+    # WRANGLER_TEST_CONFIG points at the target worker's config when testing
+    # the deployed production worker (whose D1 lives in a different account
+    # than the source this repo originally deployed to). The command list is
+    # passed to subprocess directly (no shell), which avoids the cmd.exe
+    # quoting issues that break --command via a shell.
+    cfg = os.environ.get("WRANGLER_TEST_CONFIG")
+    db = "dgui-hypermem"
+    if cfg:
+        db = json.load(open(cfg, encoding="utf-8"))["d1_databases"][0]["database_name"]
+    cmd = ["npx.cmd", "wrangler", "d1", "execute", db, "--remote", "--json", "--command", sql]
+    if cfg:
+        cmd += ["--config", cfg]
+    out = subprocess.run(cmd, capture_output=True, cwd=str(Path(__file__).parent), timeout=300)
+    if out.returncode != 0:
+        raise SystemExit(f"d1 failed: {out.stderr.decode('utf-8', 'replace')[-400:]}")
+    # wrangler prints an upload banner before the JSON document on stdout
+    text = out.stdout.decode("utf-8", "replace").lstrip()
+    start = text.find("[")
+    if start < 0:
+        raise SystemExit(f"d1 no JSON: {text[:200]}")
+    return json.loads(text[start:])[0]["results"]
 
 
 def load_passkey() -> str:
@@ -349,6 +367,7 @@ check("billing summary needs the passkey", "error" in json.loads(body), body[:10
 
 # --- webhook -------------------------------------------------------------
 print("\nstripe webhook")
+events_before = d1("SELECT COUNT(*) AS n FROM stripe_events")[0]["n"]
 st, _, body = request(f"{BASE}/api/stripe-webhook", b'{"id":"evt_1","type":"checkout.session.completed"}',
                       {"stripe-signature": "t=1,v1=deadbeef", "user-agent": UA})
 parsed = json.loads(body)
@@ -361,7 +380,7 @@ check("webhook refuses a bad signature", "error" in parsed, body[:120])
 check("forged signature gets 4xx so Stripe stops retrying", 400 <= st < 500, f"got {st}")
 check("refusal names a signature failure", "signature" in parsed.get("error", "").lower(), body[:120])
 check("no event was recorded from an unverified request",
-      d1("SELECT COUNT(*) AS n FROM stripe_events")[0]["n"] == 0)
+      d1("SELECT COUNT(*) AS n FROM stripe_events")[0]["n"] == events_before)
 
 # --- cleanup -------------------------------------------------------------
 reset_fixture()
