@@ -16,8 +16,15 @@ import type { Env } from "./types";
 import { addMemory, forgetMemories, listMemories, profile, searchMemories } from "./store";
 import { MEMORY_TYPES, resolveMode } from "./jev";
 import { flushJevExamples, jevQueueStats } from "./dataset";
-import { json, logCrmAction, now, uuid } from "./util";
+import { json, logCrmAction, now, timeSafeEqual, uuid } from "./util";
 import { checkPasskey, extractToken, resolveCredential, type Credential } from "./auth";
+import {
+  createAdminSession,
+  extractAdminSession,
+  otpauthUri,
+  verifyAdminSession,
+  verifyTotp,
+} from "./admin_auth";
 import {
   ACCOUNT_COLUMNS,
   effectiveQuota,
@@ -398,6 +405,7 @@ async function handleRest(request: Request, env: Env, path: string): Promise<Res
   // they return 404 so the admin surface is not guessable there.
   const ADMIN_HOST = env.ADMIN_HOST || "hmem-admin.deckergui.my";
   const ADMIN_API = new Set([
+    "/api/admin/login",
     "/api/admin/tokens",
     "/api/admin/logs",
     "/api/admin/toggle-train",
@@ -411,6 +419,8 @@ async function handleRest(request: Request, env: Env, path: string): Promise<Res
   }
 
   switch (path) {
+    case "/api/admin/login":
+      return adminJson(await handleAdminLogin(env, body, request));
     case "/api/add":
       return json(await addMemory(env, { content: body.content, scope, tags: body.tags, source: body.source }), {
         headers: CORS,
@@ -450,11 +460,11 @@ async function handleRest(request: Request, env: Env, path: string): Promise<Res
     case "/api/admin/logs":
       return adminJson(await handleAdminLogs(env, body, url, request));
     case "/api/admin/toggle-train":
-      return adminJson(await handleToggleTrain(env, body));
+      return adminJson(await handleToggleTrain(env, body, request, url));
     case "/api/admin/update-quota":
-      return adminJson(await handleUpdateQuota(env, body));
+      return adminJson(await handleUpdateQuota(env, body, request, url));
     case "/api/admin/clock":
-      return adminJson(await handleAdminClock(env, body));
+      return adminJson(await handleAdminClock(env, body, request, url));
     case "/api/visitor":
       return json(await handleVisitor(env), { headers: CORS });
     case "/api/check-quota":
@@ -462,7 +472,7 @@ async function handleRest(request: Request, env: Env, path: string): Promise<Res
     case "/api/verify-token":
       return json(await handleVerifyToken(env, request), { headers: CORS });
     case "/api/setup-dataset":
-      return adminJson(await handleSetupDataset(env, body));
+      return adminJson(await handleSetupDataset(env, body, request, url));
     case "/api/enterprise-inquiry":
       return json(await handleEnterpriseInquiry(env, body), { headers: CORS });
     case "/api/create-checkout-session":
@@ -494,10 +504,52 @@ function adminJson(result: Record<string, any>): Response {
   return json(result, { status, headers: CORS });
 }
 
-async function handleAdminTokens(env: Env, body: Record<string, any>, url: URL, request: Request): Promise<Record<string, any>> {
-  const passkey = body.passkey || url.searchParams.get("passkey") || "";
+async function handleAdminLogin(env: Env, body: Record<string, any>, request: Request): Promise<Record<string, any>> {
+  const passkey = typeof body.passkey === "string" && body.passkey ? body.passkey : "";
   if (!passkey || !isAdmin(passkey, env)) {
+    await logCrmAction(env, "unknown", "admin_login_fail", "failed admin login attempt", request).run().catch(() => {});
+    return { error: "unauthorized" };
+  }
+  const configured = !!env.ADMIN_TOTP_SECRET;
+  if (configured) {
+    const enrolledRow = await env.DB.prepare("SELECT enrolled_at FROM admin_totp WHERE id = 1").first<{ enrolled_at: number | null }>();
+    const enrolled = !!enrolledRow?.enrolled_at;
+    const code = typeof body.totp === "string" && body.totp ? body.totp : "";
+    const codeOk = code ? await verifyTotp(env, code) : false;
+    if (!enrolled) {
+      if (codeOk) {
+        await markTotpEnrolled(env);
+        await logCrmAction(env, "admin", "totp_enrolled", "TOTP enrolled for admin", request).run().catch(() => {});
+      } else {
+        await logCrmAction(env, "admin", "totp_setup_shown", "TOTP setup payload shown", request).run().catch(() => {});
+        return {
+          status: "totp_setup_required",
+          totp: {
+            pending: true,
+            uri: otpauthUri(env.ADMIN_TOTP_SECRET!, "admin@dgui-hypermem"),
+            secret: env.ADMIN_TOTP_SECRET!,
+          },
+        };
+      }
+    } else if (!codeOk) {
+      await logCrmAction(env, "admin", "totp_fail", "TOTP code rejected", request).run().catch(() => {});
+      return { error: "invalid authentication code" };
+    }
+  }
+  const session = await createAdminSession(env);
+  if (!session) {
+    await logCrmAction(env, "admin", "admin_login_success", "admin login (stateless)", request).run().catch(() => {});
+    return { status: "ok", session: null, totp: configured ? { state: "verified" } : undefined };
+  }
+  await logCrmAction(env, "admin", "admin_login_success", "admin login via 2FA/session", request).run().catch(() => {});
+  return { status: "ok", session, totp: configured ? { state: "verified" } : undefined };
+}
+
+async function handleAdminTokens(env: Env, body: Record<string, any>, url: URL, request: Request): Promise<Record<string, any>> {
+  const auth = await adminGate(env, request, body, url);
+  if (!auth.ok) {
     await logCrmAction(env, "unknown", "admin_login_fail", `failed admin token list attempt`, request).run().catch(() => {});
+    if (auth.reason === "totp_required") return { error: "totp_required" };
     return { error: "unauthorized" };
   }
   await logCrmAction(env, "admin", "admin_login_success", "viewed token list", request).run().catch(() => {});
@@ -520,18 +572,58 @@ function classifyPath(path: string): string {
   return "other";
 }
 
+async function totpEnrolled(env: Env): Promise<boolean> {
+  if (!env.ADMIN_TOTP_SECRET) return false;
+  try {
+    const row = await env.DB.prepare("SELECT enrolled_at FROM admin_totp WHERE id = 1").first<{ enrolled_at: number | null }>();
+    return !!row?.enrolled_at;
+  } catch (err) {
+    console.error("[totpEnrolled] failed:", err);
+    return false;
+  }
+}
+
+async function markTotpEnrolled(env: Env): Promise<void> {
+  await env.DB.prepare(
+    "INSERT INTO admin_totp (id, enrolled_at) VALUES (1, ?) ON CONFLICT(id) DO UPDATE SET enrolled_at = excluded.enrolled_at",
+  )
+    .bind(now())
+    .run();
+}
+
+async function adminGate(env: Env, request: Request, body: Record<string, any>, url: URL): Promise<{ ok: boolean; reason?: string }> {
+  // 1) Session token takes precedence
+  const session = extractAdminSession(request, body, url);
+  if (session) {
+    const verified = await verifyAdminSession(env, session);
+    if (verified) return { ok: true };
+  }
+  // 2) Passkey path
+  const passkey = typeof body?.passkey === "string" && body.passkey ? body.passkey : url.searchParams.get("passkey") || "";
+  if (passkey && isAdmin(passkey, env)) {
+    const enrolled = await totpEnrolled(env);
+    if (!enrolled) return { ok: true }; // bootstrap before 2FA enforced
+    const code = typeof body?.totp === "string" && body.totp ? body.totp : url.searchParams.get("totp") || "";
+    if (code && (await verifyTotp(env, code))) return { ok: true };
+    return { ok: false, reason: "totp_required" };
+  }
+  return { ok: false };
+}
+
 function isAdmin(passkey: string, env: Env): boolean {
   const master = env.MASTER_PASSKEY;
   const admin2 = env.ADMIN_PASSKEY_2;
-  if (master && passkey === master) return true;
-  if (admin2 && passkey === admin2) return true;
+  if (!passkey) return false;
+  if (master && timeSafeEqual(master, passkey)) return true;
+  if (admin2 && timeSafeEqual(admin2, passkey)) return true;
   return false;
 }
 
 async function handleAdminLogs(env: Env, body: Record<string, any>, url: URL, request: Request): Promise<Record<string, any>> {
-  const passkey = body.passkey || url.searchParams.get("passkey") || "";
-  if (!passkey || !isAdmin(passkey, env)) {
+  const auth = await adminGate(env, request, body, url);
+  if (!auth.ok) {
     await logCrmAction(env, "unknown", "admin_logs_fail", "failed admin logs attempt", request).run().catch(() => {});
+    if (auth.reason === "totp_required") return { error: "totp_required" };
     return { error: "unauthorized" };
   }
   await logCrmAction(env, "admin", "admin_logs_success", "viewed admin logs", request).run().catch(() => {});
@@ -555,19 +647,28 @@ async function handleAdminLogs(env: Env, body: Record<string, any>, url: URL, re
   return { logs: results || [], total, page, limit, pages: Math.ceil(total / limit) };
 }
 
-async function handleToggleTrain(env: Env, body: Record<string, any>): Promise<Record<string, any>> {
-  const { email, passkey, train_with_all } = body;
-  if (!email || !passkey) return { error: "email and passkey are required" };
-  if (!isAdmin(passkey, env)) return { error: "unauthorized" };
+async function handleToggleTrain(env: Env, body: Record<string, any>, request?: Request, url?: URL): Promise<Record<string, any>> {
+  const { email } = body;
+  if (!email) return { error: "email required" };
+  const auth = await adminGate(env, request || new Request("https://dummy"), body, url || new URL("https://dummy"));
+  if (!auth.ok) {
+    if (auth.reason === "totp_required") return { error: "totp_required" };
+    return { error: "unauthorized" };
+  }
+  const { train_with_all } = body;
   const value = train_with_all === true || train_with_all === 1 ? 1 : 0;
   await env.DB.prepare("UPDATE tokens SET train_with_all = ?, updated_at = ? WHERE email = ?").bind(value, now(), email).run();
   return { email, train_with_all: !!value, status: "updated" };
 }
 
-async function handleUpdateQuota(env: Env, body: Record<string, any>): Promise<Record<string, any>> {
-  const { email, passkey, quota_monthly, plan } = body;
-  if (!email || !passkey) return { error: "email and passkey are required" };
-  if (!isAdmin(passkey, env)) return { error: "unauthorized" };
+async function handleUpdateQuota(env: Env, body: Record<string, any>, request?: Request, url?: URL): Promise<Record<string, any>> {
+  const { email, quota_monthly, plan } = body;
+  if (!email) return { error: "email required" };
+  const auth = await adminGate(env, request || new Request("https://dummy"), body, url || new URL("https://dummy"));
+  if (!auth.ok) {
+    if (auth.reason === "totp_required") return { error: "totp_required" };
+    return { error: "unauthorized" };
+  }
   if (quota_monthly !== undefined && (typeof quota_monthly !== 'number' || quota_monthly < 0)) return { error: "invalid quota" };
   const updates: string[] = [];
   const params: any[] = [];
@@ -579,11 +680,15 @@ async function handleUpdateQuota(env: Env, body: Record<string, any>): Promise<R
   return { email, quota_monthly, plan, status: "updated" };
 }
 
-async function handleAdminClock(env: Env, body: Record<string, any>): Promise<Record<string, any>> {
-  const { action, passkey } = body;
-  if (!action || !passkey) return { error: "action and passkey are required" };
+async function handleAdminClock(env: Env, body: Record<string, any>, request?: Request, url?: URL): Promise<Record<string, any>> {
+  const { action } = body;
+  if (!action) return { error: "action required" };
   if (action !== "in" && action !== "out") return { error: "action must be 'in' or 'out'" };
-  if (!isAdmin(passkey, env)) return { error: "unauthorized" };
+  const auth = await adminGate(env, request || new Request("https://dummy"), body, url || new URL("https://dummy"));
+  if (!auth.ok) {
+    if (auth.reason === "totp_required") return { error: "totp_required" };
+    return { error: "unauthorized" };
+  }
   const email = "admin";
   const now_ = now();
   if (action === "in") {
@@ -768,9 +873,10 @@ async function handleVerifyToken(env: Env, request: Request): Promise<Record<str
 }
 
 async function handleAdminStats(env: Env, body: Record<string, any>, url: URL, request: Request): Promise<Record<string, any>> {
-  const passkey = body.passkey || url.searchParams.get("passkey") || "";
-  if (!passkey || !isAdmin(passkey, env)) {
+  const auth = await adminGate(env, request, body, url);
+  if (!auth.ok) {
     await logCrmAction(env, "unknown", "admin_stats_fail", "failed admin stats attempt", request).run().catch(() => {});
+    if (auth.reason === "totp_required") return { error: "totp_required" };
     return { error: "unauthorized" };
   }
   await logCrmAction(env, "admin", "admin_stats_success", "viewed admin stats", request).run().catch(() => {});
@@ -799,10 +905,14 @@ async function handleAdminStats(env: Env, body: Record<string, any>, url: URL, r
   };
 }
 
-async function handleSetupDataset(env: Env, body: Record<string, any>): Promise<Record<string, any>> {
-  const { hf_token, dataset_name, passkey } = body;
-  if (!hf_token || !dataset_name || !passkey) return { error: "hf_token, dataset_name and passkey required" };
-  if (!isAdmin(passkey, env)) return { error: "unauthorized" };
+async function handleSetupDataset(env: Env, body: Record<string, any>, request?: Request, url?: URL): Promise<Record<string, any>> {
+  const { hf_token, dataset_name } = body;
+  if (!hf_token || !dataset_name) return { error: "hf_token, dataset_name required" };
+  const auth = await adminGate(env, request || new Request("https://dummy"), body, url || new URL("https://dummy"));
+  if (!auth.ok) {
+    if (auth.reason === "totp_required") return { error: "totp_required" };
+    return { error: "unauthorized" };
+  }
   // Validate the token by making a test API call
   try {
     const test = await fetch(`https://huggingface.co/api/datasets/${dataset_name}`, {
@@ -1069,7 +1179,28 @@ export default {
     if (path === "/token") return handleToken(env, request);
     if (path === "/revoke") return handleRevoke(env, request);
 
-    const CRM_ROUTES = ["/api/request-token", "/api/check-star", "/api/disable-token", "/api/verify-token", "/api/setup-dataset", "/api/visitor", "/api/enterprise-inquiry", "/api/create-checkout-session", "/api/buy-credits", "/api/start-trial", "/api/billing-summary", "/api/stripe-webhook", "/api/admin/tokens", "/api/admin/stats", "/api/admin/logs", "/api/admin/toggle-train", "/api/admin/update-quota", "/api/admin/clock", "/api/check-quota"];
+    const CRM_ROUTES = [
+  "/api/request-token",
+  "/api/check-star",
+  "/api/disable-token",
+  "/api/verify-token",
+  "/api/setup-dataset",
+  "/api/visitor",
+  "/api/enterprise-inquiry",
+  "/api/create-checkout-session",
+  "/api/buy-credits",
+  "/api/start-trial",
+  "/api/billing-summary",
+  "/api/stripe-webhook",
+  "/api/admin/login",
+  "/api/admin/tokens",
+  "/api/admin/stats",
+  "/api/admin/logs",
+  "/api/admin/toggle-train",
+  "/api/admin/update-quota",
+  "/api/admin/clock",
+  "/api/check-quota",
+];
     if (path === "/mcp" || (path.startsWith("/api/") && !CRM_ROUTES.includes(path))) {
       const credential = await resolveCredential(env, request);
       if (!credential) {

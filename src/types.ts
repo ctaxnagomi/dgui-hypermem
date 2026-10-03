@@ -16,6 +16,10 @@ export interface Env {
   PASSKEY?: string;
   MASTER_PASSKEY?: string;
   ADMIN_PASSKEY_2?: string;
+  /** Base32 TOTP secret for admin 2FA (Google Authenticator). Write-only. */
+  ADMIN_TOTP_SECRET?: string;
+  /** HMAC secret that signs admin session tokens. Write-only. */
+  ADMIN_SESSION_SECRET?: string;
   GITHUB_TOKEN?: string;
   STRIPE_SECRET_KEY?: string;
   STRIPE_WEBHOOK_SECRET?: string;
