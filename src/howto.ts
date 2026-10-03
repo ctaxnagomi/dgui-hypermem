@@ -61,6 +61,21 @@ strong{color:var(--text-primary)}
 <li><strong>jev_queue_stats</strong> — Check queue status.</li>
 </ul>
 
+<h2>Verify Your Connection Works</h2>
+<p>After your client shows the server as <em>connected</em>, run this quick three-tier check. Tiers 1–2 are read-only; tier 3 writes a test pair and removes it.</p>
+<h3>1. Connection</h3>
+<p>Run <code>help</code> from your client — you should get back the eight-tool list. Or check the service is alive with <code>curl https://dgui-hmem.deckergui.my/health</code>.</p>
+<h3>2. Read-only smoke test</h3>
+<ul>
+<li><code>search</code> "dgui-hypermem hosting architecture" in scope <code>showcase</code> → returns the hosting decision memory.</li>
+<li><code>profile</code> scope <code>showcase</code> → 1 <code>active</code> + 1 <code>superseded</code> decision.</li>
+<li><code>list</code> scope <code>showcase</code>, status <code>superseded</code> → exactly one entry, the superseded decision <code>d9de9317</code>.</li>
+<li><code>jev_queue_stats</code> → pending counts include at least one <code>supersede</code> row.</li>
+</ul>
+<h3>3. Write round-trip (optional)</h3>
+<p>In a disposable scope, <code>add</code> a decision, wait <strong>~2 minutes</strong> (Vectorize propagation delay), <code>add</code> the opposite decision — the response should list the first as <code>superseded</code> with probability ≈0.9 — then <code>forget</code> the scope with <code>all: true</code>.</p>
+<p><strong>Wrong look:</strong> <code>monthly quota exceeded</code> means the account behind your credential is out of allowance — check <code>/api/check-quota</code> or ask an operator to raise it. <code>invalid token</code> means the credential isn't a valid per-user token; prefer OAuth for MCP clients.</p>
+
 <h2>Managing Your Token</h2>
 <ul>
 <li>You can <strong>revoke</strong> your token anytime from the landing page by clicking "Revoke Token"</li>

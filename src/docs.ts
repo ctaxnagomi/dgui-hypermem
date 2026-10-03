@@ -125,6 +125,7 @@ pre code{padding:0;border:0;background:transparent;color:inherit;border-radius:0
         <div class="nav-title">Start here</div>
         <a class="nav-link" href="#overview">Overview</a>
         <a class="nav-link" href="#establish">Establish yourself</a>
+        <a class="nav-link" href="#health-check">MCP health check</a>
         <a class="nav-link" href="#user-guide">User guide</a>
         <a class="nav-link" href="#developer-guide">Developer guide</a>
         <a class="nav-link" href="#clients">Client guides</a>
@@ -205,6 +206,54 @@ pre code{padding:0;border:0;background:transparent;color:inherit;border-radius:0
   -H "Authorization: Bearer \${DGUI_HYPERMEM_TOKEN}"</code></pre>
         </div>
         <div class="notice"><strong>Agent instruction:</strong> “Before starting a project, search DGUI-HyperMem for relevant decisions and preferences. After a durable decision is made, add a concise memory with a stable project scope and useful tags. Never store credentials or private keys.”</div>
+      </section>
+
+      <section id="health-check">
+        <h2>MCP health check</h2>
+        <p>A client showing <em>connected</em> is not proof the service works — it only proves the handshake completed. Run this three-tier check after your first connection and any time a tool misbehaves. Tiers 1–2 are read-only and safe on a live store; tier 3 writes a temporary pair, verifies the supersede path, then removes it.</p>
+
+        <h3>1. Connection is up</h3>
+        <p>Confirm the endpoint answers and the credential is accepted. <code>/health</code> is unauthenticated and returns service status; <code>help</code> is the first authenticated call and lists all eight tools if the OAuth or bearer credential resolved.</p>
+        <div class="code-shell">
+          <div class="code-title"><span>Status endpoint</span><button class="copy-btn" type="button">Copy</button></div>
+          <pre><code>curl https://dgui-hmem.deckergui.my/health</code></pre>
+        </div>
+        <p>In opencode, <code>/mcps</code> should show <code>dgui-hypermem</code> as <strong>connected</strong>. From any client, invoke <code>help</code> and confirm the tool list (add, search, list, profile, forget, help, sync_jev_dataset, jev_queue_stats) is returned.</p>
+
+        <h3>2. Read-only smoke test</h3>
+        <p>Each call below touches a different subsystem. A healthy result for all five means authentication, D1 storage, Vectorize search, the quota gate, and the JEV queue are all working.</p>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Tool</th><th>Call</th><th>Healthy result</th></tr></thead>
+          <tbody>
+            <tr><td><code>search</code></td><td><code>query: "dgui-hypermem hosting architecture"</code>, <code>scope: "showcase"</code></td><td>A decision memory is returned with an <code>id</code>, <code>salience</code>, and a <code>score</code>.</td></tr>
+            <tr><td><code>profile</code></td><td><code>scope: "showcase"</code></td><td>Totals include 1 <code>active</code> and 1 <code>superseded</code> memory of type <code>decision</code> — proof the contradiction demo pair is intact.</td></tr>
+            <tr><td><code>list</code></td><td><code>scope: "showcase"</code>, <code>status: "superseded"</code></td><td>Exactly one entry: the superseded decision <code>d9de9317</code>.</td></tr>
+            <tr><td><code>jev_queue_stats</code></td><td>no arguments</td><td>Pending/uploaded counts returned, with at least one <code>supersede</code> use-case row queued.</td></tr>
+            <tr><td><code>help</code></td><td>no arguments</td><td>Server name, version, and the eight-tool summary.</td></tr>
+          </tbody>
+        </table></div>
+        <p>The <code>showcase</code> scope is a curated demo that ships with the hosted service. It is read-only for this check — you are only observing it. On a self-hosted deployment, substitute any scope you know has data.</p>
+
+        <h3>3. Write round-trip (optional, then clean up)</h3>
+        <p>Only run this when you need to prove writes and the JEV supersede path from your own client. Use a disposable scope so the test pair can be removed afterwards.</p>
+        <div class="steps">
+          <div class="step"><strong>Add the first memory</strong><p><code>add</code> with a decision statement, <code>scope: "usertest"</code>. Note the returned <code>id</code>.</p></div>
+          <div class="step"><strong>Wait ~2 minutes</strong><p>Vectorize propagates upserts on a delay; adding sooner means the contradiction check cannot see the first memory yet.</p></div>
+          <div class="step"><strong>Add the contradiction</strong><p><code>add</code> the opposite decision in the same scope. The response should include <code>superseded: [{ id: &lt;first-id&gt;, probability: ≈0.9 }]</code>.</p></div>
+          <div class="step"><strong>Confirm and clean up</strong><p><code>list</code> should show one <code>active</code> and one <code>superseded</code> memory. Then <code>forget</code> with <code>scope: "usertest"</code> and <code>all: true</code>.</p></div>
+        </div>
+
+        <h3>What “wrong” looks like</h3>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Symptom</th><th>Likely cause</th><th>Resolution</th></tr></thead>
+          <tbody>
+            <tr><td><code>monthly quota exceeded</code></td><td>The account behind the OAuth grant or token has spent its plan allowance with no wallet credit.</td><td>Call <code>/api/check-quota</code> with that credential, then ask an operator to raise <code>quota_override</code> or top up pay-as-you-go.</td></tr>
+            <tr><td><code>invalid token</code></td><td>The presented credential is not a per-user token row, or the token is disabled.</td><td>For MCP clients prefer OAuth; for scripts use a token from the landing page. Re-authenticate if revoked.</td></tr>
+            <tr><td><code>search</code> returns nothing</td><td>Different scope, a restrictive <code>type</code>/<code>durable_only</code> filter, or an empty store.</td><td>Repeat with the same scope and no filters, then call <code>list</code> to see what exists.</td></tr>
+            <tr><td>Two <code>add</code>s never supersede</td><td>Contradiction added faster than the ~2-minute Vectorize propagation window.</td><td>Wait two minutes between adds, then re-run <code>search</code> — the pair will be visible.</td></tr>
+          </tbody>
+        </table></div>
+        <div class="notice"><strong>Note:</strong> the check above describes the hosted service. Scope names are a namespacing convention, not an authorization boundary — anyone with a valid credential can read any scope.</div>
       </section>
 
       <section id="user-guide">
