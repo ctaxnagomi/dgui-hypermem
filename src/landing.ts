@@ -169,10 +169,10 @@ footer p{font-size:14px;color:var(--text-muted)}footer a{color:var(--accent-cyan
 <div class="container">
 <div class="globe-wrapper">
 <div class="@container/globe h-full w-full" data-sentry-component="GlobeView" data-sentry-source-file="GlobeView.tsx">
-  <div class="grid h-full w-full overflow-hidden" style="grid-template-columns: min(88px, 50%) minmax(0px, 1fr);">
+  <div class="grid h-full w-full overflow-hidden" style="grid-template-columns: minmax(0px, 1fr) minmax(0px, 1fr); gap: 40px;">
     <div class="relative flex items-center justify-center">
-      <div class="relative" style="width: 88px; height: 88px;">
-        <canvas id="globe-canvas" class="cursor-grab active:cursor-grabbing" width="176" height="176" style="width: 88px; height: 88px;"></canvas>
+      <div class="relative" style="width: 240px; height: 240px;">
+        <canvas id="globe-canvas" class="cursor-grab active:cursor-grabbing" width="480" height="480" style="width: 240px; height: 240px;"></canvas>
       </div>
     </div>
     <div class="relative flex flex-col overflow-hidden border-kumo-line border-l">
@@ -401,8 +401,8 @@ footer p{font-size:14px;color:var(--text-muted)}footer a{color:var(--accent-cyan
 </div>
 </footer>
 <style>
-.globe-section { padding: 80px 0; background: var(--bg-secondary); }
-.globe-wrapper { background: #1a1a1a; border-radius: 16px; padding: 40px 20px; min-height: 400px; display: flex; align-items: center; justify-content: center; box-shadow: 0 20px 60px -20px rgba(0,0,0,0.3); }
+.globe-section { padding: 80px 0; background: #ffffff; }
+.globe-wrapper { background: #ffffff; border-radius: 16px; padding: 40px 20px; min-height: 400px; display: flex; align-items: center; justify-content: center; box-shadow: 0 20px 60px -20px rgba(0,0,0,0.1); border: 1px solid #e5e7eb; }
 .h-full { height: 100%; }
 .w-full { width: 100%; }
 .grid { display: grid; }
@@ -507,7 +507,7 @@ const countryData = [
 let selectedIndex = 0;
 if (globeCanvas) {
   const ctx = globeCanvas.getContext('2d');
-  const size = 176;
+  const size = globeCanvas.width / (window.devicePixelRatio || 1);
   let rotation = 0;
   let targetRotation = 0;
   const dots = countryData;
