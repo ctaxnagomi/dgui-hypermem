@@ -491,19 +491,26 @@ async function sendEnterprise(){
   btn.disabled=false;btn.textContent='Send Inquiry';
 }
 
-// Simple globe animation
+// Interactive globe animation
 const globeCanvas = document.getElementById('globe-canvas');
+const countryRows = document.querySelectorAll('[data-slot="ranked-list-row"]');
+const countryData = [
+  {name: 'Singapore, SG (SIN)', lat: 1.3521, lng: 103.8198, count: 84000},
+  {name: 'Amsterdam, NL (AMS)', lat: 52.3676, lng: 4.9041, count: 135},
+  {name: 'Frankfurt-am-Main, DE (FRA)', lat: 50.1109, lng: 8.6821, count: 58},
+  {name: 'Dulles, US (IAD)', lat: 38.9531, lng: -77.4565, count: 56},
+  {name: 'Newark, US (EWR)', lat: 40.6895, lng: -74.1745, count: 41},
+  {name: 'San Jose, US (SJC)', lat: 37.3382, lng: -121.8863, count: 37},
+  {name: 'Toronto, CA (YYZ)', lat: 43.6511, lng: -79.3470, count: 33},
+  {name: 'Paris, FR (CDG)', lat: 49.0081, lng: 2.5479, count: 28},
+];
+let selectedIndex = 0;
 if (globeCanvas) {
   const ctx = globeCanvas.getContext('2d');
   const size = 176;
   let rotation = 0;
-  const dots = [];
-  for (let lat = -85; lat <= 85; lat += 10) {
-    for (let lng = -180; lng <= 180; lng += 20) {
-      dots.push({lat, lng});
-    }
-  }
-  
+  let targetRotation = 0;
+  const dots = countryData;
   function project(lat, lng, r, rot) {
     const phi = lat * Math.PI / 180;
     const theta = (lng + rot) * Math.PI / 180;
@@ -512,20 +519,44 @@ if (globeCanvas) {
     const z = Math.cos(phi) * Math.cos(theta) * r;
     return {x, y, z, visible: z > 0};
   }
-  
+  function getRotationForLng(lng) {
+    return -lng * Math.PI / 180;
+  }
+  countryRows.forEach((row, idx) => {
+    row.style.cursor = 'pointer';
+    row.addEventListener('click', () => {
+      selectedIndex = idx;
+      countryRows.forEach(r => r.style.backgroundColor = 'transparent');
+      row.style.backgroundColor = 'rgba(0, 240, 255, 0.1)';
+      const c = countryData[idx];
+      if (c) targetRotation = getRotationForLng(c.lng);
+    });
+  });
+  if (countryRows[0]) {
+    countryRows[0].style.backgroundColor = 'rgba(0, 240, 255, 0.1)';
+    const c = countryData[0];
+    if (c) targetRotation = getRotationForLng(c.lng);
+  }
   function draw() {
     ctx.clearRect(0, 0, size, size);
     ctx.save();
     ctx.translate(size/2, size/2);
-    rotation += 0.05;
+    rotation += (targetRotation - rotation) * 0.05;
     const r = 70;
-    dots.forEach(d => {
+    dots.forEach((d, idx) => {
       const p = project(d.lat, d.lng, r, rotation);
       if (p.visible) {
         ctx.beginPath();
-        ctx.arc(p.x, p.y, 1, 0, Math.PI * 2);
-        ctx.fillStyle = 'rgba(0, 240, 255, 0.6)';
+        ctx.arc(p.x, p.y, idx === selectedIndex ? 2.5 : 1, 0, Math.PI * 2);
+        ctx.fillStyle = idx === selectedIndex ? 'rgba(0, 240, 255, 1)' : 'rgba(0, 240, 255, 0.6)';
         ctx.fill();
+        if (idx === selectedIndex) {
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
+          ctx.strokeStyle = 'rgba(0, 240, 255, 0.3)';
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+        }
       }
     });
     ctx.beginPath();
