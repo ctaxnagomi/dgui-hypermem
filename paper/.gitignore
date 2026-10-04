@@ -1,0 +1,11 @@
+# LaTeX intermediates -- regenerate with the four-pass build in README.md
+*.aux
+*.bbl
+*.blg
+*.log
+*.out
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+# scratch used while converting the extracted PDF back to text for review
+paper.txt
