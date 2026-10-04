@@ -7,6 +7,10 @@
   "observability": {
     "enabled": true
   },
+  // Keep the workers.dev origin published. Defining routes implicitly flips
+  // workers_dev to false, which 404s every workers.dev URL; without this the
+  // deploy silently kills the fallback origin.
+  "workers_dev": true,
   // Custom domains, all serving this one script. dgui-hmem is the primary
   // hostname that the docs, CRM token JSON and MCP configs all advertise.
   // dgui-hypermem is the matching-name alias; hmem-admin backs the admin UI.
