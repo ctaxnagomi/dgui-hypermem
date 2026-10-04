@@ -19,6 +19,10 @@ function salienceGate(env: Env): number {
 }
 
 function toMemory(row: MemoryRow): Memory {
+  let metadata: any = undefined;
+  try {
+    if (row.metadata) metadata = JSON.parse(row.metadata);
+  } catch {}
   return {
     id: row.id,
     scope: row.scope,
@@ -34,6 +38,12 @@ function toMemory(row: MemoryRow): Memory {
     access_count: row.access_count,
     created_at: row.created_at,
     updated_at: row.updated_at,
+    provider: row.provider,
+    origin_system: row.origin_system,
+    corpus_type: row.corpus_type,
+    client_id: row.client_id,
+    user_id: row.user_id,
+    metadata,
   };
 }
 
@@ -77,6 +87,12 @@ export interface AddInput {
   tags?: unknown;
   source?: string | null;
   checkContradictions?: boolean;
+  provider?: string | null;
+  origin_system?: string | null;
+  corpus_type?: string | null;
+  client_id?: string | null;
+  user_id?: string | null;
+  metadata?: any;
 }
 
 export interface AddResult {
@@ -124,7 +140,10 @@ export async function addMemory(env: Env, input: AddInput): Promise<AddResult> {
     await env.DB.prepare(
       `UPDATE memories
          SET content = ?, tags = ?, memory_type = ?, salience = ?, durable = ?, confidence = ?,
-             type_probabilities = ?, source = ?, status = ?, superseded_by = NULL, updated_at = ?
+             type_probabilities = ?, source = ?, status = ?, superseded_by = NULL, updated_at = ?,
+             provider = COALESCE(?, provider), origin_system = COALESCE(?, origin_system), 
+             corpus_type = COALESCE(?, corpus_type), client_id = COALESCE(?, client_id),
+             user_id = COALESCE(?, user_id), metadata = COALESCE(?, metadata)
        WHERE id = ?`,
     )
       .bind(
@@ -138,6 +157,12 @@ export async function addMemory(env: Env, input: AddInput): Promise<AddResult> {
         input.source ?? existing.source,
         status,
         timestamp,
+        input.provider ?? null,
+        input.origin_system ?? null,
+        input.corpus_type ?? null,
+        input.client_id ?? null,
+        input.user_id ?? null,
+        input.metadata ? JSON.stringify(input.metadata) : null,
         id,
       )
       .run();
@@ -145,8 +170,8 @@ export async function addMemory(env: Env, input: AddInput): Promise<AddResult> {
     await env.DB.prepare(
       `INSERT INTO memories
          (id, scope, content, memory_type, tags, salience, durable, confidence, type_probabilities,
-          source, hash, status, access_count, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)`,
+          source, hash, status, access_count, created_at, updated_at, provider, origin_system, corpus_type, client_id, user_id, metadata)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
       .bind(
         id,
@@ -163,6 +188,12 @@ export async function addMemory(env: Env, input: AddInput): Promise<AddResult> {
         status,
         timestamp,
         timestamp,
+        input.provider ?? null,
+        input.origin_system ?? null,
+        input.corpus_type ?? (input.user_id ? 'session' : 'universal'),
+        input.client_id ?? null,
+        input.user_id ?? null,
+        input.metadata ? JSON.stringify(input.metadata) : null,
       )
       .run();
   }

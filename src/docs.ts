@@ -446,7 +446,18 @@ for row in ds.stream():
     print(row["use_case"], row["instruct_type"], row["provider"])</code></pre>
         </div>
 
-        <h3 id="pipeline-training">Training module</h3>
+                <h3 id="corpus-types">Corpus Types</h3>
+        <p>DGUI-HyperMem organizes memories into corpus types for proper data governance:</p>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Corpus Type</th><th>Scope</th><th>Usage</th></tr></thead>
+          <tbody>
+            <tr><td><code>universal</code></td><td>Shared across all users</td><td>Coding skills, design skills, knowledge, document skills - benefits all users. Training from active MCP users only (train_with_all enabled).</td></tr>
+            <tr><td><code>session</code></td><td>User session/device local context</td><td>Context tied to user device/session (bearer token owner). Stored separately, not included in HF dataset corpus.</td></tr>
+            <tr><td><code>gen_idle</code></td><td>General Idle/Sleep generated</td><td>Auto-generated from universal corpus. Tagged with "Gen Idle" and reference like "Coding Gen Idle - timestamp". When enriched, pushed back to universal corpus with Gen Idle tag.</td></tr>
+          </tbody>
+        </table></div>
+        <p>When adding memories, specify <code>corpus_type</code> and <code>origin_system</code> (e.g., "grok" if connected via Grok account) for full provenance tracking.</p>
+<h3 id="pipeline-training">Training module</h3>
         <p>The queue is the training module. Every JEV decision becomes one typed instruction row in <code>jev_examples</code> with status <code>pending</code>, <code>uploaded</code>, or <code>error</code>, flushed in batches of 200 by the <code>sync_jev_dataset</code> tool or by the scheduled cron. Three use cases are recorded: <code>analyze</code> (type, durability, salience for a new memory), <code>rerank</code> (which candidates actually answer a query), and <code>supersede</code> (whether an incoming memory replaces a stale one).</p>
         <div class="table-wrap"><table>
           <thead><tr><th>Control</th><th>Where</th><th>Effect</th></tr></thead>

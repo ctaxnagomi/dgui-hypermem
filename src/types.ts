@@ -49,6 +49,12 @@ export interface MemoryRow {
   last_accessed_at: number | null;
   created_at: number;
   updated_at: number;
+  provider?: string | null;
+  origin_system?: string | null;
+  corpus_type?: string | null;
+  client_id?: string | null;
+  user_id?: string | null;
+  metadata?: string | null;
 }
 
 export interface Memory {
@@ -66,6 +72,12 @@ export interface Memory {
   access_count: number;
   created_at: number;
   updated_at: number;
+  provider?: string | null;
+  origin_system?: string | null;
+  corpus_type?: string | null;
+  client_id?: string | null;
+  user_id?: string | null;
+  metadata?: any;
 }
 
 export interface ScoredMemory extends Memory {

@@ -14,6 +14,7 @@ import { z } from "zod";
 
 import type { Env } from "./types";
 import { addMemory, forgetMemories, listMemories, profile, searchMemories } from "./store";
+import { getSuggestions } from "./suggest";
 import { MEMORY_TYPES, resolveMode } from "./jev";
 import { flushJevExamples, jevQueueStats } from "./dataset";
 import { json, logCrmAction, now, timeSafeEqual, uuid } from "./util";
@@ -68,6 +69,7 @@ Tools
   search   Hybrid recall: vector + keyword candidates, fused, then JEV re-ranked.
   list     Browse recent memories in a scope.
   profile  Summarise a scope: counts by type, top tags, average salience.
+  suggest  Get triggers/suggestions: detect repeats, related memories, gen_idle candidates.
   forget   Delete by id, by search query, or everything in a scope.
   sync_jev_dataset
            Flush queued JEV decisions to the configured training dataset (also runs hourly).
@@ -113,6 +115,12 @@ function buildServer(env: Env): McpServer {
         scope: z.string().optional().describe("Memory space; defaults to the server default scope."),
         tags: z.array(z.string()).optional().describe("Optional tags for filtering and keyword search."),
         source: z.string().optional().describe("Where this memory came from (agent, file, url)."),
+        provider: z.string().optional().describe("Provider that generated/sourced this (e.g., grok, openai, anthropic, typesafe, system)."),
+        origin_system: z.string().optional().describe("Origin system (e.g., grok/mcp, claude, cursor, openhands)."),
+        corpus_type: z.enum(["universal", "session", "gen_idle"]).optional().describe("Corpus type: universal/shared, session/local-only, or gen_idle auto-generated."),
+        client_id: z.string().optional().describe("Client identifier."),
+        user_id: z.string().optional().describe("User identifier (bearer token owner context)."),
+        metadata: z.any().optional().describe("Additional metadata about the memory origin."),
         check_contradictions: z
           .boolean()
           .optional()
@@ -137,6 +145,12 @@ function buildServer(env: Env): McpServer {
           scope: args.scope,
           tags: args.tags,
           source: args.source,
+          provider: args.provider,
+          origin_system: args.origin_system,
+          corpus_type: args.corpus_type,
+          client_id: args.client_id,
+          user_id: args.user_id,
+          metadata: args.metadata,
           checkContradictions: args.check_contradictions,
         });
         return ok({
@@ -196,8 +210,45 @@ function buildServer(env: Env): McpServer {
             score: Number(m.score.toFixed(4)),
             jev_score: m.jev_score === null ? null : Number(m.jev_score.toFixed(4)),
             created_at: m.created_at,
+            source: m.source,
+            provider: m.provider,
+            origin_system: m.origin_system,
+            corpus_type: m.corpus_type,
+            metadata: m.metadata,
           })),
         });
+      } catch (err) {
+        return fail(String(err));
+      }
+    },
+  );
+
+  server.registerTool(
+    "suggest",
+    {
+      title: "Suggest relevant memories/triggers",
+      description: "Get suggestions based on current context - detects repeats, finds related memories, and suggests gen_idle candidates.",
+      inputSchema: {
+        query: z.string().optional().describe("Query/context to match against."),
+        content: z.string().optional().describe("Full content to analyze."),
+        user_id: z.string().optional().describe("User identifier for session-scoped filtering."),
+        limit: z.number().int().min(1).max(5).optional().describe("Max suggestions (default 3)."),
+      },
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        openWorldHint: false,
+        idempotentHint: true,
+      },
+    },
+    async (args) => {
+      try {
+        const suggestions = await getSuggestions(env, {
+          query: args.query,
+          content: args.content,
+          user_id: args.user_id,
+        }, args.limit);
+        return ok({ suggestions });
       } catch (err) {
         return fail(String(err));
       }
@@ -422,7 +473,7 @@ async function handleRest(request: Request, env: Env, path: string): Promise<Res
     case "/api/admin/login":
       return adminJson(await handleAdminLogin(env, body, request));
     case "/api/add":
-      return json(await addMemory(env, { content: body.content, scope, tags: body.tags, source: body.source }), {
+      return json(await addMemory(env, { content: body.content, scope, tags: body.tags, source: body.source, provider: body.provider, origin_system: body.origin_system, corpus_type: body.corpus_type, client_id: body.client_id, user_id: body.user_id, metadata: body.metadata }), {
         headers: CORS,
       });
     case "/api/search":
