@@ -258,6 +258,43 @@ footer p{font-size:14px;color:var(--text-muted)}footer a{color:var(--accent-cyan
 </div>
 </section>
 
+<section class="mcp-showcase">
+<div class="section-header"><div class="caption-mono"><i class="fas fa-plug"></i> MCP Integration</div><h2>How it works with your codebase</h2></div>
+<div class="container">
+<div class="mcp-demo">
+<div class="demo-shell">
+<div class="shell-header">
+<div class="shell-dots"><span></span><span></span><span></span></div>
+<span class="shell-title">acme-storefront / Fix the double-charge bug in checkout</span>
+</div>
+<div class="shell-body">
+<div class="message user">We're seeing duplicate charges when customers double-click the pay button. Can you find and fix it?</div>
+<div class="message assistant">
+<div class="assistant-text">I can reproduce it: the checkout form fires two <code>POST /charges</code> requests when the button is clicked twice before the first response lands. Tracing where the idempotency key should be.</div>
+</div>
+<div class="tool-call"><span>Read 3 files, searched the checkout flow</span></div>
+<div class="message assistant">
+<div class="assistant-text">Root cause: <code>createCharge()</code> generates a new idempotency key per call instead of per checkout session, so the gateway treats the second click as a fresh charge. Fixing that and disabling the button while a charge is in flight.</div>
+</div>
+<div class="tool-call"><span>Edited <strong>charges.ts</strong> <span class="diff-added">+9</span> <span class="diff-removed">-3</span></span></div>
+<div class="suggestion-pill">
+<i class="fas fa-brain"></i> DGUI-HyperMem auto-suggested: <strong>viewport/layout fixes</strong> from your codebase context
+</div>
+</div>
+</div>
+<div class="mcp-benefits">
+<h3>Smart Auto-Trigger Prompts</h3>
+<ul>
+<li><i class="fas fa-bolt"></i> <strong>Context-Aware Suggestions</strong> - Automatically suggests viewport fixes, layout adjustments, and relevant code patterns based on your codebase</li>
+<li><i class="fas fa-magic"></i> <strong>Proactive Assistance</strong> - Detects issues and proposes solutions before you ask, leveraging accumulated knowledge</li>
+<li><i class="fas fa-plug"></i> <strong>Easy Connector Setup</strong> - Simple MCP connector configuration to integrate with any compatible agent</li>
+<li><i class="fas fa-brain"></i> <strong>Continuous Learning</strong> - Learns from your codebase patterns to provide increasingly relevant suggestions</li>
+</ul>
+</div>
+</div>
+</div>
+</section>
+
 <section class="carousel-section">
 <div class="section-header"><div class="caption-mono"><i class="fas fa-globe"></i> Ecosystem</div><h2>DeckerGUI Sub-Product</h2></div>
 <div class="carousel-wrap"><div class="carousel-track" id="carousel-track"></div></div>
@@ -571,6 +608,26 @@ if (globeCanvas) {
     requestAnimationFrame(draw);
   }
   draw();
+}
+
+// Fade in animation on scroll
+function observeFadeIns() {
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('visible');
+      }
+    });
+  }, { threshold: 0.1, rootMargin: '0px 0px -50px 0px' });
+  document.querySelectorAll('.feature-card, .mcp-demo, .pricing-card, .globe-wrapper, .crm-card').forEach(el => {
+    el.classList.add('fade-in');
+    observer.observe(el);
+  });
+}
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', observeFadeIns);
+} else {
+  observeFadeIns();
 }
 </script>
 </body>
