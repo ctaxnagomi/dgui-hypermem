@@ -42,11 +42,13 @@ service uses, plus a cross-encoder standing in for the reasoning backend:
 pip install sentence-transformers torch nltk
 python -c "import nltk; nltk.download('punkt')"
 
-python eval/evalsim_run.py --n-mem 900 --n-q 150 --seeds 11,12,13 \
-    --out figures
+python eval/evalsim_run.py --n-mem 900 --n-q 150 --seeds 11,12,13
 python eval/mkresults.py
 python eval/verify_prose.py
 ```
+
+All three resolve their paths from their own location, so they work from any
+working directory and need no arguments.
 
 `evalsim.py` is deterministic given its seed, so the same three seeds
 reproduce `figures/eval-results.json` exactly. `verify_prose.py` is the guard

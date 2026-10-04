@@ -4,9 +4,12 @@ Run from the whitepaper directory. Any FAIL means the paper states a number the
 data does not support.
 """
 import json
+import pathlib
 import re
 
-R = json.load(open("figures/eval-results.json", encoding="utf-8"))
+ROOT = pathlib.Path(__file__).resolve().parent.parent
+
+R = json.load(open(ROOT / "figures" / "eval-results.json", encoding="utf-8"))
 O, P = R["overall"], R["per_class"]
 CLS = R["config"]["classes"]
 
@@ -112,7 +115,7 @@ print("\n%d/%d claims verified, %d FAILED" % (len(checks) - len(fails), len(chec
                                              len(fails)))
 
 # any number in the eval section of the tex that is not in this list?
-tex = open("paper.tex", encoding="utf-8").read()
+tex = open(ROOT / "paper.tex", encoding="utf-8").read()
 body = tex.split("\\subsection{Results}")[-1].split("\\section{Comparison}")[0]
 nums = set(re.findall(r"0\.\d{2,3}", body))
 verified = set()

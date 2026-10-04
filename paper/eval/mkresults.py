@@ -7,9 +7,13 @@ recomputed here -- this script only formats. Regenerate with:
     python mkresults.py
 """
 import json
+import pathlib
 
-SRC = r"D:/dgui-cli/whitepaper/figures/eval-results.json"
-OUT = r"D:/dgui-cli/whitepaper/results.tex"
+# Resolve against this file, not the working directory or a hardcoded path, so
+# the harness runs wherever the repository was unpacked.
+ROOT = pathlib.Path(__file__).resolve().parent.parent
+SRC = ROOT / "figures" / "eval-results.json"
+OUT = ROOT / "results.tex"
 
 rep = json.load(open(SRC, encoding="utf-8"))
 cfg = rep["config"]
