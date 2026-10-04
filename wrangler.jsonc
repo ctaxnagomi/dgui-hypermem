@@ -7,6 +7,16 @@
   "observability": {
     "enabled": true
   },
+  // Custom domains, all serving this one script. dgui-hmem is the primary
+  // hostname that the docs, CRM token JSON and MCP configs all advertise.
+  // dgui-hypermem is the matching-name alias; hmem-admin backs the admin UI.
+  // Every hostname is listed here, including the two that predate this file,
+  // so wrangler's reconciliation is a no-op rather than a removal.
+  "routes": [
+    { "pattern": "dgui-hmem.deckergui.my", "custom_domain": true },
+    { "pattern": "dgui-hypermem.deckergui.my", "custom_domain": true },
+    { "pattern": "hmem-admin.deckergui.my", "custom_domain": true }
+  ],
   "d1_databases": [
     {
       "binding": "DB",
