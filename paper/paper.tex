@@ -179,9 +179,9 @@ deployment.
       written to a public dataset by a pipeline whose only redaction pass ran
       afterwards (\cref{sec:privacy}).
 \item A simulated retrieval evaluation over a synthetic long-horizon workload,
-      using the same embedding model as the deployed index, that isolates the
-      contribution of fusion and of re-ranking and reports where each fails
-      (\cref{sec:eval}).
+      using the same embedding model as the deployed index, that varies the
+      fusion weights and the re-ranking stage independently and reports where
+      each one loses accuracy rather than where it gains it (\cref{sec:eval}).
 \item A positioning against other agent-memory systems along axes that matter
       operationally rather than aspirationally (\cref{sec:related}).
 \end{enumerate}
