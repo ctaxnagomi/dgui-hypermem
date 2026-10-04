@@ -7,5 +7,7 @@
 *.fls
 *.fdb_latexmk
 *.synctex.gz
-# scratch used while converting the extracted PDF back to text for review
+# scratch from pdftotext runs used to proof-read the rendered columns
 paper.txt
+t1.txt
+t2.txt
