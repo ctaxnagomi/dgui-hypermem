@@ -450,14 +450,26 @@ async function findOrCreateAccount(env: Env, email: string, isMaster: boolean) {
 
 async function issueTokens(
   env: Env,
-  args: { clientId: string; userId: string; email: string; scope: string; resource: string | null },
+  args: {
+    clientId: string;
+    userId: string;
+    email: string;
+    scope: string;
+    resource: string | null;
+    /** Absolute grant lifetime, carried forward across rotation. */
+    refreshExpiresAt?: number;
+  },
 ): Promise<Record<string, unknown>> {
   const accessToken = randomToken(32);
   const refreshToken = randomToken(32);
+  const issuedAt = now();
+  // A rotated grant keeps the deadline from the original authorization rather
+  // than sliding a fresh 30 days on every refresh.
+  const refreshExpiresAt = args.refreshExpiresAt ?? issuedAt + REFRESH_TTL_MS;
   await env.DB.prepare(
     `INSERT INTO oauth_access_tokens
-       (token_hash, client_id, user_id, email, scope, refresh_token_hash, resource, expires_at, revoked, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?)`,
+       (token_hash, client_id, user_id, email, scope, refresh_token_hash, resource, expires_at, refresh_expires_at, revoked, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)`,
   )
     .bind(
       await sha256(accessToken),
@@ -467,14 +479,19 @@ async function issueTokens(
       args.scope,
       await sha256(refreshToken),
       args.resource,
-      now() + ACCESS_TTL_MS,
-      now(),
+      issuedAt + ACCESS_TTL_MS,
+      refreshExpiresAt,
+      issuedAt,
     )
     .run();
+  // The advertised lifetime is the access token's own TTL, capped by whatever
+  // is left of the absolute grant. Reporting less than the token actually
+  // lives makes clients refresh early, which is what drove the re-auth loop.
+  const expiresIn = Math.max(0, Math.min(ACCESS_TTL_MS, refreshExpiresAt - issuedAt));
   return {
     access_token: accessToken,
     token_type: "Bearer",
-    expires_in: Math.floor(ACCESS_TTL_MS / 1000),
+    expires_in: Math.floor(expiresIn / 1000),
     refresh_token: refreshToken,
     scope: args.scope,
   };
@@ -574,15 +591,19 @@ export async function handleToken(env: Env, request: Request): Promise<Response>
     const presentedHash = await sha256(presented);
 
     const row = await env.DB.prepare(
-      "SELECT token_hash, client_id, user_id, email, scope, resource, refresh_token_hash, expires_at, revoked FROM oauth_access_tokens WHERE refresh_token_hash = ?",
+      "SELECT token_hash, client_id, user_id, email, scope, resource, refresh_token_hash, expires_at, refresh_expires_at, revoked FROM oauth_access_tokens WHERE refresh_token_hash = ?",
     )
       .bind(presentedHash)
       .first<{
         token_hash: string; client_id: string; user_id: string; email: string; scope: string;
-        resource: string | null; refresh_token_hash: string; expires_at: number; revoked: number;
+        resource: string | null; refresh_token_hash: string; expires_at: number;
+        refresh_expires_at: number | null; revoked: number;
       }>();
     if (!row || row.revoked) return oauthError("invalid_grant", "unknown refresh token");
-    if (row.expires_at <= now()) return oauthError("invalid_grant", "refresh token expired");
+    // Rows written before migration 0013 have no refresh_expires_at; fall back to
+    // the access-token expiry only for those, never to the 1h column otherwise.
+    const refreshDeadline = row.refresh_expires_at ?? row.expires_at;
+    if (refreshDeadline <= now()) return oauthError("invalid_grant", "refresh token expired");
     if (row.client_id !== client.client_id) return oauthError("invalid_grant", "refresh token belongs to a different client");
 
     const account = await env.DB.prepare("SELECT status FROM tokens WHERE id = ?")
@@ -600,10 +621,11 @@ export async function handleToken(env: Env, request: Request): Promise<Response>
       email: row.email,
       scope: row.scope,
       resource: row.resource,
+      refreshExpiresAt: refreshDeadline,
     });
-    // Preserve the original absolute lifetime rather than sliding forever.
-    const remaining = Math.max(0, Math.floor((row.expires_at - now()) / 1000));
-    return json({ ...tokens, expires_in: remaining }, { headers: { "cache-control": "no-store" } });
+    // issueTokens() already capped expires_in against the original absolute
+    // lifetime carried in refreshExpiresAt, so the grant cannot slide forever.
+    return json(tokens, { headers: { "cache-control": "no-store" } });
   }
 
   return oauthError("unsupported_grant_type", `unsupported grant_type: ${grantType}`);

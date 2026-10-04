@@ -8,8 +8,8 @@
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
     "typecheck": "tsc --noEmit",
-    "migrate:local": "wrangler d1 migrations apply dgui-hypermem --local",
-    "migrate:remote": "wrangler d1 migrations apply dgui-hypermem --remote"
+    "migrate:local": "wrangler d1 migrations apply dgui-hypermem-20260930-2300 --local",
+    "migrate:remote": "wrangler d1 migrations apply dgui-hypermem-20260930-2300 --remote"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.30.0",
