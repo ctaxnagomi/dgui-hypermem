@@ -172,7 +172,7 @@ footer p{font-size:14px;color:var(--text-muted)}footer a{color:var(--accent-cyan
   <div class="grid h-full w-full overflow-hidden" style="grid-template-columns: minmax(0px, 1fr) minmax(0px, 1fr); gap: 40px;">
     <div class="relative flex items-center justify-center">
       <div class="relative" style="width: 240px; height: 240px;">
-        <canvas id="globe-canvas" class="cursor-grab active:cursor-grabbing" width="480" height="480" style="width: 240px; height: 240px;"></canvas>
+        <canvas id="globe-canvas" class="globe-sketch cursor-grab active:cursor-grabbing" width="480" height="480" style="width: 240px; height: 240px;"></canvas>
       </div>
     </div>
     <div class="relative flex flex-col overflow-hidden border-kumo-line border-l">
@@ -544,26 +544,29 @@ if (globeCanvas) {
     rotation += (targetRotation - rotation) * 0.05;
     const r = 70;
     dots.forEach((d, idx) => {
-      const p = project(d.lat, d.lng, r, rotation);
-      if (p.visible) {
+    const p = project(d.lat, d.lng, r, rotation);
+    if (p.visible) {
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, idx === selectedIndex ? 2.5 : 1, 0, Math.PI * 2);
+      ctx.fillStyle = idx === selectedIndex ? 'rgba(70, 130, 180, 0.9)' : 'rgba(95, 158, 160, 0.7)';
+      ctx.fill();
+      if (idx === selectedIndex) {
         ctx.beginPath();
-        ctx.arc(p.x, p.y, idx === selectedIndex ? 2.5 : 1, 0, Math.PI * 2);
-        ctx.fillStyle = idx === selectedIndex ? 'rgba(0, 240, 255, 1)' : 'rgba(0, 240, 255, 0.6)';
-        ctx.fill();
-        if (idx === selectedIndex) {
-          ctx.beginPath();
-          ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
-          ctx.strokeStyle = 'rgba(0, 240, 255, 0.3)';
-          ctx.lineWidth = 1.5;
-          ctx.stroke();
-        }
+        ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
+        ctx.strokeStyle = 'rgba(70, 130, 180, 0.4)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
       }
-    });
-    ctx.beginPath();
-    ctx.arc(0, 0, r, 0, Math.PI * 2);
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
-    ctx.lineWidth = 1;
-    ctx.stroke();
+    }
+  });
+  ctx.save();
+  ctx.setLineDash([4, 2]);
+  ctx.beginPath();
+  ctx.arc(0, 0, r, 0, Math.PI * 2);
+  ctx.strokeStyle = 'rgba(0, 0, 0, 0.6)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+  ctx.restore();
     ctx.restore();
     requestAnimationFrame(draw);
   }
