@@ -311,51 +311,11 @@ footer p{font-size:14px;color:var(--text-muted)}footer a{color:var(--accent-cyan
 </div>
 </footer>
 <style>
-.globe-section { padding: 80px 0; background: #ffffff; }
-.globe-wrapper { background: #ffffff; border-radius: 16px; padding: 40px 20px; min-height: 400px; display: flex; align-items: center; justify-content: center; box-shadow: 0 20px 60px -20px rgba(0,0,0,0.1); border: 1px solid #e5e7eb; }
-.h-full { height: 100%; }
-.w-full { width: 100%; }
-.grid { display: grid; }
-.overflow-hidden { overflow: hidden; }
-.relative { position: relative; }
-.flex { display: flex; }
-.items-center { align-items: center; }
-.justify-center { justify-content: center; }
-.flex-col { flex-direction: column; }
-.flex-1 { flex: 1 1 0%; }
-.overflow-y-auto { overflow-y: auto; }
-.py-1 { padding-top: 0.25rem; padding-bottom: 0.25rem; }
-.border-l { border-left-width: 1px; }
-.border-kumo-line { border-color: rgba(255,255,255,0.1); }
-.from-kumo-base { --tw-gradient-from: #1a1a1a; }
-.bg-gradient-to-t { background-image: linear-gradient(to top, var(--tw-gradient-from), transparent); }
-.to-transparent { --tw-gradient-to: transparent; }
-.pointer-events-none { pointer-events: none; }
-.absolute { position: absolute; }
-.inset-x-0 { left: 0; right: 0; }
-.bottom-0 { bottom: 0; }
-.z-10 { z-index: 10; }
-.h-5 { height: 1.25rem; }
-.list-none { list-style: none; }
-.cursor-default { cursor: default; }
-.py-1\.5 { padding-top: 0.375rem; padding-bottom: 0.375rem; }
-.transition-colors { transition-property: color, background-color, border-color; transition-duration: 150ms; }
-.px-4 { padding-left: 1rem; padding-right: 1rem; }
-.gap-x-3 { column-gap: 0.75rem; }
-.truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.text-sm { font-size: 0.875rem; line-height: 1.25rem; }
-.font-medium { font-weight: 500; }
-.text-kumo-default { color: rgba(255,255,255,0.8); }
-.text-kumo-strong { color: #ffffff; }
-.whitespace-nowrap { white-space: nowrap; }
-.tabular-nums { font-variant-numeric: tabular-nums; }
-.text-right { text-align: right; }
-.bg-kumo-fill { background-color: rgba(255,255,255,0.1); }
-.bg-kumo-brand { background-color: #00f0ff; }
-.h-1\.5 { height: 0.375rem; }
-.rounded-full { border-radius: 9999px; }
-.cursor-grab { cursor: grab; }
-.active\:cursor-grabbing:active { cursor: grabbing; }
+  /* Scroll reveal. The .fade-in class is applied by observeFadeIns(), so if JS
+     never runs the elements stay fully visible - fail-open by design. */
+  .fade-in { opacity: 0; transform: translateY(28px); transition: opacity .7s ease, transform .7s cubic-bezier(.22,.61,.36,1); }
+  .fade-in.visible { opacity: 1; transform: none; }
+  @media (prefers-reduced-motion: reduce) { .fade-in { opacity: 1 !important; transform: none !important; transition: none !important; } }
 </style>
 <script>
 function showTerms(){document.getElementById('terms-modal').classList.add('show')}
@@ -403,19 +363,52 @@ async function sendEnterprise(){
 
 
 
-// Fade in animation on scroll
+// Scroll reveal for always-visible content blocks.
+// NOTE: .crm-card is deliberately excluded - #crm-form / #crm-status are
+// display:none panels toggled by requestToken(). Giving them opacity:0 would
+// leave the token form permanently invisible after it is revealed.
 function observeFadeIns() {
-  const observer = new IntersectionObserver((entries) => {
-    entries.forEach(entry => {
+  if (!('IntersectionObserver' in window)) return;
+  // This page sets html,body { height:100%; overflow-y:auto }, so <body> is the real
+  // scroll container and NOT the viewport. An observer rooted at the viewport
+  // silently misses elements scrolled inside body, which left the cards stuck at
+  // opacity:0. Observe against the actual scroller instead.
+  var root = null;
+  if (document.body && document.body.scrollHeight > document.body.clientHeight) root = document.body;
+
+  var observer = new IntersectionObserver(function (entries) {
+    entries.forEach(function (entry) {
       if (entry.isIntersecting) {
         entry.target.classList.add('visible');
+        observer.unobserve(entry.target);
       }
     });
-  }, { threshold: 0.1, rootMargin: '0px 0px -50px 0px' });
-  document.querySelectorAll('.feature-card, .mcp-demo, .pricing-card, .globe-wrapper, .crm-card').forEach(el => {
+  }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px', root: root });
+
+  var targets = [].slice.call(document.querySelectorAll('.pricing-card, .enterprise-info, .enterprise-form'));
+
+  // Safety net: if an observer callback is ever missed, a scroll/settle sweep
+  // reveals anything already at or above the fold. Cheap, and prevents content
+  // from ever being stranded invisible.
+  function sweep() {
+    var vh = (root || window).innerHeight || 0;
+    var limit = (root ? root.clientHeight : vh);
+    targets.forEach(function (el) {
+      if (el.classList.contains('visible')) return;
+      if (el.getBoundingClientRect().top < limit - 40) {
+        el.classList.add('visible');
+        observer.unobserve(el);
+      }
+    });
+  }
+  window.addEventListener('scroll', sweep, { passive: true });
+  if (root) root.addEventListener('scroll', sweep, { passive: true });
+
+  targets.forEach(function (el) {
     el.classList.add('fade-in');
     observer.observe(el);
   });
+  sweep();
 }
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', observeFadeIns);
