@@ -65,7 +65,6 @@ a{color:var(--accent-cyan);text-decoration:none}
 <h1 style="margin-bottom:16px">Admin Login</h1>
 <p style="font-size:13px;color:var(--text-muted);margin-bottom:20px">Enter the master passkey to access the token dashboard.</p>
   <input type="password" id="admin-passkey" placeholder="Master passkey" autocomplete="off">
-  <input type="text" id="admin-totp" inputmode="numeric" pattern="\d{6}" placeholder="6-digit code (if 2FA enabled)" autocomplete="one-time-code" style="margin-top:8px;margin-bottom:12px">
   <button class="btn" onclick="login()">Sign In</button>
 </div>
 </div>
@@ -97,7 +96,7 @@ async function clockIn(){
   if(!cp && !adminSession) return;
   const r=await fetch('/api/admin/clock',{method:'POST',headers:getApiHeaders(),body:JSON.stringify({action:'in',passkey:cp,session:adminSession})});
   const d=await r.json();
-  if(d.error){ if(d.error==='totp_required') alert('2FA required. Please re-login.'); else alert(d.error); return; }
+  if(d.error){ alert(d.error); return; }
   clockState='in';
   updateClockUI(d.at);
 }
@@ -105,7 +104,7 @@ async function clockOut(){
   if(!cp && !adminSession) return;
   const r=await fetch('/api/admin/clock',{method:'POST',headers:getApiHeaders(),body:JSON.stringify({action:'out',passkey:cp,session:adminSession})});
   const d=await r.json();
-  if(d.error){ if(d.error==='totp_required') alert('2FA required. Please re-login.'); else alert(d.error); return; }
+  if(d.error){ alert(d.error); return; }
   clockState='out';
   updateClockUI(null,d.duration_minutes);
 }
@@ -125,43 +124,17 @@ function updateClockUI(at,duration){
 async function login(){
   cp=document.getElementById('admin-passkey').value;
   if(!cp) return alert('Enter master passkey');
-  const totpEl=document.getElementById('admin-totp');
-  const totp = totpEl && totpEl.value ? totpEl.value : '';
   try{
-    const lr = await fetch('/api/admin/login',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({passkey:cp, totp})});
+    const lr = await fetch('/api/admin/login',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({passkey:cp})});
     const ld = await lr.json();
-    if(ld.error){
-      if(ld.error==='invalid authentication code') return alert('Invalid 6-digit code');
-      return alert('Unauthorized');
-    }
-    if(ld.totp && ld.totp.pending){
-      const box = document.querySelector('.login-box');
-      if(box){
-        box.innerHTML = '<h1 style="margin-bottom:16px">Enable 2FA</h1>'+
-          '<p style="font-size:13px;color:var(--text-muted);margin-bottom:20px">Scan the QR code with Google Authenticator, then enter the 6-digit code to complete setup.</p>'+
-          '<div style="margin:12px auto 16px;max-width:180px;background:#fff;padding:8px;border-radius:8px"><img id="qr-img" style="width:100%;height:auto;display:block" alt="TOTP QR"></div>'+
-          '<input type="text" id="admin-totp" inputmode="numeric" pattern="\\d{6}" placeholder="6-digit code from Authenticator" autocomplete="one-time-code" style="margin-bottom:12px">'+
-          '<button class="btn" onclick="login()">Verify &amp; Sign In</button>';
-        (function(){
-          try{
-            const img=document.getElementById("qr-img");
-            if(img && ld.totp && ld.totp.uri){
-              img.src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&format=png&data="+encodeURIComponent(ld.totp.uri);
-            }
-          }catch(e){}
-        })();
-      }
-      return;
-    }
+    if(ld.error){ return alert('Unauthorized'); }
+
     if(ld.session) adminSession = ld.session;
     else adminSession = '';
     // Load dashboard
     const r1=await fetch('/api/admin/tokens', {headers:getApiHeaders({})});
     const d1=await r1.json();
-    if(d1.error){
-      if(d1.error==='totp_required') return alert('2FA required. Please re-login.');
-      return alert('Unauthorized');
-    }
+    if(d1.error){ return alert('Unauthorized'); }
     render(d1.tokens);
     const r2=await fetch('/api/admin/stats', {headers:getApiHeaders({})});
     const d2=await r2.json();
@@ -216,7 +189,7 @@ async function toggleTrain(email,val){
 }
 async function revoke(email){
   if(!confirm('Revoke token for '+email+'?')) return;
-  const r=await fetch('/api/disable-token',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email,passkey:cp})});
+  const r=await fetch('/api/disable-token',{method:'POST',headers:getApiHeaders(),body:JSON.stringify({email,passkey:cp,session:adminSession})});
   const d=await r.json();
   if(d.error) return alert(d.error);
   await login();
