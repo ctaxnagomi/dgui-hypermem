@@ -10,14 +10,14 @@
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "dgui-hypermem",
-      "database_id": "597bf456-2700-4345-8d9f-eb952891d4e7"
+      "database_name": "dgui-hypermem-20260930-2300",
+      "database_id": "735892ec-f246-4106-b770-4a9541ef982c"
     }
   ],
   "vectorize": [
     {
       "binding": "VECTORIZE",
-      "index_name": "dgui-hypermem"
+      "index_name": "dgui-hypermem-20260930-2300"
     }
   ],
   "ai": {

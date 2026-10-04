@@ -157,12 +157,111 @@ footer p{font-size:14px;color:var(--text-muted)}footer a{color:var(--accent-cyan
 <div style="background:#f8f9fb;border:1px solid #e5e7eb;border-radius:10px;padding:12px 20px;font-size:13px;font-weight:500;color:#4a4a4a">Cursor</div>
 <div style="background:#f8f9fb;border:1px solid #e5e7eb;border-radius:10px;padding:12px 20px;font-size:13px;font-weight:500;color:#4a4a4a">Any MCP Client</div>
 </div>
-<div style="margin-top:32px;padding-top:24px;border-top:1px solid #e5e7eb;display:flex;flex-wrap:wrap;gap:20px;justify-content:center;font-size:12px;color:#9ca3af">
-<span><i class="fab fa-github"></i> <a href="https://github.com/ctaxnagomi/dgui-hypermem" style="color:#000">GitHub</a></span>
-<span><i class="fab fa-huggingface"></i> <a href="https://huggingface.co/datasets/ctaxnagomi/INSTRUCT_JEV" style="color:#000">Dataset</a></span>
-<span><i class="fas fa-chart-line"></i> <span id="visitor-count">--</span> total visits</span>
-</div>
-</section>
+<div style="margin-top:32px;padding-top:24px;border-top:1px solid #e5e7eb;display:flex;flex-wrap:wrap;gap:20px;justify-content:center;font-size:12px;color:#9ca3af">
+<span><i class="fab fa-github"></i> <a href="https://github.com/ctaxnagomi/dgui-hypermem" style="color:#000">GitHub</a></span>
+<span><i class="fab fa-huggingface"></i> <a href="https://huggingface.co/datasets/ctaxnagomi/INSTRUCT_JEV" style="color:#000">Dataset</a></span>
+<span><i class="fas fa-chart-line"></i> <span id="visitor-count">--</span> total visits</span>
+</div>
+</section>
+
+<section class="globe-section">
+<div class="section-header"><div class="caption-mono"><i class="fas fa-globe"></i> Global Activity</div><h2>Users around the globe.</h2></div>
+<div class="container">
+<div class="globe-wrapper">
+<div class="@container/globe h-full w-full" data-sentry-component="GlobeView" data-sentry-source-file="GlobeView.tsx">
+  <div class="grid h-full w-full overflow-hidden" style="grid-template-columns: min(88px, 50%) minmax(0px, 1fr);">
+    <div class="relative flex items-center justify-center">
+      <div class="relative" style="width: 88px; height: 88px;">
+        <canvas id="globe-canvas" class="cursor-grab active:cursor-grabbing" width="176" height="176" style="width: 88px; height: 88px;"></canvas>
+      </div>
+    </div>
+    <div class="relative flex flex-col overflow-hidden border-kumo-line border-l">
+      <div class="flex-1 overflow-y-auto py-1" data-globe-legend-scroll="true">
+        <div data-slot="ranked-list-row" class="relative grid list-none cursor-default items-center py-1.5 transition-colors px-4 gap-x-3" data-sentry-element="Element" data-sentry-component="RankedListRowInner" data-sentry-source-file="RankedListRow.tsx" style="grid-template-columns: minmax(0px, 3fr) minmax(0px, 2fr) max-content;">
+          <span class="truncate text-sm font-medium text-kumo-default" title="Singapore, SG (SIN)">Singapore, SG (SIN)</span>
+          <div class="flex w-full items-center" style="height: 20px;">
+            <div class="h-1.5 w-full rounded-full bg-kumo-fill" data-sentry-component="ProportionBar" data-sentry-source-file="RankedListRow.tsx">
+              <div class="h-1.5 rounded-full bg-kumo-brand" style="width: 99.4611%;"></div>
+            </div>
+          </div>
+          <span class="text-right text-sm whitespace-nowrap tabular-nums text-kumo-strong">84k</span>
+        </div>
+        <div data-slot="ranked-list-row" class="relative grid list-none cursor-default items-center py-1.5 transition-colors px-4 gap-x-3" data-sentry-element="Element" data-sentry-component="RankedListRowInner" data-sentry-source-file="RankedListRow.tsx" style="grid-template-columns: minmax(0px, 3fr) minmax(0px, 2fr) max-content;">
+          <span class="truncate text-sm font-medium text-kumo-default" title="Amsterdam, NL (AMS)">Amsterdam, NL (AMS)</span>
+          <div class="flex w-full items-center" style="height: 20px;">
+            <div class="h-1.5 w-full rounded-full bg-kumo-fill" data-sentry-component="ProportionBar" data-sentry-source-file="RankedListRow.tsx">
+              <div class="h-1.5 rounded-full bg-kumo-brand" style="width: 0.159884%;"></div>
+            </div>
+          </div>
+          <span class="text-right text-sm whitespace-nowrap tabular-nums text-kumo-strong">135</span>
+        </div>
+        <div data-slot="ranked-list-row" class="relative grid list-none cursor-default items-center py-1.5 transition-colors px-4 gap-x-3" data-sentry-element="Element" data-sentry-component="RankedListRowInner" data-sentry-source-file="RankedListRow.tsx" style="grid-template-columns: minmax(0px, 3fr) minmax(0px, 2fr) max-content;">
+          <span class="truncate text-sm font-medium text-kumo-default" title="Frankfurt-am-Main, DE (FRA)">Frankfurt-am-Main, DE (FRA)</span>
+          <div class="flex w-full items-center" style="height: 20px;">
+            <div class="h-1.5 w-full rounded-full bg-kumo-fill" data-sentry-component="ProportionBar" data-sentry-source-file="RankedListRow.tsx">
+              <div class="h-1.5 rounded-full bg-kumo-brand" style="width: 0.068691%;"></div>
+            </div>
+          </div>
+          <span class="text-right text-sm whitespace-nowrap tabular-nums text-kumo-strong">58</span>
+        </div>
+        <div data-slot="ranked-list-row" class="relative grid list-none cursor-default items-center py-1.5 transition-colors px-4 gap-x-3" data-sentry-element="Element" data-sentry-component="RankedListRowInner" data-sentry-source-file="RankedListRow.tsx" style="grid-template-columns: minmax(0px, 3fr) minmax(0px, 2fr) max-content;">
+          <span class="truncate text-sm font-medium text-kumo-default" title="Dulles, US (IAD)">Dulles, US (IAD)</span>
+          <div class="flex w-full items-center" style="height: 20px;">
+            <div class="h-1.5 w-full rounded-full bg-kumo-fill" data-sentry-component="ProportionBar" data-sentry-source-file="RankedListRow.tsx">
+              <div class="h-1.5 rounded-full bg-kumo-brand" style="width: 0.0663224%;"></div>
+            </div>
+          </div>
+          <span class="text-right text-sm whitespace-nowrap tabular-nums text-kumo-strong">56</span>
+        </div>
+        <div data-slot="ranked-list-row" class="relative grid list-none cursor-default items-center py-1.5 transition-colors px-4 gap-x-3" data-sentry-element="Element" data-sentry-component="RankedListRowInner" data-sentry-source-file="RankedListRow.tsx" style="grid-template-columns: minmax(0px, 3fr) minmax(0px, 2fr) max-content;">
+          <span class="truncate text-sm font-medium text-kumo-default" title="Newark, US (EWR)">Newark, US (EWR)</span>
+          <div class="flex w-full items-center" style="height: 20px;">
+            <div class="h-1.5 w-full rounded-full bg-kumo-fill" data-sentry-component="ProportionBar" data-sentry-source-file="RankedListRow.tsx">
+              <div class="h-1.5 rounded-full bg-kumo-brand" style="width: 0.0485574%;"></div>
+            </div>
+          </div>
+          <span class="text-right text-sm whitespace-nowrap tabular-nums text-kumo-strong">41</span>
+        </div>
+        <div data-slot="ranked-list-row" class="relative grid list-none cursor-default items-center py-1.5 transition-colors px-4 gap-x-3" data-sentry-element="Element" data-sentry-component="RankedListRowInner" data-sentry-source-file="RankedListRow.tsx" style="grid-template-columns: minmax(0px, 3fr) minmax(0px, 2fr) max-content;">
+          <span class="truncate text-sm font-medium text-kumo-default" title="San Jose, US (SJC)">San Jose, US (SJC)</span>
+          <div class="flex w-full items-center" style="height: 20px;">
+            <div class="h-1.5 w-full rounded-full bg-kumo-fill" data-sentry-component="ProportionBar" data-sentry-source-file="RankedListRow.tsx">
+              <div class="h-1.5 rounded-full bg-kumo-brand" style="width: 0.0438201%;"></div>
+            </div>
+          </div>
+          <span class="text-right text-sm whitespace-nowrap tabular-nums text-kumo-strong">37</span>
+        </div>
+        <div data-slot="ranked-list-row" class="relative grid list-none cursor-default items-center py-1.5 transition-colors px-4 gap-x-3" data-sentry-element="Element" data-sentry-component="RankedListRowInner" data-sentry-source-file="RankedListRow.tsx" style="grid-template-columns: minmax(0px, 3fr) minmax(0px, 2fr) max-content;">
+          <span class="truncate text-sm font-medium text-kumo-default" title="Toronto, CA (YYZ)">Toronto, CA (YYZ)</span>
+          <div class="flex w-full items-center" style="height: 20px;">
+            <div class="h-1.5 w-full rounded-full bg-kumo-fill" data-sentry-component="ProportionBar" data-sentry-source-file="RankedListRow.tsx">
+              <div class="h-1.5 rounded-full bg-kumo-brand" style="width: 0.0390828%;"></div>
+            </div>
+          </div>
+          <span class="text-right text-sm whitespace-nowrap tabular-nums text-kumo-strong">33</span>
+        </div>
+        <div data-slot="ranked-list-row" class="relative grid list-none cursor-default items-center py-1.5 transition-colors px-4 gap-x-3" data-sentry-element="Element" data-sentry-component="RankedListRowInner" data-sentry-source-file="RankedListRow.tsx" style="grid-template-columns: minmax(0px, 3fr) minmax(0px, 2fr) max-content;">
+          <span class="truncate text-sm font-medium text-kumo-default" title="Paris, FR (CDG)">Paris, FR (CDG)</span>
+          <div class="flex w-full items-center" style="height: 20px;">
+            <div class="h-1.5 w-full rounded-full bg-kumo-fill" data-sentry-component="ProportionBar" data-sentry-source-file="RankedListRow.tsx">
+              <div class="h-1.5 rounded-full bg-kumo-brand" style="width: 0.0331612%;"></div>
+            </div>
+          </div>
+          <span class="text-right text-sm whitespace-nowrap tabular-nums text-kumo-strong">28</span>
+        </div>
+      </div>
+      <div aria-hidden="true" class="from-kumo-base pointer-events-none absolute inset-x-0 bottom-0 z-10 h-5 bg-gradient-to-t to-transparent" data-globe-legend-shadow="bottom"></div>
+    </div>
+  </div>
+</div>
+</div>
+</div>
+</section>
+
+<section class="carousel-section">
+<div class="section-header"><div class="caption-mono"><i class="fas fa-globe"></i> Ecosystem</div><h2>deckergui.my subdomains.</h2></div>
+<div class="carousel-wrap"><div class="carousel-track" id="carousel-track"></div></div>
+</section>
 <section class="pricing-section" id="pricing">
 <div class="section-header"><div class="caption-mono"><i class="fas fa-tags"></i> Plans</div><h2>Choose your plan.</h2></div>
 <div class="pricing-grid">
@@ -299,9 +398,56 @@ footer p{font-size:14px;color:var(--text-muted)}footer a{color:var(--accent-cyan
 </div>
 <p style="margin-top:8px;font-size:12px">Jev / System One by <a href="https://typesafe.ai">TypeSafe AI</a></p>
 <p style="margin-top:16px;font-size:11px"><a href="https://github.com/ctaxnagomi/dgui-hypermem">GitHub</a> · <a href="https://huggingface.co/datasets/ctaxnagomi/DGUI_HYPERMEM-JEV">HuggingFace</a> · <a href="https://github.com/ctaxnagomi/dgui-hypermem/blob/main/LICENSE">MIT License</a> · <a href="https://krackeddevs.com">KrackedDevs</a> · <a href="https://ctecx.deckergui.my">CTECX</a></p>
-</div>
-</footer>
-<script>
+</div>
+</footer>
+<style>
+.globe-section { padding: 80px 0; background: var(--bg-secondary); }
+.globe-wrapper { background: #1a1a1a; border-radius: 16px; padding: 40px 20px; min-height: 400px; display: flex; align-items: center; justify-content: center; box-shadow: 0 20px 60px -20px rgba(0,0,0,0.3); }
+.h-full { height: 100%; }
+.w-full { width: 100%; }
+.grid { display: grid; }
+.overflow-hidden { overflow: hidden; }
+.relative { position: relative; }
+.flex { display: flex; }
+.items-center { align-items: center; }
+.justify-center { justify-content: center; }
+.flex-col { flex-direction: column; }
+.flex-1 { flex: 1 1 0%; }
+.overflow-y-auto { overflow-y: auto; }
+.py-1 { padding-top: 0.25rem; padding-bottom: 0.25rem; }
+.border-l { border-left-width: 1px; }
+.border-kumo-line { border-color: rgba(255,255,255,0.1); }
+.from-kumo-base { --tw-gradient-from: #1a1a1a; }
+.bg-gradient-to-t { background-image: linear-gradient(to top, var(--tw-gradient-from), transparent); }
+.to-transparent { --tw-gradient-to: transparent; }
+.pointer-events-none { pointer-events: none; }
+.absolute { position: absolute; }
+.inset-x-0 { left: 0; right: 0; }
+.bottom-0 { bottom: 0; }
+.z-10 { z-index: 10; }
+.h-5 { height: 1.25rem; }
+.list-none { list-style: none; }
+.cursor-default { cursor: default; }
+.py-1\.5 { padding-top: 0.375rem; padding-bottom: 0.375rem; }
+.transition-colors { transition-property: color, background-color, border-color; transition-duration: 150ms; }
+.px-4 { padding-left: 1rem; padding-right: 1rem; }
+.gap-x-3 { column-gap: 0.75rem; }
+.truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.text-sm { font-size: 0.875rem; line-height: 1.25rem; }
+.font-medium { font-weight: 500; }
+.text-kumo-default { color: rgba(255,255,255,0.8); }
+.text-kumo-strong { color: #ffffff; }
+.whitespace-nowrap { white-space: nowrap; }
+.tabular-nums { font-variant-numeric: tabular-nums; }
+.text-right { text-align: right; }
+.bg-kumo-fill { background-color: rgba(255,255,255,0.1); }
+.bg-kumo-brand { background-color: #00f0ff; }
+.h-1\.5 { height: 0.375rem; }
+.rounded-full { border-radius: 9999px; }
+.cursor-grab { cursor: grab; }
+.active\:cursor-grabbing:active { cursor: grabbing; }
+</style>
+<script>
 function showTerms(){document.getElementById('terms-modal').classList.add('show')}
 function closeTerms(){document.getElementById('terms-modal').classList.remove('show')}
 document.getElementById('tc-checkbox').addEventListener('change',function(){document.getElementById('tc-accept-btn').disabled=!this.checked});
@@ -342,8 +488,56 @@ async function sendEnterprise(){
     if(d.ok){st.style.color='#4ade80';st.textContent='Thank you! We will respond within 24 hours.';document.getElementById('ent-name').value='';document.getElementById('ent-email').value='';document.getElementById('ent-company').value='';document.getElementById('ent-message').value=''}
     else{st.style.color='#f87171';st.textContent='Error: '+d.error}
   }catch(e){const st=document.getElementById('ent-status');st.style.display='block';st.style.color='#f87171';st.textContent='Error sending message'}
-  btn.disabled=false;btn.textContent='Send Inquiry';
-}
-</script>
-</body>
+  btn.disabled=false;btn.textContent='Send Inquiry';
+}
+
+// Simple globe animation
+const globeCanvas = document.getElementById('globe-canvas');
+if (globeCanvas) {
+  const ctx = globeCanvas.getContext('2d');
+  const size = 176;
+  let rotation = 0;
+  const dots = [];
+  for (let lat = -85; lat <= 85; lat += 10) {
+    for (let lng = -180; lng <= 180; lng += 20) {
+      dots.push({lat, lng});
+    }
+  }
+  
+  function project(lat, lng, r, rot) {
+    const phi = lat * Math.PI / 180;
+    const theta = (lng + rot) * Math.PI / 180;
+    const x = Math.cos(phi) * Math.sin(theta) * r;
+    const y = Math.sin(phi) * r;
+    const z = Math.cos(phi) * Math.cos(theta) * r;
+    return {x, y, z, visible: z > 0};
+  }
+  
+  function draw() {
+    ctx.clearRect(0, 0, size, size);
+    ctx.save();
+    ctx.translate(size/2, size/2);
+    rotation += 0.05;
+    const r = 70;
+    dots.forEach(d => {
+      const p = project(d.lat, d.lng, r, rotation);
+      if (p.visible) {
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 1, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(0, 240, 255, 0.6)';
+        ctx.fill();
+      }
+    });
+    ctx.beginPath();
+    ctx.arc(0, 0, r, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    ctx.restore();
+    requestAnimationFrame(draw);
+  }
+  draw();
+}
+</script>
+</body>
 </html>`;
