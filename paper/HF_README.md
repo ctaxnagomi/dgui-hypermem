@@ -84,16 +84,17 @@ What this evaluation **is not**:
 | File | Description |
 | --- | --- |
 | `DGUI_HYPERMEM_Technical_Whitepaper.pdf` | Rendered whitepaper, dual column, 10 pages (print-ready) |
-| `src/paper.tex` | LaTeX source — the canonical source of the paper |
-| `src/results.tex` | The two result tables, generated from `figures/eval-results.json` |
-| `src/references.bib` | 16 references, all cited |
-| `src/arxiv.sty` | Vendored arXiv-style layout so the build needs no network |
-| `figures/eval-results.json` | Raw evaluation output across all 3 seeds |
-| `figures/logo-dgui.png`, `figures/logo-ctecx.png` | Title-block marks |
-| `eval/evalsim.py` | Seeded corpus and query generator |
-| `eval/evalsim_run.py` | Scores the eight configurations, writes the JSON |
-| `eval/mkresults.py` | JSON → `results.tex` |
-| `eval/verify_prose.py` | Re-derives all 35 numeric claims in §8 from the JSON |
+| `paper.tex` | LaTeX source — the canonical source of the paper |
+| `results.tex` | The two result tables, generated from `eval-results.json` |
+| `references.bib` | 16 references, all cited |
+| `arxiv.sty` | Vendored arXiv-style layout so the build needs no network |
+| `eval-results.json` | Raw evaluation output across all 3 seeds |
+| `logo-dgui.png`, `logo-ctecx.png` | Title-block marks |
+| `evalsim.py` | Seeded corpus and query generator |
+| `evalsim_run.py` | Scores the eight configurations, writes the JSON |
+| `mkresults.py` | JSON → `results.tex` |
+| `verify_prose.py` | Re-derives all 35 numeric claims in §8 from the JSON |
+| `paper_paths.py` | Shared locator, so the scripts run from either layout |
 
 ## Rebuilding
 
@@ -108,9 +109,24 @@ pdflatex -interaction=nonstopmode paper.tex
 
 Four passes, not three: the document uses `hyperref`, so the first pass writes
 the bookmark file and the second is what settles the tree. A clean build reports
-**0 errors, 0 undefined references, 0 overfull or underfull boxes, 10 pages.**
+**0 errors, 0 undefined references, 0 overfull boxes, 0 lost floats, 10 pages.**
+To check:
 
-### Reproducing the evaluation
+```sh
+grep -cE '^! ' paper.log                              # 0
+grep -c 'Citation.*undefined\|Reference.*undefined'  # 0
+grep -c 'Overfull' paper.log                          # 0
+```
+
+Count `Overfull` plainly. A pattern like `(Over|Under)full \\hbox` looks
+equivalent and silently matches nothing, because the backslash is consumed as an
+escape instead of matched literally — that mistake reported "0 bad boxes" on a
+build carrying three genuine overflows.
+
+A handful of *underfull* boxes remain. Those are word-space looseness in narrow
+columns, not overflow, and are normal for a two-column paper.
+
+## Reproducing the evaluation
 
 Offline and CPU-only. It needs the two models the service actually uses, plus a
 cross-encoder standing in for the reasoning backend:
@@ -119,18 +135,23 @@ cross-encoder standing in for the reasoning backend:
 pip install sentence-transformers torch nltk
 python -c "import nltk; nltk.download('punkt')"
 
-python eval/evalsim_run.py --n-mem 900 --n-q 150 --seeds 11,12,13 --out figures
-python eval/mkresults.py
-python eval/verify_prose.py
+python evalsim_run.py --n-mem 900 --n-q 150 --seeds 11,12,13
+python mkresults.py
+python verify_prose.py
 ```
 
 Models: `BAAI/bge-base-en-v1.5` (768d, the production embedding model) for the
 dense channel, and `cross-encoder/ms-marco-MiniLM-L-6-v2` as the JEV stand-in.
+Both are run locally; nothing in the evaluation calls a hosted endpoint.
 
-`eval/verify_prose.py` is the guard that matters. It reads
-`figures/eval-results.json` and re-checks every numeric claim made in the
-Results section, exiting non-zero on a mismatch, so the prose and the data
-cannot drift apart.
+All three scripts resolve their paths from their own location, so they run from
+any working directory and need no arguments. They work in this flattened layout
+and in the git repository's `paper/eval/` layout.
+
+`verify_prose.py` is the guard that matters. It reads `eval-results.json` and
+re-checks every numeric claim made in the Results section, exiting non-zero on a
+mismatch, so the prose and the data cannot drift apart. It currently reports
+**35/35 claims verified**.
 
 ## Usage
 
