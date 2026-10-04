@@ -14,22 +14,30 @@ export const ADMIN_HTML = `<!DOCTYPE html>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;800&family=JetBrains+Mono:wght@300;400;700&display=swap" rel="stylesheet">
 <style>
-:root{--bg-primary:#0a0a0a;--bg-surface:#1a1c20;--border-glass:#212327;--accent-cyan:#00f0ff;--text-primary:#fff;--text-secondary:#dadbdf;--text-muted:#7d8187}
+:root{--bg-deep:#080d18;--bg-primary:#0e1526;--bg-surface:#151f35;--bg-surface-2:#1c2942;--border-glass:rgba(255,255,255,.10);--border:rgba(255,255,255,.12);--accent-cyan:#22c7dc;--accent-cyan-deep:#00a3b3;--text-primary:#f4f8fc;--text-secondary:#b7c4d6;--text-muted:#9aadc6;--glass:rgba(21,31,53,.62);--shadow:0 18px 50px -12px rgba(0,0,0,.65)}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-html,body{height:100%;width:100%;background:var(--bg-primary);font-family:'Inter',sans-serif;color:var(--text-primary);-webkit-overflow-scrolling:touch;overscroll-behavior:none;touch-action:manipulation;-webkit-text-size-adjust:100%}
+html{background:var(--bg-deep);background-image:linear-gradient(165deg,#0a1020 0%,#101a30 42%,#0c1424 100%);background-attachment:fixed}html,body{height:100%;width:100%;font-family:'Inter',sans-serif;color:var(--text-primary);-webkit-overflow-scrolling:touch;overscroll-behavior:none;touch-action:manipulation;-webkit-text-size-adjust:100%}body{background:transparent}
+/* Atmospheric background, matching the landing page. Alphas are halved
+   because this is a dense operational surface, not a marketing page. */
+body::before,body::after{content:'';position:fixed;inset:-22%;z-index:-1;pointer-events:none;will-change:transform}
+body::before{background:radial-gradient(38% 38% at 28% 28%,rgba(62,127,189,.22),transparent 70%),radial-gradient(34% 34% at 72% 64%,rgba(29,95,150,.18),transparent 70%);animation:drift-right 58s linear infinite}
+body::after{background:radial-gradient(42% 42% at 74% 22%,rgba(34,199,220,.08),transparent 70%),radial-gradient(36% 36% at 22% 78%,rgba(91,135,172,.12),transparent 70%);animation:drift-left 74s linear infinite}
+@keyframes drift-right{0%{transform:translate3d(-6%,0,0) scale(1)}100%{transform:translate3d(6%,0,0) scale(1.08)}}
+@keyframes drift-left{0%{transform:translate3d(6%,-2%,0) scale(1.06)}100%{transform:translate3d(-6%,2%,0) scale(1)}}
+@media(prefers-reduced-motion:reduce){body::before,body::after{animation:none}}
 body{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:16px}
 #app{width:100%;max-width:100%;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
-h1{font-size:24px;font-weight:300;margin-bottom:4px}
+h1{font-size:24px;font-weight:300;letter-spacing:-.6px;margin-bottom:4px}
 .sub{color:var(--text-muted);font-size:14px;margin-bottom:24px}
-.login-box{width:100%;max-width:400px;margin:0 auto;padding:32px;background:var(--bg-surface);border:1px solid var(--border-glass);border-radius:12px;text-align:center}
-.login-box input{width:100%;padding:14px 16px;margin-bottom:12px;background:var(--bg-primary);border:1px solid var(--border-glass);border-radius:8px;color:var(--text-primary);font-family:Inter,sans-serif;font-size:16px;outline:none}
+.login-box{background:rgba(21,31,53,.78);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);box-shadow:var(--shadow);width:100%;max-width:400px;margin:0 auto;padding:32px;border:1px solid var(--border-glass);border-radius:12px;text-align:center}
+.login-box input{width:100%;padding:14px 16px;margin-bottom:12px;background:rgba(8,13,24,.55);border:1px solid var(--border-glass);border-radius:8px;color:var(--text-primary);font-family:Inter,sans-serif;font-size:16px;outline:none}
 .login-box input:focus{border-color:var(--accent-cyan)}
-.btn{background:var(--accent-cyan);color:#000;border:none;border-radius:8px;padding:12px 20px;font-size:15px;cursor:pointer;width:100%}.btn:hover{opacity:.9}
+.btn{background:var(--accent-cyan);color:#04121a;border:none;border-radius:9999px;padding:12px 20px;font-size:15px;font-weight:500;cursor:pointer;width:100%;box-shadow:0 8px 24px -10px rgba(34,199,220,.85);transition:background .2s,box-shadow .2s}.btn:hover{background:var(--accent-cyan-deep);box-shadow:0 10px 28px -10px rgba(34,199,220,.95)}
 .stats{display:flex;gap:12px;margin-bottom:24px;flex-wrap:wrap}
-.stat-card{padding:16px;background:var(--bg-surface);border:1px solid var(--border-glass);border-radius:8px;flex:1 1 120px;min-width:100px}
+.stat-card{background:rgba(21,31,53,.72);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);box-shadow:var(--shadow);padding:16px;border:1px solid var(--border-glass);border-radius:8px;flex:1 1 120px;min-width:100px}
 .stat-card .num{font-size:26px;font-weight:300;color:var(--accent-cyan)}
 .stat-card .label{font-size:11px;color:var(--text-muted);margin-top:4px;word-break:keep-all}
-.table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;border:1px solid var(--border-glass);border-radius:8px;margin-top:16px}
+.table-wrap{background:rgba(21,31,53,.72);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);box-shadow:var(--shadow);overflow-x:auto;-webkit-overflow-scrolling:touch;border:1px solid var(--border-glass);border-radius:8px;margin-top:16px}
 table{width:100%;border-collapse:collapse;font-size:12px;min-width:650px}
 th{text-align:left;padding:10px 6px;border-bottom:1px solid var(--border-glass);color:var(--text-muted);font-weight:500;font-size:10px;text-transform:uppercase;letter-spacing:.5px;white-space:nowrap}
 td{padding:8px 6px;border-bottom:1px solid var(--border-glass);font-family:JetBrains Mono,monospace;font-size:11px;color:var(--text-secondary);white-space:nowrap}

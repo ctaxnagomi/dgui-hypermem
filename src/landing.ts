@@ -23,7 +23,7 @@ export const LANDING_HTML = `<!DOCTYPE html>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="DGUI-HyperMem">
-<meta name="theme-color" content="#ffffff">
+<meta name="theme-color" content="#0e1526">
 <meta name="application-name" content="DGUI-HyperMem">
 <meta name="msapplication-TileColor" content="#0a0a0a">
 <link rel="manifest" href="/manifest.json">
@@ -32,17 +32,27 @@ export const LANDING_HTML = `<!DOCTYPE html>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;800&family=JetBrains+Mono:wght@300;400;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 <style>
-:root{--bg-primary:#ffffff;--bg-surface:#f8f9fb;--accent-cyan:#00a3b3;--accent:#000000;--text-secondary:#4a4a4a;--text-muted:#9ca3af;--border-glass:#e5e7eb;--border-accent:rgba(0,0,0,0.15)}
+:root{--bg-deep:#080d18;--bg-primary:#0e1526;--bg-surface:#151f35;--bg-surface-2:#1c2942;--accent-cyan:#22c7dc;--accent-cyan-deep:#00a3b3;--blue:#3e7fbd;--blue-soft:#5b87ac;--accent:#f4f8fc;--text-secondary:#b7c4d6;--text-muted:#9aadc6;--border:rgba(255,255,255,.12);--border-glass:rgba(255,255,255,.10);--border-accent:rgba(34,199,220,.5);--glass:rgba(21,31,53,.62);--glass-strong:rgba(14,21,38,.92);--shadow:0 18px 50px -12px rgba(0,0,0,.65);}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-html,body{height:100%;width:100%;background:var(--bg-primary);font-family:'Inter',sans-serif;color:var(--accent);-webkit-font-smoothing:antialiased;overflow-x:hidden;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:none;touch-action:manipulation}
+html{background:var(--bg-deep);background-image:linear-gradient(165deg,#0a1020 0%,#101a30 42%,#0c1424 100%);background-attachment:fixed}html,body{height:100%;width:100%;font-family:'Inter',sans-serif;color:var(--accent);-webkit-font-smoothing:antialiased;overflow-x:hidden;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:none;touch-action:manipulation}body{background:transparent}
+/* Atmospheric background. Layer stack mirrors the reference schematic: a
+   static base gradient, a right-drifting layer, a left-drifting layer,
+   then content above. Photographic layers become radial gradients so the
+   page stays cheap to paint. Negative z-index keeps them behind flow. */
+body::before,body::after{content:'';position:fixed;inset:-22%;z-index:-1;pointer-events:none;will-change:transform}
+body::before{background:radial-gradient(38% 38% at 28% 30%,rgba(62,127,189,.40),transparent 70%),radial-gradient(34% 34% at 72% 62%,rgba(29,95,150,.34),transparent 70%);animation:drift-right 48s linear infinite}
+body::after{background:radial-gradient(42% 42% at 72% 24%,rgba(34,199,220,.15),transparent 70%),radial-gradient(36% 36% at 24% 76%,rgba(91,135,172,.22),transparent 70%);animation:drift-left 64s linear infinite}
+@keyframes drift-right{0%{transform:translate3d(-6%,0,0) scale(1)}100%{transform:translate3d(6%,0,0) scale(1.08)}}
+@keyframes drift-left{0%{transform:translate3d(6%,-2%,0) scale(1.06)}100%{transform:translate3d(-6%,2%,0) scale(1)}}
+@media(prefers-reduced-motion:reduce){body::before,body::after{animation:none}}
 ::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--border-glass);border-radius:10px}
-nav{display:flex;align-items:center;justify-content:space-between;padding:16px 24px;padding-top:calc(16px + env(safe-area-inset-top,0px));border-bottom:1px solid var(--border-glass);background:rgba(255,255,255,0.9);backdrop-filter:blur(8px);position:sticky;top:0;z-index:100}
+nav{display:flex;align-items:center;justify-content:space-between;padding:16px 24px;padding-top:calc(16px + env(safe-area-inset-top,0px));border-bottom:1px solid var(--border-glass);background:rgba(10,16,30,.72);backdrop-filter:blur(14px) saturate(140%);-webkit-backdrop-filter:blur(14px) saturate(140%);position:sticky;top:0;z-index:100}
 .hero{padding:120px 24px 60px;text-align:center}
 .hero .caption-mono{font-family:JetBrains Mono,monospace;font-size:14px;letter-spacing:1.4px;text-transform:uppercase;color:var(--accent-cyan);margin-bottom:24px}
 .hero h1{font-size:72px;line-height:72px;font-weight:300;letter-spacing:-1.8px;margin-bottom:24px}
 .hero p{font-size:18px;line-height:28px;color:var(--text-secondary);max-width:640px;margin:0 auto 48px}
-.btn-primary{background:#00a3b3;color:#ffffff;border:none;border-radius:9999px;padding:10px 24px;font-size:15px;cursor:pointer;display:inline-flex;align-items:center;gap:8px;text-decoration:none}.btn-primary:hover{background:#008896}
-.btn-outline{background:transparent;color:#000000;border:1px solid #d0d0d0;border-radius:9999px;padding:10px 24px;font-size:15px;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:8px}.btn-outline:hover{border-color:#000000}
+.btn-primary{background:var(--accent-cyan);color:#04121a;border:none;border-radius:9999px;padding:10px 24px;font-size:15px;font-weight:500;cursor:pointer;display:inline-flex;align-items:center;gap:8px;text-decoration:none;transition:background .2s,box-shadow .2s;box-shadow:0 8px 24px -10px rgba(34,199,220,.85)}.btn-primary:hover{background:var(--accent-cyan-deep);box-shadow:0 10px 28px -10px rgba(34,199,220,.95)}
+.btn-outline{background:rgba(255,255,255,.04);color:var(--accent);border:1px solid var(--border);border-radius:9999px;padding:10px 24px;font-size:15px;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:8px;transition:border-color .2s,background .2s}.btn-outline:hover{border-color:var(--border-accent);background:rgba(34,199,220,.08)}
 .hero-actions{display:flex;gap:16px;justify-content:center;flex-wrap:wrap;margin-top:32px}
 .section-header{text-align:center;margin-bottom:16px;padding:60px 24px 0}
 .section-header .caption-mono{font-family:JetBrains Mono,monospace;font-size:14px;letter-spacing:1.4px;text-transform:uppercase;color:var(--accent-cyan);margin-bottom:12px}
@@ -54,20 +64,20 @@ nav{display:flex;align-items:center;justify-content:space-between;padding:16px 2
 /* CRM */
 .crm-section{padding:30px 24px 60px}
 .crm-form-wrap{position:relative;min-height:360px}
-.crm-card{max-width:520px;margin:24px auto;padding:32px;border:1px solid var(--border-glass);border-radius:12px;background:var(--bg-surface);transition:all .5s cubic-bezier(.16,1,.3,1)}
-.crm-card input{width:100%;padding:12px 16px;margin-bottom:12px;background:var(--bg-primary);border:1px solid var(--border-glass);border-radius:8px;color:var(--accent);font-family:Inter,sans-serif;font-size:14px;outline:none;transition:border-color .2s}
+.crm-card{background:var(--glass);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);box-shadow:var(--shadow);max-width:520px;margin:24px auto;padding:32px;border:1px solid var(--border-glass);border-radius:12px;transition:all .5s cubic-bezier(.16,1,.3,1)}
+.crm-card input{width:100%;padding:12px 16px;margin-bottom:12px;background:rgba(8,13,24,.55);border:1px solid var(--border-glass);border-radius:8px;color:var(--accent);font-family:Inter,sans-serif;font-size:14px;outline:none;transition:border-color .2s}
 .crm-card input:focus{border-color:var(--accent-cyan)}
 .crm-card .btn-primary{width:100%;margin-top:8px}
-.status-line{padding:12px 16px;background:var(--bg-primary);border:1px solid var(--border-glass);border-radius:8px;font-size:14px;color:var(--text-secondary);margin-bottom:16px;font-family:JetBrains Mono,monospace}
-.token-display{display:block;padding:16px;background:var(--bg-primary);border:1px solid var(--accent-cyan);border-radius:8px;font-family:JetBrains Mono,monospace;font-size:13px;color:var(--accent-cyan);word-break:break-all;margin-bottom:16px}
+.status-line{padding:12px 16px;background:rgba(8,13,24,.55);border:1px solid var(--border-glass);border-radius:8px;font-size:14px;color:var(--text-secondary);margin-bottom:16px;font-family:JetBrains Mono,monospace}
+.token-display{display:block;padding:16px;background:rgba(8,13,24,.55);border:1px solid var(--accent-cyan);border-radius:8px;font-family:JetBrains Mono,monospace;font-size:13px;color:var(--accent-cyan);word-break:break-all;margin-bottom:16px}
 /* Modal */
 .modal-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.7);backdrop-filter:blur(4px);z-index:1000;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .4s}
 .modal-overlay.show{opacity:1;pointer-events:auto}
-.modal-box{background:#ffffff;border:1px solid var(--border-glass);border-radius:12px;padding:32px;max-width:560px;width:90%;max-height:80vh;overflow-y:auto;transform:scale(.9);transition:transform .4s cubic-bezier(.16,1,.3,1)}
+.modal-box{background:var(--glass-strong);border:1px solid var(--border);border-radius:12px;padding:32px;max-width:560px;width:90%;max-height:80vh;overflow-y:auto;transform:scale(.9);box-shadow:var(--shadow);transition:transform .4s cubic-bezier(.16,1,.3,1)}
 .modal-overlay.show .modal-box{transform:scale(1)}
 .modal-box h2{font-size:20px;font-weight:500;margin-bottom:16px;color:var(--accent)}
 .modal-box h3{font-size:14px;font-weight:500;margin:20px 0 8px;color:var(--accent)}
-.modal-box p, .modal-box li{font-size:13px;line-height:1.6;color:#4a4a4a;margin-bottom:6px}
+.modal-box p, .modal-box li{font-size:13px;line-height:1.6;color:var(--text-secondary);margin-bottom:6px}
 .modal-box ul{padding-left:18px;margin:8px 0}
 .modal-box label{display:flex;align-items:flex-start;gap:10px;margin:20px 0 24px;cursor:pointer;font-size:13px;color:var(--text-secondary);line-height:1.5}
 .modal-box input[type=checkbox]{margin-top:3px;accent-color:var(--accent-cyan);width:16px;height:16px;flex-shrink:0}
@@ -80,9 +90,9 @@ footer p{font-size:14px;color:var(--text-muted)}footer a{color:var(--accent-cyan
 /* Pricing */
 .pricing-section{padding:30px 24px 60px}
 .pricing-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;max-width:1000px;margin:32px auto 0;padding:0 24px}
-.payg-strip{max-width:1000px;margin:16px auto 0;padding:18px 24px;border:1px solid var(--border);border-radius:12px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;font-size:13px;color:var(--text-secondary);line-height:1.6}
+.payg-strip{background:var(--glass);max-width:1000px;margin:16px auto 0;padding:18px 24px;border:1px solid var(--border);border-radius:12px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;font-size:13px;color:var(--text-secondary);line-height:1.6}
 .payg-strip i{color:var(--accent)}
-.pricing-card{background:var(--bg-surface);border:1px solid var(--border-glass);border-radius:12px;padding:32px;transition:border-color .2s;display:flex;flex-direction:column}
+.pricing-card{background:var(--glass);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);box-shadow:var(--shadow);border:1px solid var(--border-glass);border-radius:12px;padding:32px;transition:border-color .2s;display:flex;flex-direction:column}
 .pricing-card:hover{border-color:var(--border-accent)}
 .pricing-card.featured{border-color:var(--accent-cyan)}
 .pricing-card .plan-name{font-size:14px;font-weight:600;margin-bottom:4px;color:var(--accent-cyan);text-transform:uppercase;letter-spacing:1px}
@@ -96,7 +106,7 @@ footer p{font-size:14px;color:var(--text-muted)}footer a{color:var(--accent-cyan
 .enterprise-section{padding:30px 24px 60px}
 .enterprise-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px;max-width:900px;margin:32px auto 0;padding:0 24px}
 .enterprise-info p{font-size:14px;color:var(--text-secondary);line-height:1.6;margin-bottom:12px}
-.enterprise-form input,.enterprise-form textarea{width:100%;padding:12px 16px;margin-bottom:12px;background:var(--bg-primary);border:1px solid var(--border-glass);border-radius:8px;color:var(--accent);font-family:Inter,sans-serif;font-size:14px;outline:none;transition:border-color .2s}
+.enterprise-form input,.enterprise-form textarea{width:100%;padding:12px 16px;margin-bottom:12px;background:rgba(8,13,24,.55);border:1px solid var(--border-glass);border-radius:8px;color:var(--accent);font-family:Inter,sans-serif;font-size:14px;outline:none;transition:border-color .2s}
 .enterprise-form input:focus,.enterprise-form textarea:focus{border-color:var(--accent-cyan)}
 .enterprise-form textarea{min-height:100px;resize:vertical}
 @media(max-width:768px){
@@ -135,31 +145,31 @@ footer p{font-size:14px;color:var(--text-muted)}footer a{color:var(--accent-cyan
 </section>
 <!-- Suitability & Compatibility section -->
 <section style="padding:40px 24px;text-align:center">
-<div style="font-family:JetBrains Mono,monospace;font-size:12px;color:#00a3b3;letter-spacing:1.5px;text-transform:uppercase;font-weight:600;margin-bottom:8px">For Everyone</div>
+<div style="font-family:JetBrains Mono,monospace;font-size:12px;color:var(--accent-cyan);letter-spacing:1.5px;text-transform:uppercase;font-weight:600;margin-bottom:8px">For Everyone</div>
 <h2 style="font-size:28px;font-weight:300;margin-bottom:16px;letter-spacing:-0.5px">Built for agents,<br>used by humans.</h2>
-<p style="font-size:15px;color:#4a4a4a;max-width:600px;margin:0 auto 32px;line-height:1.6">AI need memory to work for you. DGUI-HyperMem gives every agent instant recall — no training, no setup.</p>
+<p style="font-size:15px;color:var(--text-secondary);max-width:600px;margin:0 auto 32px;line-height:1.6">AI need memory to work for you. DGUI-HyperMem gives every agent instant recall — no training, no setup.</p>
 <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;max-width:700px;margin:0 auto 40px">
-<div style="background:#f8f9fb;border:1px solid #e5e7eb;border-radius:10px;padding:14px 10px;font-size:13px;color:#4a4a4a">Developer</div>
-<div style="background:#f8f9fb;border:1px solid #e5e7eb;border-radius:10px;padding:14px 10px;font-size:13px;color:#4a4a4a">Engineer</div>
-<div style="background:#f8f9fb;border:1px solid #e5e7eb;border-radius:10px;padding:14px 10px;font-size:13px;color:#4a4a4a">Researcher</div>
-<div style="background:#f8f9fb;border:1px solid #e5e7eb;border-radius:10px;padding:14px 10px;font-size:13px;color:#4a4a4a">Data Scientist</div>
-<div style="background:#f8f9fb;border:1px solid #e5e7eb;border-radius:10px;padding:14px 10px;font-size:13px;color:#4a4a4a">Student</div>
-<div style="background:#f8f9fb;border:1px solid #e5e7eb;border-radius:10px;padding:14px 10px;font-size:13px;color:#4a4a4a">Founder</div>
-<div style="background:#f8f9fb;border:1px solid #e5e7eb;border-radius:10px;padding:14px 10px;font-size:13px;color:#4a4a4a">Builder</div>
-<div style="background:#f8f9fb;border:1px solid #e5e7eb;border-radius:10px;padding:14px 10px;font-size:13px;color:#4a4a4a">Creator</div>
+<div style="background:var(--glass);border:1px solid var(--border);border-radius:10px;padding:14px 10px;font-size:13px;color:var(--text-secondary)">Developer</div>
+<div style="background:var(--glass);border:1px solid var(--border);border-radius:10px;padding:14px 10px;font-size:13px;color:var(--text-secondary)">Engineer</div>
+<div style="background:var(--glass);border:1px solid var(--border);border-radius:10px;padding:14px 10px;font-size:13px;color:var(--text-secondary)">Researcher</div>
+<div style="background:var(--glass);border:1px solid var(--border);border-radius:10px;padding:14px 10px;font-size:13px;color:var(--text-secondary)">Data Scientist</div>
+<div style="background:var(--glass);border:1px solid var(--border);border-radius:10px;padding:14px 10px;font-size:13px;color:var(--text-secondary)">Student</div>
+<div style="background:var(--glass);border:1px solid var(--border);border-radius:10px;padding:14px 10px;font-size:13px;color:var(--text-secondary)">Founder</div>
+<div style="background:var(--glass);border:1px solid var(--border);border-radius:10px;padding:14px 10px;font-size:13px;color:var(--text-secondary)">Builder</div>
+<div style="background:var(--glass);border:1px solid var(--border);border-radius:10px;padding:14px 10px;font-size:13px;color:var(--text-secondary)">Creator</div>
 </div>
-<div style="font-family:JetBrains Mono,monospace;font-size:11px;color:#9ca3af;letter-spacing:1px;text-transform:uppercase;font-weight:600;margin:40px 0 16px">Compatible with</div>
+<div style="font-family:JetBrains Mono,monospace;font-size:11px;color:var(--text-muted);letter-spacing:1px;text-transform:uppercase;font-weight:600;margin:40px 0 16px">Compatible with</div>
 <div style="display:flex;flex-wrap:wrap;gap:24px;justify-content:center;align-items:center;max-width:600px;margin:0 auto">
-<div style="background:#f8f9fb;border:1px solid #e5e7eb;border-radius:10px;padding:12px 20px;font-size:13px;font-weight:500;color:#4a4a4a">Hermes</div>
-<div style="background:#f8f9fb;border:1px solid #e5e7eb;border-radius:10px;padding:12px 20px;font-size:13px;font-weight:500;color:#4a4a4a">ADE</div>
-<div style="background:#f8f9fb;border:1px solid #e5e7eb;border-radius:10px;padding:12px 20px;font-size:13px;font-weight:500;color:#4a4a4a">opencode</div>
-<div style="background:#f8f9fb;border:1px solid #e5e7eb;border-radius:10px;padding:12px 20px;font-size:13px;font-weight:500;color:#4a4a4a">Claude Desktop</div>
-<div style="background:#f8f9fb;border:1px solid #e5e7eb;border-radius:10px;padding:12px 20px;font-size:13px;font-weight:500;color:#4a4a4a">Cursor</div>
-<div style="background:#f8f9fb;border:1px solid #e5e7eb;border-radius:10px;padding:12px 20px;font-size:13px;font-weight:500;color:#4a4a4a">Any MCP Client</div>
+<div style="background:var(--glass);border:1px solid var(--border);border-radius:10px;padding:12px 20px;font-size:13px;font-weight:500;color:var(--text-secondary)">Hermes</div>
+<div style="background:var(--glass);border:1px solid var(--border);border-radius:10px;padding:12px 20px;font-size:13px;font-weight:500;color:var(--text-secondary)">ADE</div>
+<div style="background:var(--glass);border:1px solid var(--border);border-radius:10px;padding:12px 20px;font-size:13px;font-weight:500;color:var(--text-secondary)">opencode</div>
+<div style="background:var(--glass);border:1px solid var(--border);border-radius:10px;padding:12px 20px;font-size:13px;font-weight:500;color:var(--text-secondary)">Claude Desktop</div>
+<div style="background:var(--glass);border:1px solid var(--border);border-radius:10px;padding:12px 20px;font-size:13px;font-weight:500;color:var(--text-secondary)">Cursor</div>
+<div style="background:var(--glass);border:1px solid var(--border);border-radius:10px;padding:12px 20px;font-size:13px;font-weight:500;color:var(--text-secondary)">Any MCP Client</div>
 </div>
-<div style="margin-top:32px;padding-top:24px;border-top:1px solid #e5e7eb;display:flex;flex-wrap:wrap;gap:20px;justify-content:center;font-size:12px;color:#9ca3af">
-<span><i class="fab fa-github"></i> <a href="https://github.com/ctaxnagomi/dgui-hypermem" style="color:#000">GitHub</a></span>
-<span><i class="fab fa-huggingface"></i> <a href="https://huggingface.co/datasets/ctaxnagomi/INSTRUCT_JEV" style="color:#000">Dataset</a></span>
+<div style="margin-top:32px;padding-top:24px;border-top:1px solid var(--border);display:flex;flex-wrap:wrap;gap:20px;justify-content:center;font-size:12px;color:var(--text-muted)">
+<span><i class="fab fa-github"></i> <a href="https://github.com/ctaxnagomi/dgui-hypermem" style="color:var(--accent)">GitHub</a></span>
+<span><i class="fab fa-huggingface"></i> <a href="https://huggingface.co/datasets/ctaxnagomi/INSTRUCT_JEV" style="color:var(--accent)">Dataset</a></span>
 <span><i class="fas fa-chart-line"></i> <span id="visitor-count">--</span> total visits</span>
 </div>
 </section>
