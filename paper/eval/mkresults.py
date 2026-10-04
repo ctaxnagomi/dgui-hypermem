@@ -7,13 +7,11 @@ recomputed here -- this script only formats. Regenerate with:
     python mkresults.py
 """
 import json
-import pathlib
 
-# Resolve against this file, not the working directory or a hardcoded path, so
-# the harness runs wherever the repository was unpacked.
-ROOT = pathlib.Path(__file__).resolve().parent.parent
-SRC = ROOT / "figures" / "eval-results.json"
-OUT = ROOT / "results.tex"
+from paper_paths import find_results, find_results_tex
+
+SRC = find_results()
+OUT = find_results_tex()
 
 rep = json.load(open(SRC, encoding="utf-8"))
 cfg = rep["config"]
@@ -94,7 +92,7 @@ w("")
 w(r"\begin{table*}[t]")
 w(r"  \centering")
 w(r"  \footnotesize")
-w(r"  \setlength{\tabcolsep}{7pt}")
+w(r"  \setlength{\tabcolsep}{5pt}")
 w(r"  \begin{tabular}{lccccc}")
 w(r"    \toprule")
 w(r"    \textbf{Retrieval configuration} & \textbf{R@5} & \textbf{R@10} & "
@@ -133,7 +131,7 @@ w("")
 w(r"\begin{table*}[t]")
 w(r"  \centering")
 w(r"  \footnotesize")
-w(r"  \setlength{\tabcolsep}{7pt}")
+w(r"  \setlength{\tabcolsep}{5pt}")
 w(r"  \begin{tabular}{l" + "c" * len(classes) + "}")
 w(r"    \toprule")
 w(r"    \textbf{Retrieval configuration} & "

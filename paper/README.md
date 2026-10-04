@@ -30,8 +30,23 @@ pdflatex -interaction=nonstopmode paper.tex
 Four passes, not three: `paper.tex` uses `hyperref`, so the first pass writes
 `paper.out` and the second is what settles the bookmark tree.
 
-A clean build reports **0 errors, 0 undefined references, 0 overfull or
-underfull boxes, and 10 pages**.
+A clean build reports **0 errors, 0 undefined references, 0 overfull boxes, and
+10 pages**. To check:
+
+```sh
+grep -cE '^! '                                paper.log   # 0
+grep -c 'Citation.*undefined\|Reference.*undefined' paper.log   # 0
+grep -c 'Overfull'                            paper.log   # 0
+grep -c 'Float(s) lost\|Float too large'      paper.log   # 0
+```
+
+Count `Overfull` plainly. A pattern like `(Over|Under)full \\hbox` looks
+equivalent and silently matches nothing, because the backslash is consumed as an
+escape rather than matched literally — that mistake reported "0 bad boxes" on a
+build that had three real overflows.
+
+Underfull boxes are left in place. They are word-space looseness in narrow
+columns, not overflow, and a handful are normal for a two-column paper.
 
 ## Reproducing the evaluation
 

@@ -18,6 +18,7 @@
 \usepackage[T1]{fontenc}
 \usepackage[utf8]{inputenc}
 \usepackage{amsmath}
+\usepackage{array}
 % This MiKTeX resolves `nicefrac' to the SI-units helper, not the typography
 % package booktabs expects, so \doublerulesep (read by booktabs at load time for
 % \cmidrulesep) has to exist beforehand.
@@ -464,23 +465,26 @@ and it is bounded by the shortlist rather than by the store.
 
 \paragraph{The blend.}
 Let $S=\mathrm{clamp}((\mathrm{salience}\text{ or }2)/4,0,1)$ be the normalised
-salience and $J$ the bounded relevance judgement. The final score is
+salience and $J$ the bounded relevance judgement. When a judgement is available
+the final score is
 \begin{equation}
-\mathrm{score}(d)=
-\begin{cases}
-0.85\,F(d)+0.15\,S(d), & \text{reasoning unavailable},\\[2pt]
-0.50\,F(d)+0.40\,J(d)+0.10\,S(d), & \text{otherwise}.
-\end{cases}
+\mathrm{score}(d)=0.50\,F(d)+0.40\,J(d)+0.10\,S(d),
 \label{eq:blend}
+\end{equation}
+and when the reasoning backend is unavailable the judgement term is dropped and
+its weight given to fusion,
+\begin{equation}
+\mathrm{score}(d)=0.85\,F(d)+0.15\,S(d).
+\label{eq:blendfallback}
 \end{equation}
 The weighting is a considered trade rather than a tuned constant. Fusion is the
 component with the most evidence behind it, so it carries half the weight even
-when a judgement is available; salience is retained at a small weight even when
-fusion is the only signal, because a memory the model considered important is
-weak evidence that a user who asked about it wanted it. Every term is in
-$[0,1]$: this is a design constraint on the reasoning backend, not an
-afterthought, and \cref{sec:eval} shows that feeding an unbounded score into the
-$0.40$ slot distorts the blend.
+when a judgement is available, and the overwhelming majority when one is not.
+Salience is retained in both cases at a small weight, because a memory the model
+considered important is weak evidence that a user who asked about it wanted it.
+Every term is in $[0,1]$: this is a design constraint on the reasoning backend,
+not an afterthought, and \cref{sec:eval} shows that feeding an unbounded score
+into the $0.40$ slot distorts the blend.
 
 Results are sorted by \cref{eq:blend} and truncated to $k$. Returned rows have
 their access counters touched and the search is logged with candidate and
@@ -745,18 +749,26 @@ call that re-orders a retrieved shortlist. Public corpus indicates that the
 system's own decisions are exported in inspectable form.}
 \label{tab:compare}
 \centering\footnotesize
-\setlength{\tabcolsep}{5.2pt}
-\begin{tabular}{@{}llccccc@{}}
+\setlength{\tabcolsep}{4pt}
+% The three text-heavy columns wrap at a fixed width rather than setting the
+% table's width from their longest single cell: unconstrained they overrun the
+% 469.75pt \textwidth by 107pt.
+\begin{tabular}{@{}
+  >{\raggedright\arraybackslash}p{76pt}
+  >{\raggedright\arraybackslash}p{58pt}
+  c c
+  >{\raggedright\arraybackslash}p{62pt}
+  c c@{}}
 \toprule
-System & Retrieval & Self-host & MCP & Reasoning at read & Contradiction handling & Public corpus \\
+System & Retrieval & Self-host & MCP & Reasoning at read & Contradiction & Public corpus \\
 \midrule
 MCP knowledge-graph server \citep{mcpserver2025} & graph, local & yes & yes & no & manual & no \\
-mem0 \citep{chhikara2025mem0} & dense + BM25 + entity & yes & yes & no & accumulate-only, by design & no \\
+mem0 \citep{chhikara2025mem0} & dense + BM25 + entity & yes & yes & no & accumulate-only & no \\
 Zep / Graphiti \citep{zep2025} & temporal graph & OSS engine & via plugin & no & temporal edge & no \\
 Letta \citep{letta2025} & agent memory blocks & yes & n/a & agent-driven & agent-driven & no \\
 Cognee \citep{cognee2025} & graph + vector & yes & partial & partial & graph & no \\
 \midrule
-\textbf{DGUI-HyperMem} & dense + BM25, RRF & \textbf{Workers} & \textbf{native} & \textbf{yes, bounded shortlist} & \textbf{automatic, $p\geq0.80$} & \textbf{yes} \\
+\textbf{DGUI-HyperMem} & dense + BM25, RRF & \textbf{Workers} & \textbf{native} & \textbf{yes, bounded} & \textbf{automatic, $p\geq0.80$} & \textbf{yes} \\
 \bottomrule
 \end{tabular}
 \end{table*}
@@ -872,17 +884,18 @@ ordering of its components and shows exactly where each one breaks.
 \section*{Reproducibility}
 
 The reasoning corpus and its schema are public
-(\texttt{ctaxnagomi/DGUI\_HYPERMEM-JEV})\citep{ctecx2026hypermem}; each row
-records the instruction, input, and answer of a real decision, redacted at
-enqueue. The retrieval harness for \cref{sec:eval} ships with this document in
-\texttt{eval/}: a seeded generator (\texttt{evalsim.py}), the runner that scores
-the eight configurations of \cref{tab:main} (\texttt{evalsim\_run.py}), the
-generator for this paper's tables (\texttt{mkresults.py}), and a checker
-(\texttt{verify\_prose.py}) that re-derives every number quoted in
-\cref{sec:eval} from the raw results and fails loudly on a mismatch. It is
-deterministic given its seed and embedding model, and reconstructs the constants
-of \cref{eq:rrf} and \cref{eq:blend} directly from the shipped implementation.
-The service itself is MIT-licensed and self-hostable.
+(\path{ctaxnagomi/DGUI_HYPERMEM-JEV})\citep{ctecx2026hypermem}; each row records
+the instruction, input, and answer of a real decision, redacted at enqueue. The
+retrieval harness for \cref{sec:eval} ships with this document in \path{eval/}: a
+seeded generator (\path{evalsim.py}), the runner that scores the eight
+configurations of \cref{tab:main} (\path{evalsim_run.py}), the generator for
+this paper's tables (\path{mkresults.py}), and a checker (\path{verify_prose.py})
+that re-derives every number quoted in \cref{sec:eval} from the raw results and
+fails loudly on a mismatch. The harness is deterministic given its seed and
+embedding model, and reconstructs the constants of \cref{eq:rrf} and
+\cref{eq:blend} directly from the shipped implementation. All three scripts
+resolve their paths from their own location, so they run from any directory
+without arguments. The service itself is MIT-licensed and self-hostable.
 
 \bibliographystyle{unsrtnat}
 \bibliography{references}

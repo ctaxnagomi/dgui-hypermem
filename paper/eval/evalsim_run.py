@@ -5,15 +5,13 @@ import argparse
 import json
 import math
 import os
-import pathlib
 import random
 import re
 import statistics
 import time
 from collections import defaultdict
 
-# Repository root, resolved from this file so the harness is location-independent.
-ROOT = pathlib.Path(__file__).resolve().parent.parent
+from paper_paths import results_dir
 
 import numpy as np
 
@@ -263,7 +261,7 @@ def run_seed(seed, args, enc, ce):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--out", default=str(ROOT / "figures"))
+    ap.add_argument("--out", default=str(results_dir()))
     ap.add_argument("--n-mem", type=int, default=900)
     ap.add_argument("--n-q", type=int, default=150)
     ap.add_argument("--seeds", default="11,12,13")
