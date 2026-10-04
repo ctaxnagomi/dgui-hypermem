@@ -259,7 +259,7 @@ footer p{font-size:14px;color:var(--text-muted)}footer a{color:var(--accent-cyan
 </section>
 
 <section class="carousel-section">
-<div class="section-header"><div class="caption-mono"><i class="fas fa-globe"></i> Ecosystem</div><h2>deckergui.my subdomains.</h2></div>
+<div class="section-header"><div class="caption-mono"><i class="fas fa-globe"></i> Ecosystem</div><h2>DeckerGUI Sub-Product</h2></div>
 <div class="carousel-wrap"><div class="carousel-track" id="carousel-track"></div></div>
 </section>
 <section class="pricing-section" id="pricing">
