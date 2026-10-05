@@ -889,6 +889,65 @@ if (document.readyState === 'loading') {
 } else {
   observeFadeIns();
 }
+
+// --- clean URL fragments -------------------------------------------------
+// The "Get Token" links point at #crm. Clicking one leaves #crm sitting in the
+// address bar, where it survives a copy/paste and makes the section look like a
+// separate page. Nothing on this site routes by fragment, so the fragment is
+// removed once it has done its job.
+//
+// The order matters: resolve the target, drop the fragment, THEN scroll.
+// replaceState before scrolling cannot disturb the scroll, whereas doing it
+// afterwards risks cancelling an in-flight smooth scroll. preventDefault stops
+// the browser doing its own fragment navigation, and the explicit
+// scrollIntoView below replaces it, so no-JS visitors still get the section.
+(function cleanHash(){
+  if (!window.history || !history.replaceState) return;
+  const reduced = function () {
+    return window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  };
+  const strip = function () {
+    if (location.hash) history.replaceState(null, '', location.pathname + location.search);
+  };
+  const goTo = function (target) {
+    strip();
+    target.scrollIntoView({ behavior: reduced() ? 'auto' : 'smooth', block: 'start' });
+  };
+
+  document.addEventListener('click', function (ev) {
+    const el = ev.target && ev.target.closest ? ev.target.closest('a[href^="#"]') : null;
+    if (!el) return;
+    const id = el.getAttribute('href').slice(1);
+    const target = id ? document.getElementById(id) : null;
+    if (!target) return; // not a real fragment target: leave the URL untouched
+    ev.preventDefault();
+    goTo(target);
+  });
+
+  // A fragment can also change without the page reloading -- editing the address
+  // bar of an already-open page is a same-document navigation, so none of the
+  // script above runs again. Without this the "#" would simply stay. replaceState
+  // does not itself fire hashchange, so there is no loop.
+  window.addEventListener('hashchange', function () {
+    const target = location.hash ? document.getElementById(location.hash.slice(1)) : null;
+    if (target) goTo(target); else strip();
+  });
+
+  // A URL pasted or reloaded with a fragment still has to reach its section,
+  // then lose the fragment. Nothing to scroll to means nothing to strip.
+  if (location.hash) {
+    const target = document.getElementById(location.hash.slice(1));
+    if (target) {
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function () { goTo(target); });
+      } else {
+        goTo(target);
+      }
+    } else {
+      strip();
+    }
+  }
+})();
 </script>
 </body>
 </html>`;

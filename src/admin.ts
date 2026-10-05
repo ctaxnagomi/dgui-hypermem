@@ -190,6 +190,24 @@ let cp='';
 let adminSession='';
 let clockState=null;
 
+// Nothing on the admin surface routes by fragment, so a "#" in the address bar
+// is always leftover navigation, never a route. Revoke and Quota were <a href="#">,
+// which left a bare "#" behind every click; they are buttons now (see actionsHtml).
+// This is the backstop for any fragment that still arrives from outside, e.g. a
+// bookmark or a pasted URL. No target is looked up on purpose: an unknown
+// fragment must still be removed, because the alternative is a permanent "#".
+(function cleanHash(){
+  if (!window.history || !history.replaceState) return;
+  const strip = function () {
+    if (location.hash) history.replaceState(null, '', location.pathname + location.search);
+  };
+  strip();
+  // Editing the address bar of an already-open admin page is a same-document
+  // navigation, so the strip above does not run again and the "#" would persist.
+  // replaceState does not fire hashchange, so this cannot loop.
+  window.addEventListener('hashchange', strip);
+})();
+
 function getApiHeaders(extra={}) {
   const h = {'content-type':'application/json', ...extra};
   if (adminSession) h['x-admin-session'] = adminSession;
@@ -278,9 +296,16 @@ function quotaDisplay(t){
   const color=pct>=90?'#f87171':pct>=70?'#fbbf24':'#4ade80';
   return {html:'<span style="color:'+color+'">'+used+'/'+max+'</span>', pct:color};
 }
+// Revoke and Quota are actions, not navigation, so they are buttons rather than
+// <a href="#">. An anchor with an empty target still navigates: clicking it
+// leaves a bare "#" in the address bar on a page that has no fragment routing,
+// and it advertises a link to a screen reader where there is none. Buttons get
+// the same look inline, with no layout change.
+const LINK_BTN = 'background:none;border:0;padding:0;color:var(--accent-cyan);font:inherit;font-size:11px;cursor:pointer;text-decoration:underline';
 function actionsHtml(t){
   if(t.status!=='active') return '';
-  return '<a href="#" onclick="revoke(\\''+esc(t.email)+'\\')" style="font-size:11px">Revoke</a> <a href="#" onclick="editQuota(\\''+esc(t.email)+'\\','+t.quota_monthly+',\\''+esc(t.plan||'free')+'\\')" style="font-size:11px;margin-left:6px">Quota</a>';
+  return '<button type="button" style="'+LINK_BTN+'" onclick="revoke(\\''+esc(t.email)+'\\')">Revoke</button>' +
+         '<button type="button" style="'+LINK_BTN+';margin-left:6px" onclick="editQuota(\\''+esc(t.email)+'\\','+t.quota_monthly+',\\''+esc(t.plan||'free')+'\\')">Quota</button>';
 }
 const PLAN_COLORS={free:'#7d8187',median:'#00f0ff',pro:'#f59e0b',enterprise:'#ec4899'};
 function planDisplay(t){
