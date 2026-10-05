@@ -916,22 +916,36 @@ if (document.readyState === 'loading') {
   // grow past the target -- verified live: the fragment was stripped but the
   // section sat 2407px below the viewport.
   //
-  // So the position is re-asserted while the document is still growing, and the
-  // loop stops as soon as the height holds. The first move is smooth for a
+  // So the position is re-asserted while the layout is still moving, and the
+  // loop stops as soon as the target holds still. The first move is smooth for a
   // click; the re-assertions are instant, because repeatedly restarting a
   // smooth scroll would fight itself and never arrive.
+  //
+  // The signal is the target's own position in the scroll container, NOT the
+  // document height. This page scrolls BODY (overflow-y:auto inside a
+  // height:100% html), so documentElement.scrollHeight stays pinned at the
+  // viewport height and never changes. Watching it -- the version in cf23421 --
+  // made the loop give up after a single frame and did not work; verified live.
+  // The target's document position moves when the iframes above it expand, which
+  // is exactly the event worth re-asserting on.
+  const scrollTop = function () {
+    return document.body.scrollTop || document.documentElement.scrollTop || window.scrollY || 0;
+  };
   const place = function (target, smooth) {
     target.scrollIntoView({ behavior: smooth && !reduced() ? 'smooth' : 'auto', block: 'start' });
   };
   const settle = function (target) {
     place(target, true);
-    var lastHeight = -1;
-    var deadline = Date.now() + 5000;
+    var lastTop = null;
+    var deadline = Date.now() + 6000;
     var tick = function () {
       if (Date.now() > deadline) return;
-      var h = document.documentElement.scrollHeight;
-      if (h !== lastHeight) {
-        lastHeight = h;
+      // Where the target currently sits in the scrolled content. If layout above
+      // it grew, this changes and the earlier scroll now points at the wrong
+      // place, so put it back.
+      var top = Math.round(target.getBoundingClientRect().top + scrollTop());
+      if (top !== lastTop) {
+        lastTop = top;
         place(target, false);
       }
       requestAnimationFrame(tick);
