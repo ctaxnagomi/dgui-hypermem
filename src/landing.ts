@@ -115,6 +115,13 @@ footer p{font-size:14px;color:var(--text-muted)}footer a{color:var(--accent-cyan
    the gesture handler below, so a swipe never has to fight the page. */
 .live-track{touch-action:pan-y}
 .live-track.dragging{cursor:grabbing;scroll-behavior:auto;scroll-snap-type:none;user-select:none;-webkit-user-select:none}
+/* The card row lives in an inner element because scrollLeft is clamped to
+   [0, max] in a LTR scroller, so a pull past either end cannot be expressed as a
+   scroll position at all. The overscroll is a transform on this element instead,
+   which is also why it does not fight .live-card:hover's transform. */
+.live-inner{display:flex;gap:14px;width:max-content;min-width:100%;will-change:transform}
+.live-track.dragging .live-inner{transition:none}
+.live-track.settling .live-inner{transition:transform .3s cubic-bezier(.2,.9,.3,1)}
 .live-card{flex:0 0 auto;width:min(320px,78vw);scroll-snap-align:center;border-radius:16px;overflow:hidden;border:1px solid var(--border-glass);background:var(--glass);box-shadow:var(--shadow);transition:border-color .25s,transform .25s,width .32s cubic-bezier(.34,1.3,.5,1);position:relative}
 /* Clicking "open" grows the card in place. It never navigates, so the reader
    stays on the landing page and the rail keeps its place. */
@@ -423,7 +430,7 @@ footer p{font-size:14px;color:var(--text-muted)}footer a{color:var(--accent-cyan
      to a link card (see SITES in the script). "open" expands a card in place and
      never navigates; the small arrow is the only control that leaves the page. -->
 <div class="live-rail" id="live-rail" tabindex="0" aria-label="DeckerGUI live sites">
-<div class="live-track" id="live-track"></div>
+<div class="live-track" id="live-track"><div class="live-inner" id="live-inner"></div></div>
 </div>
 <div class="container" style="max-width:1200px;margin:0 auto;padding:0 24px">
 <p>DGUI-HyperMem — a <a href="https://deckergui.my">DeckerGUI</a> project</p>
@@ -549,8 +556,9 @@ function escAttr(v){return String(v).replace(/&/g,'&amp;').replace(/"/g,'&quot;'
 
 (function buildRail(){
   const track=document.getElementById('live-track');
-  if(!track) return;
-  track.innerHTML=SITES.map(function(s){
+  const inner=document.getElementById('live-inner');
+  if(!track||!inner) return;
+  inner.innerHTML=SITES.map(function(s){
     const esc=escAttr(s.url);
     const frame=s.allow
       ?'<div class="live-viewport">'
@@ -618,6 +626,7 @@ function escAttr(v){return String(v).replace(/&/g,'&amp;').replace(/"/g,'&quot;'
 
   const reduced=function(){return window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;};
   const maxScroll=function(){return Math.max(0,track.scrollWidth-track.clientWidth);};
+  const inner=document.getElementById('live-inner');
 
   // iOS resistance curve. Asymptotic, so a long pull keeps moving but can never
   // run the rail away from its bounds.
@@ -625,11 +634,20 @@ function escAttr(v){return String(v).replace(/&/g,'&amp;').replace(/"/g,'&quot;'
     const c=0.55;
     return (over*dim*c)/(dim+c*Math.abs(over));
   };
+  // Overscroll has to be a transform, not a scroll position: scrollLeft is
+  // clamped to [0, max] in a LTR scroller, so an earlier version of this that set
+  // scrollLeft past the end did nothing at all -- the pull simply snapped back
+  // with no give. Signed so pulling right at the start reveals space on the left.
+  let shift=0;
+  const setShift=function(px){
+    shift=px;
+    if(inner) inner.style.transform=px?'translateX('+px+'px)':'';
+  };
   const setScroll=function(x){
     const max=maxScroll();
-    if(x<0) track.scrollLeft=rubber(x,track.clientWidth);
-    else if(x>max) track.scrollLeft=max+rubber(x-max,track.clientWidth);
-    else track.scrollLeft=x;
+    if(x<0){track.scrollLeft=0;setShift(-rubber(x,track.clientWidth));}
+    else if(x>max){track.scrollLeft=max;setShift(-rubber(x-max,track.clientWidth));}
+    else{track.scrollLeft=x;setShift(0);}
   };
 
   // --- wheel: only hijack while the rail still has room in that direction, so
@@ -672,24 +690,42 @@ function escAttr(v){return String(v).replace(/&/g,'&amp;').replace(/"/g,'&quot;'
     return Math.max(0,Math.min(maxScroll(),best.offsetLeft-(track.clientWidth-best.offsetWidth)/2));
   };
 
+  // Snap is animated by hand rather than with scrollTo({behavior:'smooth'}).
+  // The browser's mandatory snap is switched OFF for the whole animation via
+  // .dragging and only handed back once we are already on a card boundary;
+  // re-enabling it first and then scrolling made the two fight, and the rail came
+  // to rest between cards.
   const settle=function(){
     const max=maxScroll();
     const clamped=Math.min(max,Math.max(0,track.scrollLeft));
     track.scrollLeft=clamped;
-    const target=snapTarget();
-    // Hand control back to the browser's mandatory snap only once we are sitting
-    // on a card boundary, so the two never disagree about where the rail rests.
-    track.classList.remove('dragging');
-    if(target!==null&&Math.abs(target-clamped)>1){
-      if(track.scrollTo) track.scrollTo({left:target,behavior:reduced()?'auto':'smooth'});
+    if(shift){
+      // Ease the overscroll back to zero rather than snapping it away.
+      track.classList.add('settling');
+      setShift(0);
+      setTimeout(function(){track.classList.remove('settling');},320);
     }
+    const target=snapTarget();
+    if(target===null||Math.abs(target-clamped)<=1){track.classList.remove('dragging');return;}
+    if(reduced()){track.scrollLeft=target;track.classList.remove('dragging');return;}
+    const from=clamped,dist=target-from,t0=(window.performance&&performance.now?performance.now():Date.now()),DUR=360;
+    const step=function(){
+      const p=Math.min(1,((window.performance&&performance.now?performance.now():Date.now())-t0)/DUR);
+      const e=1-Math.pow(1-p,3);
+      track.scrollLeft=from+dist*e;
+      if(p<1){requestAnimationFrame(step);return;}
+      track.scrollLeft=target;                 // land exactly on the boundary
+      track.classList.remove('dragging');      // only now does mandatory snap resume
+    };
+    requestAnimationFrame(step);
   };
 
   const glide=function(){
-    const max=maxScroll();
     const next=track.scrollLeft+vel;
-    if(next<0||next>max){setScroll(next);vel*=0.35;}   // hit a wall: bleed speed
-    else {track.scrollLeft=next;vel*=0.94;}
+    setScroll(next);
+    // Bleed harder against a wall than in open water, so hitting the end feels
+    // like arriving rather than like a collision.
+    vel*=Math.abs(shift)>0.5?0.3:0.94;
     if(Math.abs(vel)<0.4){raf=0;settle();return;}
     raf=requestAnimationFrame(glide);
   };
@@ -700,7 +736,11 @@ function escAttr(v){return String(v).replace(/&/g,'&amp;').replace(/"/g,'&quot;'
     if(ev.target&&ev.target.closest&&ev.target.closest('[data-open],.live-out')) return;
     pid=ev.pointerId;sx=ev.clientX;sy=ev.clientY;sl=track.scrollLeft;
     axis=null;movedFar=false;vel=0;samples=[[ev.timeStamp,sl]];
+    // A new touch cancels any in-flight settle, and clears a leftover overscroll
+    // so the row does not start the gesture visually out of position.
     stopGlide();
+    track.classList.remove('settling');
+    if(shift) setShift(0);
   });
 
   window.addEventListener('pointermove',function(ev){
