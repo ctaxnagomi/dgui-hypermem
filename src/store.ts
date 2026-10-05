@@ -310,6 +310,54 @@ async function vectorSearch(
   }
 }
 
+/**
+ * Cheap existence probe behind the landing-page "solution lamp".
+ *
+ * Deliberately NOT a searchMemories() call. That path embeds the query (Workers
+ * AI), JEV-reranks the shortlist, bumps access_count, writes an events row and
+ * enqueues a rerank example into the training dataset. All four are wrong for an
+ * unauthenticated endpoint: anonymous traffic would burn AI quota, inject junk
+ * into the JEV dataset, and inflate a memory's popularity just because a stranger
+ * typed a related word.
+ *
+ * So this does an FTS5 keyword lookup only, gated by the same salience threshold
+ * the rest of the system uses, and returns a COUNT. No content, no tags, no ids,
+ * no snippets ever cross this boundary.
+ *
+ * `confident:false` distinguishes "we looked and found nothing" from "the probe
+ * itself failed", so the UI can stay dark instead of claiming a negative it did
+ * not actually establish.
+ */
+export async function solutionSignal(
+  env: Env,
+  query: string,
+  options: { scope?: string; threshold?: number } = {},
+): Promise<{ has: boolean; count: number; confident: boolean }> {
+  const scope = options.scope || env.DEFAULT_SCOPE || "default";
+  const floor = options.threshold ?? salienceGate(env);
+  const terms = tokenize(query);
+  // One term is not a question. A single common word would light the lamp on
+  // almost any input, which trains visitors to ignore it.
+  if (terms.length < 2) return { has: false, count: 0, confident: false };
+  const match = terms.map((t) => `"${t}"`).join(" OR ");
+  try {
+    const row = await env.DB.prepare(
+      `SELECT COUNT(*) AS c
+         FROM memories_fts
+         JOIN memories m ON m.rowid = memories_fts.rowid
+        WHERE memories_fts MATCH ?1 AND m.scope = ?2 AND m.status = 'active'
+          AND (m.salience ?? 0) >= ?3`,
+    )
+      .bind(match, scope, floor)
+      .first<{ c: number }>();
+    const count = row?.c || 0;
+    return { has: count > 0, count, confident: true };
+  } catch (err) {
+    console.error("solutionSignal failed:", String(err));
+    return { has: false, count: 0, confident: false };
+  }
+}
+
 export async function searchMemories(env: Env, query: string, options: SearchOptions = {}): Promise<ScoredMemory[]> {
   const scope = options.scope || env.DEFAULT_SCOPE || "default";
   const limit = Math.min(Math.max(options.limit ?? 10, 1), 50);

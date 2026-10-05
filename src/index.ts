@@ -13,7 +13,7 @@ import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/
 import { z } from "zod";
 
 import type { Env } from "./types";
-import { addMemory, forgetMemories, listMemories, profile, searchMemories } from "./store";
+import { addMemory, forgetMemories, listMemories, profile, searchMemories, solutionSignal } from "./store";
 import { getSuggestions } from "./suggest";
 import { MEMORY_TYPES, resolveMode } from "./jev";
 import { flushJevExamples, jevQueueStats } from "./dataset";
@@ -518,6 +518,12 @@ async function handleRest(request: Request, env: Env, path: string): Promise<Res
       return adminJson(await handleAdminClock(env, body, request, url));
     case "/api/visitor":
       return json(await handleVisitor(env), { headers: CORS });
+    case "/api/solution-signal":
+      return json(await handleSolutionSignal(env, url), { headers: { ...CORS, "cache-control": "no-store" } });
+    case "/api/admin/visits":
+      return adminJson(await handleAdminVisits(env, body, url, request));
+    case "/api/admin/activity":
+      return adminJson(await handleAdminActivity(env, body, url, request));
     case "/api/check-quota":
       return json(await handleCheckQuota(env, request), { headers: CORS });
     case "/api/verify-token":
@@ -727,10 +733,165 @@ async function handleAdminClock(env: Env, body: Record<string, any>, request?: R
   }
 }
 
+// Analytics tables are created lazily on first use instead of via a migration.
+// The wrangler token this project deploys with carries workers_scripts:write but
+// no D1 write scope, so `wrangler d1 migrations apply` is not reachable from the
+// deploy path. visitor_counter already predates every migration file (it only
+// existed because it was created by hand), and a fresh database would 500 on
+// /api/visitor without it. This makes that reproducible and adds the per-day
+// buckets the admin sparkline needs, in one round trip.
+//
+// The in-flight promise is cached per isolate so a cold-start request does not
+// pay for DDL, and is cleared on failure so a transient D1 error self-heals on the
+// next request instead of poisoning every later one.
+let analyticsReady: Promise<void> | null = null;
+
+function ensureAnalyticsTables(env: Env): Promise<void> {
+  if (!analyticsReady) {
+    analyticsReady = env.DB.batch([
+      env.DB.prepare("CREATE TABLE IF NOT EXISTS visitor_counter (id INTEGER PRIMARY KEY, count INTEGER NOT NULL DEFAULT 0)"),
+      env.DB.prepare("CREATE TABLE IF NOT EXISTS visitor_daily (day TEXT PRIMARY KEY, count INTEGER NOT NULL DEFAULT 0)"),
+      env.DB.prepare("INSERT OR IGNORE INTO visitor_counter (id, count) VALUES (1, 0)"),
+    ])
+      .then(() => undefined)
+      .catch((err: unknown) => {
+        analyticsReady = null;
+        throw err;
+      });
+  }
+  return analyticsReady;
+}
+
+// Always the server's UTC date. The day is never taken from the request: an
+// attacker-supplied day would let anyone write arbitrary buckets and poison the
+// very chart this is meant to make trustworthy.
+function utcDay(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
 async function handleVisitor(env: Env): Promise<Record<string, any>> {
-  await env.DB.prepare("UPDATE visitor_counter SET count = count + 1 WHERE id = 1").run();
-  const row = await env.DB.prepare("SELECT count FROM visitor_counter WHERE id = 1").bind().first<{ count: number }>();
-  return { count: row?.count || 0 };
+  const day = utcDay();
+  try {
+    await ensureAnalyticsTables(env);
+    await env.DB.batch([
+      env.DB.prepare("UPDATE visitor_counter SET count = count + 1 WHERE id = 1"),
+      env.DB.prepare("INSERT INTO visitor_daily (day, count) VALUES (?1, 1) ON CONFLICT(day) DO UPDATE SET count = count + 1").bind(day),
+    ]);
+  } catch (err) {
+    // Analytics must never take the landing page down with it.
+    console.error("visitor analytics failed:", String(err));
+  }
+  let total = 0;
+  let today = 0;
+  try {
+    const row = await env.DB.prepare("SELECT count FROM visitor_counter WHERE id = 1").bind().first<{ count: number }>();
+    total = row?.count || 0;
+    const d = await env.DB.prepare("SELECT count FROM visitor_daily WHERE day = ?").bind(day).first<{ count: number }>();
+    today = d?.count || 0;
+  } catch (err) {
+    console.error("visitor read failed:", String(err));
+  }
+  // `count` is kept for backward compatibility with the existing landing page.
+  return { count: total, total, today };
+}
+
+async function handleAdminVisits(env: Env, body: Record<string, any>, url: URL, request: Request): Promise<Record<string, any>> {
+  const auth = await adminGate(env, request, body, url);
+  if (!auth.ok) {
+    await logCrmAction(env, "unknown", "admin_visits_fail", "failed admin visits attempt", request).run().catch(() => {});
+    if (auth.reason === "totp_required") return { error: "totp_required" };
+    return { error: "unauthorized" };
+  }
+  await ensureAnalyticsTables(env);
+  const day = utcDay();
+  const since = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10);
+  const [total, bucketRows] = await Promise.all([
+    env.DB.prepare("SELECT COUNT(*) AS c FROM visitor_counter WHERE id = 1").bind().first<{ c: number }>(),
+    env.DB.prepare("SELECT day, count FROM visitor_daily WHERE day >= ?1 ORDER BY day ASC").bind(since).all<{ day: string; count: number }>(),
+  ]);
+  const byDay = new Map((bucketRows?.results || []).map((r) => [r.day, r.count]));
+  // Emit a dense series: days with no traffic must appear as explicit zeros or the
+  // sparkline draws a straight line across a quiet week and reads as activity.
+  const days: Array<{ day: string; count: number }> = [];
+  for (let i = 29; i >= 0; i--) {
+    const d = new Date(Date.now() - i * 86400000).toISOString().slice(0, 10);
+    days.push({ day: d, count: byDay.get(d) || 0 });
+  }
+  return {
+    total: total?.c || 0,
+    today: byDay.get(day) || 0,
+    last_30: days.reduce((a, d) => a + d.count, 0),
+    days,
+  };
+}
+
+/**
+ * Recent activity for the admin dot-connector visualiser, read straight from the
+ * `events` table that logEvent() already writes (add/update/supersede/forget/
+ * search). No new writes, no new instrumentation on the hot path.
+ *
+ * Returns kind + timestamp + id only. Event rows carry the raw query text in
+ * `query`, which can hold anything a caller typed, so it is deliberately not
+ * selected here -- the visualiser needs shape and cadence, not content.
+ */
+async function handleAdminActivity(env: Env, body: Record<string, any>, url: URL, request: Request): Promise<Record<string, any>> {
+  const auth = await adminGate(env, request, body, url);
+  if (!auth.ok) {
+    if (auth.reason === "totp_required") return { error: "totp_required" };
+    return { error: "unauthorized" };
+  }
+  const limit = Math.min(Math.max(parseInt(url.searchParams.get("limit") || "60", 10) || 60, 10), 200);
+  const since = Date.now() - 7 * 86400000;
+  const [nodes, byKind] = await Promise.all([
+    env.DB.prepare(
+      `SELECT kind, memory_id, created_at, detail FROM events
+        WHERE created_at > ?1 ORDER BY created_at DESC LIMIT ?2`,
+    )
+      .bind(since, limit)
+      .all<{ kind: string; memory_id: string | null; created_at: number; detail: string | null }>(),
+    env.DB.prepare(
+      `SELECT kind, COUNT(*) AS c FROM events WHERE created_at > ?1 GROUP BY kind ORDER BY c DESC`,
+    )
+      .bind(since)
+      .all<{ kind: string; c: number }>(),
+  ]);
+
+  const rows = (nodes?.results || []).map((r) => {
+    let results: number | null = null;
+    try {
+      const d = r.detail ? JSON.parse(r.detail) : null;
+      if (d && typeof d === "object" && typeof d.results === "number") results = d.results;
+    } catch {}
+    return {
+      kind: r.kind,
+      at: r.created_at,
+      id: r.memory_id ? r.memory_id.slice(0, 8) : null,
+      // Present only for search events, where logEvent already recorded the
+      // result count. Lets the visualiser size a node by how much it returned.
+      results,
+    };
+  });
+
+  return {
+    window_days: 7,
+    counts: Object.fromEntries((byKind?.results || []).map((r) => [r.kind, r.c])),
+    nodes: rows,
+  };
+}
+
+/**
+ * Landing-page lamp probe. Public and unauthenticated by necessity (the landing
+ * page has no token), so the contract is deliberately narrow: a boolean and a
+ * count, and nothing else. No content, tags, ids, snippets, scopes or memory
+ * types cross this boundary -- see solutionSignal() in store.ts for why this is a
+ * separate cheap path rather than a searchMemories() call.
+ */
+async function handleSolutionSignal(env: Env, url: URL): Promise<Record<string, any>> {
+  const raw = url.searchParams.get("q") || "";
+  const q = raw.replace(/\s+/g, " ").trim().slice(0, 200);
+  if (q.length < 4) return { has: false, count: 0, confident: false };
+  const res = await solutionSignal(env, q);
+  return { has: res.has, count: res.count, confident: res.confident };
 }
 
 async function handleRequestToken(env: Env, body: Record<string, any>, request: Request): Promise<Record<string, any>> {
@@ -1099,7 +1260,7 @@ export default {
         endpoints: {
           docs: "/docs",
           mcp: "/mcp",
-          rest: ["/api/add", "/api/search", "/api/list", "/api/profile", "/api/forget", "/api/sync_jev", "/api/jev_queue_stats", "/api/request-token", "/api/check-star", "/api/disable-token", "/api/check-quota", "/api/verify-token", "/api/setup-dataset", "/api/enterprise-inquiry", "/api/create-checkout-session", "/api/stripe-webhook", "/api/admin/tokens", "/api/admin/stats", "/api/admin/logs", "/api/admin/toggle-train", "/api/admin/update-quota", "/api/admin/clock", "/api/visitor"],
+          rest: ["/api/add", "/api/search", "/api/list", "/api/profile", "/api/forget", "/api/sync_jev", "/api/jev_queue_stats", "/api/request-token", "/api/check-star", "/api/disable-token", "/api/check-quota", "/api/verify-token", "/api/setup-dataset", "/api/enterprise-inquiry", "/api/create-checkout-session", "/api/stripe-webhook", "/api/admin/tokens", "/api/admin/stats", "/api/admin/logs", "/api/admin/toggle-train", "/api/admin/update-quota", "/api/admin/clock", "/api/admin/visits", "/api/admin/activity", "/api/visitor", "/api/solution-signal"],
         },
       });
     }
@@ -1219,6 +1380,7 @@ export default {
   "/api/verify-token",
   "/api/setup-dataset",
   "/api/visitor",
+  "/api/solution-signal",
   "/api/enterprise-inquiry",
   "/api/create-checkout-session",
   "/api/buy-credits",
@@ -1232,6 +1394,8 @@ export default {
   "/api/admin/toggle-train",
   "/api/admin/update-quota",
   "/api/admin/clock",
+  "/api/admin/visits",
+  "/api/admin/activity",
   "/api/check-quota",
 ];
     if (path === "/mcp" || (path.startsWith("/api/") && !CRM_ROUTES.includes(path))) {

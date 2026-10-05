@@ -55,6 +55,59 @@ a{color:var(--accent-cyan);text-decoration:none}
 .badge.offline{background:var(--text-muted)}
 .topbar{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;flex-wrap:wrap;gap:8px}
 .hidden-msg{display:none}
+
+/* --- panels --- */
+.panel{background:rgba(21,31,53,.62);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);box-shadow:var(--shadow);border:1px solid var(--border-glass);border-radius:10px;margin-bottom:16px;overflow:hidden}
+.panel[hidden]{display:none}
+.panel-head{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:14px 16px;cursor:pointer;user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent;border-bottom:1px solid var(--border-glass);flex-wrap:wrap}
+.panel-head.static{cursor:default}
+.panel-head:hover .panel-title{color:var(--accent-cyan)}
+.panel-title{font-size:13px;font-weight:500;color:var(--text-primary);display:flex;align-items:center;gap:8px;transition:color .2s}
+.panel-meta{font-size:11px;color:var(--text-muted);font-family:JetBrains Mono,monospace}
+.panel-body{padding:16px}
+/* Suppress the tap ripple entirely; the gate gives no feedback by design. */
+.panel-head:active{background:transparent}
+
+/* --- view toggle --- */
+.view-toggle{display:inline-flex;gap:0;margin-bottom:16px;border:1px solid var(--border-glass);border-radius:9999px;overflow:hidden;background:rgba(21,31,53,.72)}
+.vt-btn{background:transparent;border:none;color:var(--text-muted);font-family:Inter,sans-serif;font-size:12px;padding:8px 16px;cursor:pointer;display:flex;align-items:center;gap:6px;transition:background .2s,color .2s}
+.vt-btn[aria-pressed="true"]{background:var(--accent-cyan);color:#04121a}
+.vt-btn:hover:not([aria-pressed="true"]){color:var(--text-primary)}
+
+/* --- grid view --- */
+.card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;margin-top:16px}
+body[data-view="grid"] .table-wrap{display:none}
+body[data-view="grid"] .card-grid{display:grid}
+body[data-view="list"] .card-grid{display:none}
+body[data-view="list"] .table-wrap{display:block}
+.tcard{background:rgba(8,13,24,.42);border:1px solid var(--border-glass);border-radius:8px;padding:14px}
+.tcard-top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:10px}
+.tcard-email{font-size:13px;color:var(--text-primary);word-break:break-all;line-height:1.35}
+.tcard-grid{display:grid;grid-template-columns:auto 1fr;gap:5px 10px;font-size:11px;margin-bottom:12px}
+.tcard-k{color:var(--text-muted);font-size:10px;text-transform:uppercase;letter-spacing:.4px}
+.tcard-v{font-family:JetBrains Mono,monospace;color:var(--text-secondary)}
+.tcard-actions{display:flex;gap:10px;font-size:11px;padding-top:10px;border-top:1px solid var(--border-glass)}
+
+/* --- sparkline --- */
+.spark-wrap{margin-top:4px}
+.spark-head{display:flex;justify-content:space-between;font-size:11px;color:var(--text-muted);margin-bottom:10px;gap:8px;flex-wrap:wrap}
+.spark{display:flex;align-items:flex-end;gap:2px;height:72px;padding:0 2px}
+.spark-bar{flex:1 1 0;min-width:2px;background:linear-gradient(180deg,var(--accent-cyan),var(--accent-cyan-deep));border-radius:2px 2px 0 0;opacity:.75;transition:opacity .2s;min-height:1px}
+.spark-bar:hover{opacity:1}
+.spark-bar[data-zero="1"]{background:var(--border-glass);opacity:.5}
+
+/* --- activity visualiser --- */
+.act-legend{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:14px;font-size:11px;color:var(--text-muted)}
+.act-legend span{display:flex;align-items:center;gap:6px}
+.act-legend i{width:8px;height:8px;border-radius:50%;display:inline-block}
+.act-canvas{position:relative;height:220px;overflow:hidden;border-radius:8px;background:rgba(8,13,24,.34);border:1px solid var(--border-glass)}
+.act-empty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--text-muted)}
+.act-svg{position:absolute;inset:0;width:100%;height:100%}
+.act-node{position:absolute;transform:translate(-50%,-50%);cursor:default}
+.act-dot{border-radius:50%;box-shadow:0 0 10px currentColor}
+.act-tip{position:absolute;left:50%;transform:translate(-50%,-140%);white-space:nowrap;background:rgba(8,13,24,.96);border:1px solid var(--border-glass);border-radius:4px;padding:4px 8px;font-size:10px;font-family:JetBrains Mono,monospace;color:var(--text-primary);opacity:0;pointer-events:none;transition:opacity .15s;z-index:5}
+.act-node:hover .act-tip{opacity:1}
+
 @media(max-width:640px){
   body{padding:8px}
   .stat-card{flex:1 1 80px;min-width:70px;padding:12px}
@@ -62,6 +115,9 @@ a{color:var(--accent-cyan);text-decoration:none}
   .stat-card .label{font-size:10px}
   td,th{padding:6px 4px;font-size:10px}
   td.email{max-width:80px}
+  .panel-body{padding:12px}
+  .card-grid{grid-template-columns:1fr}
+  .spark{height:56px}
 }
 </style>
 </head>
@@ -79,7 +135,47 @@ a{color:var(--accent-cyan);text-decoration:none}
 <div id="dashboard" style="display:none">
 <div class="topbar"><div><h1>Token Dashboard</h1><div class="sub">dgui-hmem.deckergui.my</div></div><div style="text-align:right"><a class="logout" onclick="document.getElementById('dashboard').style.display='none';document.getElementById('login').style.display='block'" style="color:var(--text-muted);font-size:13px;cursor:pointer;display:block">Logout</a><a href="/privacy" class="privacy-link" style="margin-top:4px;display:inline-block;font-size:12px;color:var(--text-muted)">Privacy</a></div></div>
 <div class="stats" id="stats-row"></div>
+
+<!-- View toggle. Persisted so the operator does not re-pick every reload. -->
+<div class="view-toggle" role="group" aria-label="Token view">
+<button class="vt-btn" id="vt-grid" onclick="setView('grid')" aria-pressed="true" title="Grid view"><i class="fas fa-th"></i> Grid</button>
+<button class="vt-btn" id="vt-list" onclick="setView('list')" aria-pressed="false" title="List view"><i class="fas fa-list"></i> List</button>
+</div>
+
+<!--
+  Panels. The system panel (DGUI-HyperMem core) is gated behind five taps on its
+  header with no visible affordance, per operator request. This is a UI
+  convenience gate, NOT a security boundary: every endpoint behind it is already
+  adminGate()-authorised server-side, and the visit sparkline reads only aggregate
+  counts. Tapping is counted on the header element and the counter resets after a
+  20s idle window so an accidental burst does not leave it permanently armed.
+-->
+<div class="panel" id="panel-system" hidden>
+<div class="panel-head" onclick="tapSystem()">
+<div class="panel-title"><i class="fas fa-memory"></i> DGUI-HyperMem Core</div>
+<div class="panel-meta"><span id="sys-visits-today">-</span> today &middot; <span id="sys-visits-total">-</span> all time</div>
+</div>
+<div class="panel-body">
+<div class="spark-wrap"><div class="spark-head"><span>Page visits &mdash; last 30 days</span><span id="spark-sum"></span></div><div class="spark" id="visit-spark"></div></div>
+</div>
+</div>
+
+<div class="panel" id="panel-tokens">
+<div class="panel-head static"><div class="panel-title"><i class="fas fa-users"></i> Tokens by plan</div><div class="panel-meta" id="plan-summary"></div></div>
+<div class="panel-body">
 <div class="table-wrap" id="table-wrap"><table><thead><tr><th>Email</th><th>Plan</th><th>Status</th><th>MCP</th><th>T&amp;C</th><th>Token</th><th>Quota</th><th>Train</th><th>Created</th><th>Action</th></tr></thead><tbody id="token-rows"></tbody></table></div>
+<div class="card-grid" id="card-grid"></div>
+</div>
+</div>
+
+<!-- Activity visualiser: dot-and-connector graph of memory activity, fed by /api/admin/activity. -->
+<div class="panel" id="panel-activity">
+<div class="panel-head static"><div class="panel-title"><i class="fas fa-project-diagram"></i> Memory activity</div><div class="panel-meta" id="activity-summary"></div></div>
+<div class="panel-body">
+<div class="act-legend" id="act-legend"></div>
+<div class="act-canvas" id="act-canvas"><div class="act-empty">No memory activity recorded in the last 7 days.</div></div>
+</div>
+</div>
 <div style="margin-top:24px;padding-top:16px;border-top:1px solid var(--border-glass);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
 <div style="font-size:13px;color:var(--text-muted)"><i class="fas fa-clock"></i> <span id="clock-status">--</span></div>
 <div style="display:flex;gap:8px">
@@ -158,31 +254,185 @@ async function login(){
           '<div class="stat-card"><div class="num">'+(plans.pro||0)+'</div><div class="label">Pro</div></div>'+
           '<div class="stat-card"><div class="num">'+(plans.enterprise||0)+'</div><div class="label">Enterprise</div></div>'+
           '<div class="stat-card"><div class="num">'+(d2.failed_logins_30d||0)+'</div><div class="label">Fails 30d</div></div>';
+        document.getElementById('plan-summary').textContent=
+          Object.keys(plans).map(function(k){return plans[k]+' '+k}).join(' · ');
       }
     }
+    loadActivity();
     document.getElementById('login').style.display='none';
     document.getElementById('dashboard').style.display='block';
   }catch(e){alert('Error: '+e.message)}
 }
+function planName(t){return t.plan||'free'}
+function tcDisplay(t){
+  const ok=t.tc_agreed===1||t.tc_agreed===true;
+  return '<span style="color:'+(ok?'#4ade80':'#f87171')+'">'+(ok?'✓':'✗')+'</span>';
+}
+function trainBtn(t){
+  const on=t.train_with_all===1||t.train_with_all===true;
+  return '<button class="toggle'+(on?' on':' off')+'" onclick="toggleTrain(\\''+esc(t.email)+'\\','+(on?'0':'1')+')">'+(on?'ON':'OFF')+'</button>';
+}
+function quotaDisplay(t){
+  const used=t.requests_used||0, max=t.quota_monthly||1000;
+  const pct=Math.min(100,Math.round(used/max*100));
+  const color=pct>=90?'#f87171':pct>=70?'#fbbf24':'#4ade80';
+  return {html:'<span style="color:'+color+'">'+used+'/'+max+'</span>', pct:color};
+}
+function actionsHtml(t){
+  if(t.status!=='active') return '';
+  return '<a href="#" onclick="revoke(\\''+esc(t.email)+'\\')" style="font-size:11px">Revoke</a> <a href="#" onclick="editQuota(\\''+esc(t.email)+'\\','+t.quota_monthly+',\\''+esc(t.plan||'free')+'\\')" style="font-size:11px;margin-left:6px">Quota</a>';
+}
+const PLAN_COLORS={free:'#7d8187',median:'#00f0ff',pro:'#f59e0b',enterprise:'#ec4899'};
+function planDisplay(t){
+  const n=planName(t);
+  return '<span style="color:'+(PLAN_COLORS[n]||'#7d8187')+';font-size:10px;text-transform:capitalize">'+esc(n)+'</span>';
+}
+function connectedDisplay(t){
+  return t.has_connected?'<span class="badge online"></span>Yes':'<span class="badge offline"></span>No';
+}
+
 function render(tokens){
+  // Shared escape hatch: row HTML and card HTML both interpolate the same
+  // caller-controlled strings, so both go through esc() at the point of use.
   document.getElementById('token-rows').innerHTML=tokens.map(t=>{
     const date=new Date(t.created_at).toLocaleDateString()+' '+new Date(t.created_at).toLocaleTimeString();
-    const connected=t.has_connected?'<span class="badge online"></span>Yes':'<span class="badge offline"></span>No';
-    const trainOn=t.train_with_all===1||t.train_with_all===true;
-    const trainBtn='<button class="toggle'+(trainOn?' on':' off')+'" onclick="toggleTrain(\\''+esc(t.email)+'\\','+(trainOn?'0':'1')+')">'+(trainOn?'ON':'OFF')+'</button>';
-    const quotaUsed=t.requests_used||0;
-    const quotaMax=t.quota_monthly||1000;
-    const quotaPct=Math.min(100,Math.round(quotaUsed/quotaMax*100));
-    const quotaColor=quotaPct>=90?'#f87171':quotaPct>=70?'#fbbf24':'#4ade80';
-    const quotaDisplay='<span style="color:'+quotaColor+'">'+quotaUsed+'/'+quotaMax+'</span>';
-    const actions=t.status==='active'?'<a href="#" onclick="revoke(\\''+esc(t.email)+'\\')" style="font-size:11px">Revoke</a> <a href="#" onclick="editQuota(\\''+esc(t.email)+'\\','+t.quota_monthly+',\\''+(t.plan||'free')+'\\')" style="font-size:11px;margin-left:6px">Quota</a>':'';
-    const tcAgreed=t.tc_agreed===1||t.tc_agreed===true;
-    const tcDisplay='<span style="color:'+(tcAgreed?'#4ade80':'#f87171')+'">'+(tcAgreed?'✓':'✗')+'</span>';
-    const planName=t.plan||'free';
-    const planColors={free:'#7d8187',median:'#00f0ff',pro:'#f59e0b',enterprise:'#ec4899'};
-    const planDisplay='<span style="color:'+(planColors[planName]||'#7d8187')+';font-size:10px;text-transform:capitalize">'+planName+'</span>';
-    return '<tr><td class="email" title="'+esc(t.email)+'">'+esc(t.email)+'</td><td>'+planDisplay+'</td><td><span class="status '+t.status+'">'+t.status+'</span></td><td style="font-size:11px">'+connected+'</td><td style="font-size:11px">'+tcDisplay+'</td><td style="max-width:80px;overflow:hidden;text-overflow:ellipsis">'+(t.token?t.token.substring(0,8)+'...':'-')+'</td><td>'+quotaDisplay+'</td><td>'+trainBtn+'</td><td style="font-size:10px">'+date+'</td><td>'+actions+'</td></tr>';
+    const q=quotaDisplay(t);
+    return '<tr><td class="email" title="'+esc(t.email)+'">'+esc(t.email)+'</td><td>'+planDisplay(t)+'</td>'
+      +'<td><span class="status '+esc(t.status)+'">'+esc(t.status)+'</span></td>'
+      +'<td style="font-size:11px">'+connectedDisplay(t)+'</td>'
+      +'<td style="font-size:11px">'+tcDisplay(t)+'</td>'
+      +'<td style="max-width:80px;overflow:hidden;text-overflow:ellipsis">'+(t.token?esc(t.token.substring(0,8))+'...':'-')+'</td>'
+      +'<td>'+q.html+'</td><td>'+trainBtn(t)+'</td>'
+      +'<td style="font-size:10px">'+date+'</td><td>'+actionsHtml(t)+'</td></tr>';
   }).join('');
+
+  document.getElementById('card-grid').innerHTML=tokens.map(t=>{
+    const date=new Date(t.created_at).toLocaleDateString();
+    const q=quotaDisplay(t);
+    return '<div class="tcard">'
+      +'<div class="tcard-top"><div class="tcard-email">'+esc(t.email)+'</div><span class="status '+esc(t.status)+'">'+esc(t.status)+'</span></div>'
+      +'<div class="tcard-grid">'
+        +'<div class="tcard-k">Plan</div><div class="tcard-v">'+planDisplay(t)+'</div>'
+        +'<div class="tcard-k">Quota</div><div class="tcard-v">'+q.html+'</div>'
+        +'<div class="tcard-k">MCP</div><div class="tcard-v" style="font-size:11px">'+connectedDisplay(t)+'</div>'
+        +'<div class="tcard-k">T&amp;C</div><div class="tcard-v">'+tcDisplay(t)+'</div>'
+        +'<div class="tcard-k">Train</div><div class="tcard-v">'+trainBtn(t)+'</div>'
+        +'<div class="tcard-k">Token</div><div class="tcard-v">'+(t.token?esc(t.token.substring(0,8))+'...':'-')+'</div>'
+        +'<div class="tcard-k">Created</div><div class="tcard-v">'+date+'</div>'
+      +'</div>'
+      +'<div class="tcard-actions">'+actionsHtml(t)+'</div>'
+      +'</div>';
+  }).join('');
+}
+
+/* --- grid / list toggle --- */
+function setView(v){
+  document.body.dataset.view=v;
+  document.getElementById('vt-grid').setAttribute('aria-pressed', String(v==='grid'));
+  document.getElementById('vt-list').setAttribute('aria-pressed', String(v==='list'));
+  try{localStorage.setItem('dgui-admin-view',v)}catch(e){}
+}
+// Default to grid. localStorage can throw in private mode, so the default stands.
+try{
+  var savedView=localStorage.getItem('dgui-admin-view');
+  if(savedView==='list'||savedView==='grid') document.body.dataset.view=savedView;
+  else document.body.dataset.view='grid';
+}catch(e){document.body.dataset.view='grid'}
+(function(){
+  var v=document.body.dataset.view;
+  var g=document.getElementById('vt-grid'), l=document.getElementById('vt-list');
+  if(g) g.setAttribute('aria-pressed',String(v==='grid'));
+  if(l) l.setAttribute('aria-pressed',String(v==='list'));
+})();
+
+/* --- five-tap gate for the system panel ---
+   UI convenience only. The data behind it is already adminGate()-protected and is
+   aggregate-only, so this gates attention, not access. */
+var sysTaps=0, sysTimer=null;
+function tapSystem(){
+  sysTaps++;
+  clearTimeout(sysTimer);
+  // Idle window: five deliberate taps, not five stray ones.
+  sysTimer=setTimeout(function(){sysTaps=0},20000);
+  if(sysTaps>=5){
+    sysTaps=0;
+    var p=document.getElementById('panel-system');
+    p.hidden=!p.hidden;
+    if(!p.hidden) loadVisits();
+  }
+}
+
+/* --- page-visit sparkline --- */
+async function loadVisits(){
+  var box=document.getElementById('visit-spark');
+  try{
+    var r=await fetch('/api/admin/visits',{headers:getApiHeaders({})});
+    var d=await r.json();
+    if(d.error) return;
+    document.getElementById('sys-visits-today').textContent=d.today;
+    document.getElementById('sys-visits-total').textContent=d.total;
+    document.getElementById('spark-sum').textContent='last 30d: '+d.last_30;
+    var days=d.days||[];
+    var peak=Math.max.apply(null,days.map(function(x){return x.count}).concat([1]));
+    box.innerHTML=days.map(function(x){
+      var h=Math.max(1,Math.round(x.count/peak*72));
+      var title=x.day+' - '+x.count+' visit'+(x.count===1?'':'s');
+      return '<div class="spark-bar" data-zero="'+(x.count?0:1)+'" style="height:'+h+'px" title="'+title+'"></div>';
+    }).join('');
+  }catch(e){/* fail open: the panel just shows nothing */}
+}
+
+/* --- activity dot-and-connector visualiser --- */
+const ACT_COLORS={add:'#4ade80',update:'#22c7dc',supersede:'#f59e0b',forget:'#f87171',search:'#a78bfa'};
+async function loadActivity(){
+  var canvas=document.getElementById('act-canvas');
+  try{
+    var r=await fetch('/api/admin/activity?limit=60',{headers:getApiHeaders({})});
+    var d=await r.json();
+    if(d.error) return;
+    var nodes=d.nodes||[];
+    var counts=d.counts||{};
+    document.getElementById('activity-summary').textContent=
+      Object.keys(counts).map(function(k){return k+' '+counts[k]}).join(' · ')||'none';
+    document.getElementById('act-legend').innerHTML=Object.keys(ACT_COLORS).map(function(k){
+      return '<span><i style="background:'+ACT_COLORS[k]+'"></i>'+k+(counts[k]?' ('+counts[k]+')':'')+'</span>';
+    }).join('');
+    if(!nodes.length){
+      canvas.innerHTML='<div class="act-empty">No memory activity recorded in the last 7 days.</div>';
+      return;
+    }
+    var W=canvas.clientWidth||600, H=canvas.clientHeight||220;
+    // Oldest left -> newest right, so the connectors read as a timeline.
+    var ordered=nodes.slice().reverse();
+    var t0=ordered[0].at, t1=ordered[ordered.length-1].at||t0+1;
+    var span=Math.max(t1-t0,1);
+    var pts=ordered.map(function(n){
+      var x=24+((n.at-t0)/span)*(W-48);
+      // search events carry a result count; stack them on a sine so overlapping
+      // dots at the same instant stay individually visible.
+      var jitter=n.results?Math.sin((n.at%997)/997*Math.PI*2)*34:0;
+      var y=H/2+jitter;
+      return {n:n,x:x,y:y};
+    });
+    var svg='<svg class="act-svg" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none">';
+    for(var i=1;i<pts.length;i++){
+      var a=pts[i-1],b=pts[i];
+      var stroke=(ACT_COLORS[b.n.kind]||'#22c7dc');
+      svg+='<line x1="'+a.x+'" y1="'+a.y+'" x2="'+b.x+'" y2="'+b.y+'" stroke="'+stroke+'" stroke-width="1" opacity=".35"/>';
+    }
+    svg+='</svg>';
+    var html=svg;
+    pts.forEach(function(p){
+      var color=ACT_COLORS[p.n.kind]||'#22c7dc';
+      var size=p.n.results?10+Math.min(10,p.n.results):8;
+      var when=new Date(p.n.at).toLocaleString();
+      var tip=p.n.kind+' · '+when+(p.n.results?' · '+p.n.results+' results':'');
+      html+='<div class="act-node" style="left:'+p.x+'px;top:'+p.y+'px">'
+        +'<div class="act-dot" style="width:'+size+'px;height:'+size+'px;background:'+color+';color:'+color+'"></div>'
+        +'<div class="act-tip">'+esc(tip)+'</div></div>';
+    });
+    canvas.innerHTML=html;
+  }catch(e){canvas.innerHTML='<div class="act-empty">Activity unavailable.</div>'}
 }
 async function toggleTrain(email,val){
   if(!cp && !adminSession) return;

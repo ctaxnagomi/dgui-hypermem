@@ -86,7 +86,65 @@ footer{border-top:1px solid var(--border-glass);padding:48px 24px;text-align:cen
 footer p{font-size:14px;color:var(--text-muted)}footer a{color:var(--accent-cyan);text-decoration:none}
 .footer-links{display:flex;justify-content:center;gap:20px;flex-wrap:wrap;margin:16px 0}
 .footer-links a{font-size:12px;color:var(--text-muted);text-decoration:none;transition:color .2s}
-.footer-links a:hover{color:var(--accent-cyan)}
+.footer-links a:hover{color:var(--accent-cyan)}
+
+/* --- footer: transparent glass on mobile ---
+   The marketing footer is an opaque slab on desktop, which reads as dead weight
+   over the animated background. Below 720px it becomes a true glass panel: the
+   page gradient shows through, the blur is heavier to compensate for the lower
+   contrast, and safe-area insets keep it clear of the iOS home indicator. */
+@media(max-width:720px){
+  footer{border-top:1px solid rgba(255,255,255,.16);padding:32px 20px calc(32px + env(safe-area-inset-bottom,0px));margin-top:40px;background:linear-gradient(180deg,rgba(21,31,53,.34),rgba(14,21,38,.20));backdrop-filter:blur(22px) saturate(140%);-webkit-backdrop-filter:blur(22px) saturate(140%);box-shadow:0 -1px 0 rgba(255,255,255,.08) inset,0 -18px 40px -28px rgba(0,0,0,.9);border-radius:20px 20px 0 0;margin-left:-8px;margin-right:-8px}
+  footer p{color:var(--text-secondary)}
+  .footer-links{gap:14px}
+  .footer-links a{color:var(--text-secondary)}
+}
+/* No backdrop-filter support: fall back to a solid-enough tint so text stays
+   legible rather than sitting on raw animation. */
+@supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
+  @media(max-width:720px){footer{background:rgba(14,21,38,.94)}}
+}
+
+/* --- live-site carousel --- */
+.live-rail{position:relative;margin:0 auto 32px;max-width:1200px;padding:0 24px;overflow:hidden}
+.live-track{display:flex;gap:14px;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;scroll-behavior:smooth;padding-bottom:4px;cursor:grab;overscroll-behavior-x:contain}
+/* Invisible scrollbar, all engines. The rail is still keyboard-scrollable. */
+.live-track{scrollbar-width:none;-ms-overflow-style:none}
+.live-track::-webkit-scrollbar{width:0;height:0;display:none}
+.live-track.dragging{cursor:grabbing;scroll-behavior:auto;scroll-snap-type:none;user-select:none;-webkit-user-select:none}
+.live-card{flex:0 0 auto;width:min(320px,78vw);scroll-snap-align:center;border-radius:12px;overflow:hidden;border:1px solid var(--border-glass);background:var(--glass);box-shadow:var(--shadow);transition:border-color .2s,transform .2s}
+.live-card:hover{border-color:var(--accent-cyan);transform:translateY(-2px)}
+.live-frame{width:100%;height:190px;border:0;display:block;background:#0b1220}
+.live-head{display:flex;align-items:center;gap:8px;padding:10px 12px;font-size:12px;color:var(--text-secondary)}
+.live-head i{color:var(--accent-cyan);font-size:11px}
+.live-head span{margin-left:auto;font-size:10px;color:var(--text-muted)}
+/* Fallback card for a site that sends X-Frame-Options / frame-ancestors. */
+.live-card.blocked .live-frame{display:none}
+.live-blocked{display:none;height:190px;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:20px;text-align:center;background:linear-gradient(160deg,rgba(21,31,53,.9),rgba(12,20,36,.9))}
+.live-card.blocked .live-blocked{display:flex}
+.live-blocked i{font-size:22px;color:var(--text-muted)}
+.live-blocked p{font-size:11px;color:var(--text-muted);line-height:1.5;margin:0}
+@media(prefers-reduced-motion:reduce){.live-track{scroll-behavior:auto}.live-card:hover{transform:none}}
+
+/* --- solution lamp --- */
+.lamp-probe{margin:28px auto 0;max-width:640px;padding:18px 20px;background:var(--glass);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid var(--border-glass);border-radius:12px;box-shadow:var(--shadow);display:grid;grid-template-columns:auto 1fr;gap:14px;align-items:center;text-align:left}
+.lamp{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;color:var(--text-muted);background:rgba(8,13,24,.5);border:1px solid var(--border-glass);transition:color .35s,box-shadow .35s,background .35s}
+.lamp-title{font-size:13px;font-weight:500;color:var(--text-primary)}
+.lamp-sub{font-size:12px;color:var(--text-muted);margin-top:3px;line-height:1.5}
+/* Lit state. The glow is the only signal; no colour-only text is added, so the
+   result line below carries the actual meaning for screen readers. */
+.lamp.lit{color:#fbbf24;background:rgba(251,191,36,.10);border-color:rgba(251,191,36,.45);box-shadow:0 0 0 1px rgba(251,191,36,.18),0 0 26px -4px rgba(251,191,36,.55)}
+.lamp.checking{color:var(--accent-cyan)}
+.lamp-form{grid-column:1/-1;display:flex;gap:8px}
+.lamp-form input{flex:1;padding:12px 14px;background:rgba(8,13,24,.55);border:1px solid var(--border-glass);border-radius:8px;color:var(--text-primary);font-family:Inter,sans-serif;font-size:14px;outline:none}
+.lamp-form input:focus{border-color:var(--accent-cyan)}
+.lamp-form button{padding:12px 18px;background:var(--accent-cyan);color:#04121a;border:none;border-radius:8px;font-family:Inter,sans-serif;font-size:14px;font-weight:500;cursor:pointer;display:flex;align-items:center;gap:7px;white-space:nowrap}
+.lamp-form button:hover{background:var(--accent-cyan-deep)}
+.lamp-form button:disabled{opacity:.55;cursor:not-allowed}
+.lamp-result{grid-column:1/-1;font-size:12px;color:var(--text-muted);line-height:1.6;display:none}
+.lamp-result.show{display:block}
+.lamp-result strong{color:var(--accent-cyan);font-weight:500}
+@media(max-width:560px){.lamp-probe{grid-template-columns:1fr;padding:16px}.lamp{width:38px;height:38px;font-size:16px}.lamp-form{flex-direction:column}.lamp-form button{justify-content:center}}
 /* Pricing */
 .pricing-section{padding:30px 24px 60px}
 .pricing-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;max-width:1000px;margin:32px auto 0;padding:0 24px}
@@ -172,16 +230,30 @@ footer p{font-size:14px;color:var(--text-muted)}footer a{color:var(--accent-cyan
 <span><i class="fab fa-huggingface"></i> <a href="https://huggingface.co/datasets/ctaxnagomi/INSTRUCT_JEV" style="color:var(--accent)">Dataset</a></span>
 <span><i class="fas fa-chart-line"></i> <span id="visitor-count">--</span> total visits</span>
 </div>
+
+<!-- Solution lamp. Lights only when DGUI-HyperMem already holds a matching
+     memory. The probe returns a boolean and a count and nothing else, so no
+     stored content is ever exposed to an anonymous visitor. -->
+<div class="lamp-probe">
+<div class="lamp" id="lamp" aria-hidden="true"><i class="fas fa-lightbulb"></i></div>
+<div class="lamp-copy">
+<div class="lamp-title" id="lamp-title">Already solved?</div>
+<div class="lamp-sub" id="lamp-sub">Describe the problem and HyperMem checks its own memory before you spend a token.</div>
+</div>
+<form class="lamp-form" id="lamp-form" autocomplete="off">
+<input type="text" id="lamp-q" placeholder="e.g. my wrangler token keeps expiring" aria-label="Describe your problem">
+<button type="submit"><i class="fas fa-search"></i> Check</button>
+</form>
+<div class="lamp-result" id="lamp-result" role="status" aria-live="polite"></div>
+</div>
 </section>
-
-
-
 
 
 <section class="carousel-section">
 <div class="section-header"><div class="caption-mono"><i class="fas fa-globe"></i> Ecosystem</div><h2>DeckerGUI Sub-Product</h2></div>
 <div class="carousel-wrap"><div class="carousel-track" id="carousel-track"></div></div>
 </section>
+<!-- Live-site carousel lives in the footer; see LIVE_SITES below. -->
 <section class="pricing-section" id="pricing">
 <div class="section-header"><div class="caption-mono"><i class="fas fa-tags"></i> Plans</div><h2>Choose your plan.</h2></div>
 <div class="pricing-grid">
@@ -305,9 +377,15 @@ footer p{font-size:14px;color:var(--text-muted)}footer a{color:var(--accent-cyan
 </div>
 </div>
 </div>
-<footer>
-<div class="container" style="max-width:1200px;margin:0 auto;padding:0 24px">
-<p>DGUI-HyperMem — a <a href="https://deckergui.my">DeckerGUI</a> project</p>
+<footer>
+<!-- Live-site carousel: six real iframes of the DeckerGUI ecosystem, driven by
+     wheel/drag, scrollbar hidden. Sites that forbid framing fall back to a link
+     card (see SITES and frameOk in the script). -->
+<div class="live-rail" id="live-rail" tabindex="0" aria-label="DeckerGUI live sites">
+<div class="live-track" id="live-track"></div>
+</div>
+<div class="container" style="max-width:1200px;margin:0 auto;padding:0 24px">
+<p>DGUI-HyperMem — a <a href="https://deckergui.my">DeckerGUI</a> project</p>
 <div class="footer-links">
 <a href="/docs"><i class="fas fa-book"></i> How to Use</a>
 <a href="/privacy"><i class="fas fa-shield-alt"></i> Privacy</a>
@@ -355,8 +433,116 @@ function showToken(e,t){
   document.getElementById('crm-token-value').textContent=t;
   document.getElementById('crm-config').textContent=JSON.stringify({mcp:{"dgui-hypermem":{type:"remote",url:"https://dgui-hmem.deckergui.my/mcp",enabled:true,headers:{Authorization:"Bearer "+t}}}},null,2);
 }
-async function disableToken(){const e=document.getElementById('crm-email').value.trim(),p=prompt('Passkey to revoke:');if(!p)return;const r=await fetch('/api/disable-token',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email:e,passkey:p})});const d=await r.json();if(d.error)return alert(d.error);alert('Token revoked');location.reload();}
-async function sendEnterprise(){
+async function disableToken(){const e=document.getElementById('crm-email').value.trim(),p=prompt('Passkey to revoke:');if(!p)return;const r=await fetch('/api/disable-token',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email:e,passkey:p})});const d=await r.json();if(d.error)return alert(d.error);alert('Token revoked');location.reload();}
+
+/* --- solution lamp ---
+   Lights only when /api/solution-signal reports the store already holds a
+   matching memory. That endpoint returns a boolean and a count, never content,
+   so this reveals nothing about what is actually stored. */
+const lampEl=document.getElementById('lamp');
+const lampResult=document.getElementById('lamp-result');
+const lampSub=document.getElementById('lamp-sub');
+function lampState(cls,text){
+  lampEl.className='lamp'+(cls?' '+cls:'');
+  if(text!==undefined) lampSub.textContent=text;
+}
+document.getElementById('lamp-form').addEventListener('submit',async function(ev){
+  ev.preventDefault();
+  const q=document.getElementById('lamp-q').value.trim();
+  const btn=this.querySelector('button');
+  if(q.length<4){
+    lampState('','Give it a few more words so the check means something.');
+    lampResult.classList.remove('show');
+    return;
+  }
+  btn.disabled=true;
+  lampState('checking','Checking HyperMem memory...');
+  lampResult.classList.remove('show');
+  try{
+    const r=await fetch('/api/solution-signal?q='+encodeURIComponent(q));
+    const d=await r.json();
+    if(d.has){
+      lampState('lit','HyperMem already holds '+d.count+' matching memor'+(d.count===1?'y':'ies')+'.');
+      lampResult.innerHTML='A token lets you read the solution itself.';
+    }else if(d.confident){
+      lampState('','No stored memory matches that yet.');
+      lampResult.innerHTML='This one is not in memory. <strong>Get a free token</strong> and it will be after the first call.';
+    }else{
+      // The probe failed. Stay dark and say so rather than implying "no match".
+      lampState('','Could not check memory right now.');
+      lampResult.classList.remove('show');
+    }
+    lampResult.classList.add('show');
+  }catch(e){
+    lampState('','Could not reach the memory service.');
+    lampResult.classList.remove('show');
+  }
+  btn.disabled=false;
+});
+
+/* --- live-site carousel --- */
+const SITES=[
+  {name:'DeckerGUI',url:'https://deckergui.my',icon:'fa-globe',allow:true},
+  {name:'CTECX',url:'https://ctecx.deckergui.my',icon:'fa-diagram-project',allow:true},
+  // krackeddevs.com sends X-Frame-Options: DENY and CSP frame-ancestors 'none',
+  // so an iframe of it can only ever render as a blank box. Rather than ship a
+  // dead rectangle, render it as a link card.
+  {name:'KrackedDevs',url:'https://krackeddevs.com',icon:'fa-code',allow:false,reason:'This site refuses to be embedded.'},
+  {name:'DGUI App',url:'https://app.deckergui.my',icon:'fa-key',allow:true},
+  {name:'DeckerGUI Guild',url:'https://portfolios.deckergui.my',icon:'fa-id-badge',allow:true},
+  {name:'CORPUSLIB',url:'https://corpuslib-ui.deckergui.my',icon:'fa-book-open',allow:true}
+];
+(function buildRail(){
+  const track=document.getElementById('live-track');
+  if(!track) return;
+  track.innerHTML=SITES.map(function(s){
+    const esc=s.url.replace(/"/g,'&quot;');
+    const frame=s.allow
+      ?'<iframe class="live-frame" src="'+esc+'" loading="lazy" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin allow-popups allow-forms" title="'+s.name+'"></iframe>'
+      :'';
+    const blocked=s.allow?'':'<div class="live-blocked"><i class="fas fa-external-link-alt"></i><p>'+s.reason+'<br>Open it in a new tab.</p></div>';
+    const open=s.allow?'<a href="'+esc+'" target="_blank" rel="noopener noreferrer">open</a>':'<a href="'+esc+'" target="_blank" rel="noopener noreferrer">open</a>';
+    return '<div class="live-card'+(s.allow?'':' blocked')+'">'+frame+blocked
+      +'<div class="live-head"><i class="fas '+s.icon+'"></i>'+s.name+'<span>'+open+'</span></div></div>';
+  }).join('');
+})();
+
+// Wheel -> horizontal scroll. Only hijack the wheel when the rail is not already
+// at its horizontal extreme in the direction being scrolled, so the page keeps
+// scrolling vertically once the rail is exhausted.
+(function wheelRail(){
+  const rail=document.getElementById('live-rail');
+  const track=document.getElementById('live-track');
+  if(!rail||!track) return;
+  rail.addEventListener('wheel',function(ev){
+    if(ev.ctrlKey) return;                       // leave pinch-zoom alone
+    const max=track.scrollWidth-track.clientWidth;
+    if(max<=0) return;
+    const atStart=track.scrollLeft<=0;
+    const atEnd=track.scrollLeft>=max-1;
+    if((ev.deltaY<0&&atStart)||(ev.deltaY>0&&atEnd)) return;
+    ev.preventDefault();
+    track.scrollLeft+=ev.deltaY;
+  },{passive:false});
+
+  // Drag to pan, so the rail is usable without a horizontal scrollbar.
+  let down=false,sx=0,sl=0,moved=false;
+  track.addEventListener('pointerdown',function(ev){
+    if(ev.pointerType==='touch') return;          // native touch panning is better
+    down=true;moved=false;sx=ev.clientX;sl=track.scrollLeft;
+    track.classList.add('dragging');
+  });
+  window.addEventListener('pointermove',function(ev){
+    if(!down) return;
+    const dx=ev.clientX-sx;
+    if(Math.abs(dx)>3&&!moved){moved=true;track.setPointerCapture&&track.setPointerCapture(ev.pointerId)}
+    if(moved){ev.preventDefault();track.scrollLeft=sl-dx}
+  });
+  window.addEventListener('pointerup',function(){down=false;track.classList.remove('dragging')});
+  track.addEventListener('click',function(ev){if(moved){ev.preventDefault();moved=false}},true);
+})();
+
+async function sendEnterprise(){
   const n=document.getElementById('ent-name').value.trim(),e=document.getElementById('ent-email').value.trim(),c=document.getElementById('ent-company').value.trim(),m=document.getElementById('ent-message').value.trim();
   if(!n||!e||!m) return alert('Name, email and message are required');
   const btn=document.getElementById('enterprise-form').querySelector('.btn-primary');
