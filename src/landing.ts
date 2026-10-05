@@ -133,8 +133,20 @@ footer p{font-size:14px;color:var(--text-muted)}footer a{color:var(--accent-cyan
 .live-viewport{position:relative;width:100%;aspect-ratio:1280/800;overflow:hidden;border-radius:15px 15px 0 0;background:#0b1220;isolation:isolate}
 .live-frame{position:absolute;top:0;left:0;width:1280px;height:800px;border:0;display:block;background:#0b1220;transform-origin:top left;pointer-events:none}
 /* Interaction stays with the card, so a drag can never start inside the iframe,
-   whose document would swallow the pointer events. */
+   whose document would swallow the pointer events. This also freezes the
+   embedded page, which is what makes the scrollbar mask below safe: there is no
+   scrolling underneath it for the mask to ever cover up. */
 .live-viewport{pointer-events:none}
+/* Most of these pages are far taller than the 800px logical viewport (ctecx is
+   ~5500px, agent-kd-skill ~34500px), and this platform draws classic
+   space-taking scrollbars, so the nested page really does render one. It cannot
+   be styled from the parent -- a cross-origin document's scrollbar is not
+   reachable by CSS. So it is covered instead: a soft gradient down the right
+   edge and along the bottom, wide enough to cover a 15px logical scrollbar at
+   every card width, and shaped to read as a vignette rather than a patch. */
+.live-mask{position:absolute;pointer-events:none;z-index:2}
+.live-mask-r{top:0;right:0;bottom:0;width:9px;background:linear-gradient(to left,rgba(8,13,24,.92),rgba(8,13,24,0))}
+.live-mask-b{left:0;right:0;bottom:0;height:7px;background:linear-gradient(to top,rgba(8,13,24,.92),rgba(8,13,24,0))}
 .live-head{display:flex;align-items:center;gap:8px;padding:10px 12px;font-size:12px;color:var(--text-secondary);position:relative;z-index:4}
 .live-head i{color:var(--accent-cyan);font-size:11px}
 .live-head .live-actions{margin-left:auto;display:flex;align-items:center;gap:8px}
@@ -541,7 +553,13 @@ function escAttr(v){return String(v).replace(/&/g,'&amp;').replace(/"/g,'&quot;'
   track.innerHTML=SITES.map(function(s){
     const esc=escAttr(s.url);
     const frame=s.allow
-      ?'<div class="live-viewport"><iframe class="live-frame" src="'+esc+'" loading="lazy" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin allow-popups allow-forms" title="'+escAttr(s.name)+'"></iframe></div>'
+      ?'<div class="live-viewport">'
+        +'<iframe class="live-frame" src="'+esc+'" loading="lazy" referrerpolicy="no-referrer" scrolling="no" sandbox="allow-scripts allow-same-origin allow-popups allow-forms" title="'+escAttr(s.name)+'"></iframe>'
+        // Covers the nested page\'s scrollbar, which the parent cannot style.
+        // Safe only because .live-viewport is pointer-events:none, so the frame
+        // underneath is frozen and never scrolls behind the mask.
+        +'<div class="live-mask live-mask-r"></div><div class="live-mask live-mask-b"></div>'
+      +'</div>'
       :'';
     const blocked=s.allow?'':'<div class="live-blocked"><i class="fas fa-external-link-alt"></i><p>'+escAttr(s.reason||'')+'<br>Open it in a new tab.</p></div>';
     // "open" expands the card and deliberately does not navigate. The separate
