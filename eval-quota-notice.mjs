@@ -167,7 +167,36 @@ const r6 = await call({ email: EMAIL, quota_monthly: -5 }, { passkey: PASSKEY })
 check("negative quota is rejected", r6.body.error === "invalid quota", r6.body);
 check("rejected quota wrote no notice", notices().length === beforeBad, notices().length);
 
-// --- 7. every notice a real session would receive is deliverable -------------
+// --- 7. the admin API is not reachable from the public host -----------------
+// Every admin route must 404 on a non-admin hostname, so the admin surface is
+// not enumerable from the public one. Regression guard: visits and activity were
+// once missing from that set and answered with 401 instead.
+const ADMIN_ROUTES = [
+  "/api/admin/login", "/api/admin/tokens", "/api/admin/logs",
+  "/api/admin/toggle-train", "/api/admin/update-quota", "/api/admin/clock",
+  "/api/admin/stats", "/api/admin/visits", "/api/admin/activity",
+  "/api/setup-dataset",
+];
+const publicHostResults = {};
+for (const route of ADMIN_ROUTES) {
+  const res = await worker.fetch(
+    new Request("https://dgui-hmem.deckergui.my" + route, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ passkey: PASSKEY, email: EMAIL, quota_monthly: 1 }),
+    }),
+    env, {},
+  );
+  publicHostResults[route] = res.status;
+}
+const leaked = Object.entries(publicHostResults).filter(([, s]) => s !== 404);
+check("every admin route 404s on the public host", leaked.length === 0, leaked);
+check("the guard covers visits and activity",
+  publicHostResults["/api/admin/visits"] === 404 && publicHostResults["/api/admin/activity"] === 404,
+  publicHostResults);
+check("quota untouched by the rejected public-host calls", quotaNow().quota_monthly === 10000, quotaNow());
+
+// --- 8. every notice a real session would receive is deliverable -------------
 // takeUnreadQuotaNotices is what the MCP request path calls. Drive it through the
 // store so the delivery contract is proved against the rows just written.
 const { takeUnreadQuotaNotices } = await import(pathToFileURL(join(out, "store.mjs")).href).catch(() => ({}));

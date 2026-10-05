@@ -586,6 +586,11 @@ async function handleRest(request: Request, env: Env, path: string): Promise<Res
     "/api/admin/update-quota",
     "/api/admin/clock",
     "/api/admin/stats",
+    // These two were added without joining this set, so they were the only admin
+    // endpoints answering on the public host: still passkey-gated, so not open,
+    // but reachable and enumerable where every other admin route 404s.
+    "/api/admin/visits",
+    "/api/admin/activity",
     "/api/setup-dataset",
   ]);
   if (ADMIN_API.has(path) && url.hostname !== ADMIN_HOST) {
