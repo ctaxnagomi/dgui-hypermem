@@ -910,51 +910,35 @@ if (document.readyState === 'loading') {
     if (location.hash) history.replaceState(null, '', location.pathname + location.search);
   };
   // Layout here is not final when the script runs. The six carousel iframes have
-  // not loaded, so everything below the fold can still be collapsed and the
-  // document may not be tall enough to scroll to #crm at all. One scrollIntoView
-  // at DOMContentLoaded therefore lands at the top of a page that is about to
-  // grow past the target -- verified live: the fragment was stripped but the
-  // section sat 2407px below the viewport.
+  // not loaded, so everything below the fold is still collapsed and the document
+  // is not tall enough to scroll to #crm at all. A single scrollIntoView at
+  // DOMContentLoaded therefore cannot move: verified live, the fragment was
+  // stripped while the section sat 2407px below the viewport.
   //
-  // So the position is re-asserted while the layout is still moving, and the
-  // loop stops as soon as the target holds still. The first move is smooth for a
-  // click; the re-assertions are instant, because repeatedly restarting a
-  // smooth scroll would fight itself and never arrive.
+  // Deferred to the load event instead, which fires once every subframe has
+  // loaded and the layout is finally real. One delayed re-place at +400ms covers
+  // an iframe that reflows its own content just after reporting loaded.
   //
-  // The signal is the target's own position in the scroll container, NOT the
-  // document height. This page scrolls BODY (overflow-y:auto inside a
-  // height:100% html), so documentElement.scrollHeight stays pinned at the
-  // viewport height and never changes. Watching it -- the version in cf23421 --
-  // made the loop give up after a single frame and did not work; verified live.
-  // The target's document position moves when the iframes above it expand, which
-  // is exactly the event worth re-asserting on.
-  const scrollTop = function () {
-    return document.body.scrollTop || document.documentElement.scrollTop || window.scrollY || 0;
-  };
+  // This is deliberately NOT a requestAnimationFrame polling loop. Two earlier
+  // attempts used one -- re-asserting on documentElement.scrollHeight, then on
+  // the target's own offset -- and both were wrong: this page scrolls BODY inside
+  // a height:100% html, so documentElement.scrollHeight never changes, and a
+  // per-frame loop that fights the carousel's own scroll handling pegged the
+  // page hard enough that evaluate calls timed out. The click path needs none of
+  // this: the page is already laid out by then, and it lands exactly.
   const place = function (target, smooth) {
     target.scrollIntoView({ behavior: smooth && !reduced() ? 'smooth' : 'auto', block: 'start' });
   };
-  const settle = function (target) {
-    place(target, true);
-    var lastTop = null;
-    var deadline = Date.now() + 6000;
-    var tick = function () {
-      if (Date.now() > deadline) return;
-      // Where the target currently sits in the scrolled content. If layout above
-      // it grew, this changes and the earlier scroll now points at the wrong
-      // place, so put it back.
-      var top = Math.round(target.getBoundingClientRect().top + scrollTop());
-      if (top !== lastTop) {
-        lastTop = top;
-        place(target, false);
-      }
-      requestAnimationFrame(tick);
-    };
-    requestAnimationFrame(tick);
+  const afterLayout = function (target) {
+    place(target, false);
+    setTimeout(function () { place(target, false); }, 400);
   };
-  const goTo = function (target) {
+  const goTo = function (target, cold) {
     strip();
-    settle(target);
+    place(target, true);
+    if (!cold) return;
+    if (document.readyState === 'complete') afterLayout(target);
+    else window.addEventListener('load', function () { afterLayout(target); }, { once: true });
   };
 
   document.addEventListener('click', function (ev) {
@@ -964,7 +948,9 @@ if (document.readyState === 'loading') {
     const target = id ? document.getElementById(id) : null;
     if (!target) return; // not a real fragment target: leave the URL untouched
     ev.preventDefault();
-    goTo(target);
+    // The page is already laid out when a visitor clicks, so no cold-load
+    // handling is needed here.
+    goTo(target, false);
   });
 
   // A fragment can also change without the page reloading -- editing the address
@@ -973,22 +959,18 @@ if (document.readyState === 'loading') {
   // does not itself fire hashchange, so there is no loop.
   window.addEventListener('hashchange', function () {
     const target = location.hash ? document.getElementById(location.hash.slice(1)) : null;
-    if (target) goTo(target); else strip();
+    // Still a cold load if the iframes have not finished: the same-document
+    // navigation can happen well before the load event.
+    if (target) goTo(target, document.readyState !== 'complete'); else strip();
   });
 
   // A URL pasted or reloaded with a fragment still has to reach its section,
-  // then lose the fragment. Nothing to scroll to means nothing to strip.
+  // then lose the fragment. Nothing to scroll to means nothing to strip. This is
+  // the cold path, so the placement waits for the layout.
   if (location.hash) {
     const target = document.getElementById(location.hash.slice(1));
-    if (target) {
-      if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', function () { goTo(target); });
-      } else {
-        goTo(target);
-      }
-    } else {
-      strip();
-    }
+    if (target) goTo(target, true);
+    else strip();
   }
 })();
 </script>
