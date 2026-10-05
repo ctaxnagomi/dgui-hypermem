@@ -665,7 +665,8 @@ function escAttr(v){return String(v).replace(/&/g,'&amp;').replace(/"/g,'&quot;'
   },{passive:false});
 
   // --- velocity tracking -------------------------------------------------
-  let pid=null,sx=0,sy=0,sl=0,axis=null,dragging=false,raf=0,vel=0,movedFar=false,samples=[];
+  let pid=null,sx=0,sy=0,sl=0,axis=null,dragging=false,raf=0,vel=0,movedFar=false,samples=[],glideStart=0;
+  const nowMs=function(){return (window.performance&&performance.now)?performance.now():Date.now();};
   const pushSample=function(t,x){samples.push([t,x]);if(samples.length>6)samples.shift();};
   const velocity=function(){
     if(samples.length<2) return 0;
@@ -708,9 +709,9 @@ function escAttr(v){return String(v).replace(/&/g,'&amp;').replace(/"/g,'&quot;'
     const target=snapTarget();
     if(target===null||Math.abs(target-clamped)<=1){track.classList.remove('dragging');return;}
     if(reduced()){track.scrollLeft=target;track.classList.remove('dragging');return;}
-    const from=clamped,dist=target-from,t0=(window.performance&&performance.now?performance.now():Date.now()),DUR=360;
+    const from=clamped,dist=target-from,t0=nowMs(),DUR=280;
     const step=function(){
-      const p=Math.min(1,((window.performance&&performance.now?performance.now():Date.now())-t0)/DUR);
+      const p=Math.min(1,(nowMs()-t0)/DUR);
       const e=1-Math.pow(1-p,3);
       track.scrollLeft=from+dist*e;
       if(p<1){requestAnimationFrame(step);return;}
@@ -720,13 +721,18 @@ function escAttr(v){return String(v).replace(/&/g,'&amp;').replace(/"/g,'&quot;'
     requestAnimationFrame(step);
   };
 
+  // A glide must always be over quickly. Pure exponential decay from a fast
+  // flick ran past 1.5s, which reads as the carousel being stuck, so the
+  // velocity is capped, decay is steepened, and the glide has a hard time limit.
+  // iOS settles in well under half a second.
   const glide=function(){
+    if(!glideStart) glideStart=nowMs();
     const next=track.scrollLeft+vel;
     setScroll(next);
     // Bleed harder against a wall than in open water, so hitting the end feels
     // like arriving rather than like a collision.
-    vel*=Math.abs(shift)>0.5?0.3:0.94;
-    if(Math.abs(vel)<0.4){raf=0;settle();return;}
+    vel*=Math.abs(shift)>0.5?0.3:0.9;
+    if(Math.abs(vel)<0.5||nowMs()-glideStart>650){raf=0;glideStart=0;settle();return;}
     raf=requestAnimationFrame(glide);
   };
 
@@ -772,6 +778,10 @@ function escAttr(v){return String(v).replace(/&/g,'&amp;').replace(/"/g,'&quot;'
     // flicked it. Sampling stale positions would otherwise fling it anyway.
     const last=samples.length?samples[samples.length-1][0]:0;
     vel=(ev&&ev.timeStamp-last<90)?velocity():0;
+    // Cap the launch speed. A 5-sample window can produce an absurd px/frame from
+    // a fast synthetic or jittery flick, and an uncapped one overshoots the whole
+    // rail before the decay bites.
+    vel=Math.max(-45,Math.min(45,vel));
     if(reduced()||!vel){track.classList.remove('dragging');settle();return;}
     track.classList.add('dragging');
     raf=requestAnimationFrame(glide);
