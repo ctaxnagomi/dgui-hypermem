@@ -753,11 +753,16 @@ export async function listQuotaNotices(
   await ensureNoticeTable(env);
   // `data` comes back as the raw JSON text, so the row type is deliberately not
   // QuotaNotice -- its `data` is the parsed object.
+  //
+  // rowid is the tiebreaker on ordering. Two notices written in the same
+  // millisecond have an identical created_at, and SQLite is free to order
+  // equal keys any way it likes, so without it the history list reshuffled
+  // between identical queries. rowid is monotonic with insertion.
   const res = await env.DB.prepare(
     `SELECT id, email, kind, message, data, created_at, read_at
        FROM quota_notices
       WHERE email = ?1 ${unreadOnly ? "AND read_at IS NULL" : ""}
-      ORDER BY created_at DESC
+      ORDER BY created_at DESC, rowid DESC
       LIMIT ?2`,
   )
     .bind(email, Math.max(1, Math.min(limit, 100)))
@@ -788,7 +793,11 @@ export async function ackQuotaNotices(env: Env, email: string, ids?: string[]): 
   // Only the placeholder list is interpolated; every value is bound, and the
   // clause is additionally scoped to this email so an id from another account
   // can never be acked.
-  const ph = ids.map((_, i) => `?${i + 2}`).join(",");
+  //
+  // The ids start at ?3, not ?2: ?1 is read_at and ?2 is email, and starting at
+  // ?2 made a single-id ack compare id against the email while overflowing the
+  // bind, so acking exactly one notice never worked.
+  const ph = ids.map((_, i) => `?${i + 3}`).join(",");
   const some = await env.DB.prepare(
     `UPDATE quota_notices SET read_at = ?1 WHERE email = ?2 AND id IN (${ph})`,
   )
