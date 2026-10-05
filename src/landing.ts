@@ -915,30 +915,42 @@ if (document.readyState === 'loading') {
   // DOMContentLoaded therefore cannot move: verified live, the fragment was
   // stripped while the section sat 2407px below the viewport.
   //
-  // Deferred to the load event instead, which fires once every subframe has
-  // loaded and the layout is finally real. One delayed re-place at +400ms covers
-  // an iframe that reflows its own content just after reporting loaded.
+  // Re-placed on a short fixed schedule rather than on the load event alone.
+  // load looked like the right signal but is not dependable: if any one subframe
+  // is slow or blocked, readyState stays "interactive", load never fires, and a
+  // deep link never scrolls at all -- reproduced in headless Chrome, where
+  // readyState was still "interactive" with the page fully laid out.
   //
-  // This is deliberately NOT a requestAnimationFrame polling loop. Two earlier
-  // attempts used one -- re-asserting on documentElement.scrollHeight, then on
-  // the target's own offset -- and both were wrong: this page scrolls BODY inside
-  // a height:100% html, so documentElement.scrollHeight never changes, and a
-  // per-frame loop that fights the carousel's own scroll handling pegged the
-  // page hard enough that evaluate calls timed out. The click path needs none of
-  // this: the page is already laid out by then, and it lands exactly.
+  // Four timed re-placements cost nothing. This is deliberately NOT a
+  // requestAnimationFrame loop: two earlier attempts used one, and per-frame
+  // scrollIntoView fights the carousel's own scroll handling hard enough to peg
+  // the page (evaluate calls started timing out). The click path needs none of
+  // this -- the page is already laid out when a visitor clicks, and it lands
+  // exactly on the section.
   const place = function (target, smooth) {
     target.scrollIntoView({ behavior: smooth && !reduced() ? 'smooth' : 'auto', block: 'start' });
   };
   const afterLayout = function (target) {
     place(target, false);
-    setTimeout(function () { place(target, false); }, 400);
+    var cancelled = false;
+    // The retry window is a few seconds long. If the visitor decides to scroll
+    // during it, yanking the page back would be worse than the original problem,
+    // so any manual scroll input abandons the remaining re-placements.
+    var bail = function () { cancelled = true; };
+    window.addEventListener('wheel', bail, { passive: true, once: true });
+    window.addEventListener('touchstart', bail, { passive: true, once: true });
+    window.addEventListener('keydown', bail, { once: true });
+    [300, 900, 1800, 3200].forEach(function (ms) {
+      setTimeout(function () { if (!cancelled) place(target, false); }, ms);
+    });
   };
   const goTo = function (target, cold) {
     strip();
     place(target, true);
     if (!cold) return;
-    if (document.readyState === 'complete') afterLayout(target);
-    else window.addEventListener('load', function () { afterLayout(target); }, { once: true });
+    afterLayout(target);
+    // load is a late bonus, not the mechanism: it only helps when it does fire.
+    window.addEventListener('load', function () { place(target, false); }, { once: true });
   };
 
   document.addEventListener('click', function (ev) {
