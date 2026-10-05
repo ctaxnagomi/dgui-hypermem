@@ -192,7 +192,7 @@ export async function handleStripeWebhook(env: any, request: Request): Promise<R
             await env.DB.prepare(
               "UPDATE tokens SET plan = ?, quota_monthly = ?, quota_override = NULL, requests_used = 0, requests_reset_at = ?, updated_at = ? WHERE email = ?",
             ).bind(plan, planQuota(plan), now() + 30 * 86400 * 1000, now(), email).run();
-            await logCrmAction(env, email, "stripe_subscription", `plan: ${plan} via ${session.id}`, request).run();
+            await logCrmAction(env, email, "stripe_subscription", `plan: ${plan} via ${session.id}`, request);
           } else {
             console.error(`subscription ${session.id}: unmapped price ${priceId}`, { email, priceId });
           }

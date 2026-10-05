@@ -720,11 +720,11 @@ function adminJson(result: Record<string, any>): Response {
 async function handleAdminLogin(env: Env, body: Record<string, any>, request: Request): Promise<Record<string, any>> {
   const passkey = typeof body.passkey === "string" && body.passkey ? body.passkey : "";
   if (!passkey || !isAdmin(passkey, env)) {
-    await logCrmAction(env, "unknown", "admin_login_fail", "failed admin login attempt", request).run().catch(() => {});
+    await logCrmAction(env, "unknown", "admin_login_fail", "failed admin login attempt", request).catch(() => {});
     return { error: "unauthorized" };
   }
   const session = await createAdminSession(env);
-  await logCrmAction(env, "admin", "admin_login_success", "admin login", request).run().catch(() => {});
+  await logCrmAction(env, "admin", "admin_login_success", "admin login", request).catch(() => {});
   return { status: "ok", session: session || null };
 }
 
@@ -744,7 +744,6 @@ async function handleDeviceRegister(env: Env, body: Record<string, any>, url: UR
   const auth = await adminGate(env, request, body, url);
   if (!auth.ok) {
     await logCrmAction(env, "unknown", "admin_device_register_fail", "unauthenticated device registration", request)
-      .run()
       .catch(() => {});
     if (auth.reason === "totp_required") return { error: "totp_required" };
     return { error: "unauthorized" };
@@ -758,7 +757,7 @@ async function handleDeviceRegister(env: Env, body: Record<string, any>, url: UR
   // later, with registration looking innocent.
   if (!(await isValidDevicePublicKey(publicKey))) return { error: "invalid public key" };
   await registerDevice(env, id, name, publicKey, url.hostname);
-  await logCrmAction(env, "admin", "admin_device_register", `registered admin device ${name}`, request).run().catch(() => {});
+  await logCrmAction(env, "admin", "admin_device_register", `registered admin device ${name}`, request).catch(() => {});
   return { status: "registered", id, name, origin: url.hostname };
 }
 
@@ -779,7 +778,6 @@ async function handleDeviceVerify(env: Env, body: Record<string, any>, url: URL,
   // endpoint to learn whether a device id exists.
   const denied = async (why: string) => {
     await logCrmAction(env, "unknown", "admin_device_verify_fail", `device auth failed (${why})`, request)
-      .run()
       .catch(() => {});
     return { error: "unauthorized" };
   };
@@ -796,7 +794,6 @@ async function handleDeviceVerify(env: Env, body: Record<string, any>, url: URL,
   await touchDevice(env, id).catch(() => {});
   const session = await createAdminSession(env);
   await logCrmAction(env, "admin", "admin_device_login", `admin login via device ${device.name}`, request)
-    .run()
     .catch(() => {});
   return { status: "ok", session: session || null, device: { id: device.id, name: device.name } };
 }
@@ -811,7 +808,7 @@ async function handleAdminDevices(env: Env, body: Record<string, any>, url: URL,
     const id = typeof body.id === "string" ? body.id.trim() : "";
     if (!isValidDeviceId(id)) return { error: "invalid device id" };
     const revoked = await revokeDevice(env, id);
-    await logCrmAction(env, "admin", "admin_device_revoke", `revoked admin device ${id}`, request).run().catch(() => {});
+    await logCrmAction(env, "admin", "admin_device_revoke", `revoked admin device ${id}`, request).catch(() => {});
     return { status: revoked ? "revoked" : "not found" };
   }
   const devices = await listDevices(env);
@@ -823,11 +820,11 @@ async function handleAdminDevices(env: Env, body: Record<string, any>, url: URL,
 async function handleAdminTokens(env: Env, body: Record<string, any>, url: URL, request: Request): Promise<Record<string, any>> {
   const auth = await adminGate(env, request, body, url);
   if (!auth.ok) {
-    await logCrmAction(env, "unknown", "admin_login_fail", `failed admin token list attempt`, request).run().catch(() => {});
+    await logCrmAction(env, "unknown", "admin_login_fail", `failed admin token list attempt`, request).catch(() => {});
     if (auth.reason === "totp_required") return { error: "totp_required" };
     return { error: "unauthorized" };
   }
-  await logCrmAction(env, "admin", "admin_login_success", "viewed token list", request).run().catch(() => {});
+  await logCrmAction(env, "admin", "admin_login_success", "viewed token list", request).catch(() => {});
   const { results } = await env.DB.prepare("SELECT id, email, status, token, plan, quota_monthly, requests_used, requests_reset_at, train_with_all, has_connected, tc_agreed, created_at, updated_at FROM tokens ORDER BY created_at DESC LIMIT 500").bind().all<{ id: string; email: string; status: string; token: string | null; plan: string; quota_monthly: number; requests_used: number; requests_reset_at: number | null; train_with_all: number; has_connected: number; tc_agreed: number; created_at: number; updated_at: number }>();
   return { tokens: results || [] };
 }
@@ -919,11 +916,11 @@ function isAdmin(passkey: string, env: Env): boolean {
 async function handleAdminLogs(env: Env, body: Record<string, any>, url: URL, request: Request): Promise<Record<string, any>> {
   const auth = await adminGate(env, request, body, url);
   if (!auth.ok) {
-    await logCrmAction(env, "unknown", "admin_logs_fail", "failed admin logs attempt", request).run().catch(() => {});
+    await logCrmAction(env, "unknown", "admin_logs_fail", "failed admin logs attempt", request).catch(() => {});
     if (auth.reason === "totp_required") return { error: "totp_required" };
     return { error: "unauthorized" };
   }
-  await logCrmAction(env, "admin", "admin_logs_success", "viewed admin logs", request).run().catch(() => {});
+  await logCrmAction(env, "admin", "admin_logs_success", "viewed admin logs", request).catch(() => {});
   const limit = Math.min(Math.max(Number(body.limit || url.searchParams.get("limit") || 100), 1), 500);
   const filterEmail = url.searchParams.get("email") || "";
   const filterAction = url.searchParams.get("action") || "";
@@ -1110,7 +1107,7 @@ async function handleVisitor(env: Env): Promise<Record<string, any>> {
 async function handleAdminVisits(env: Env, body: Record<string, any>, url: URL, request: Request): Promise<Record<string, any>> {
   const auth = await adminGate(env, request, body, url);
   if (!auth.ok) {
-    await logCrmAction(env, "unknown", "admin_visits_fail", "failed admin visits attempt", request).run().catch(() => {});
+    await logCrmAction(env, "unknown", "admin_visits_fail", "failed admin visits attempt", request).catch(() => {});
     if (auth.reason === "totp_required") return { error: "totp_required" };
     return { error: "unauthorized" };
   }
@@ -1219,13 +1216,13 @@ async function handleRequestToken(env: Env, body: Record<string, any>, request: 
   const existing = await env.DB.prepare("SELECT id, status, token, train_with_all, tc_agreed FROM tokens WHERE email = ?").bind(email).first<{ id: string; status: string; token: string | null; train_with_all: number; tc_agreed: number }>();
   if (existing) {
     if (existing.status === "active" && existing.token) {
-      await logCrmAction(env, email, "token_retrieved", "re-issued existing token", request).run();
+      await logCrmAction(env, email, "token_retrieved", "re-issued existing token", request);
       return { status: "active", token: existing.token, train_with_all: !!existing.train_with_all, tc_agreed: !!existing.tc_agreed };
     }
     const token = uuid();
     await Promise.all([
       env.DB.prepare("UPDATE tokens SET status = 'active', token = ?, updated_at = ? WHERE id = ?").bind(token, now(), existing.id).run(),
-      logCrmAction(env, email, isMaster ? "token_master_issue" : "token_reissued", "re-activated disabled token", request).run(),
+      logCrmAction(env, email, isMaster ? "token_master_issue" : "token_reissued", "re-activated disabled token", request),
     ]);
     return { status: "active", token, train_with_all: true };
   }
@@ -1239,7 +1236,7 @@ async function handleRequestToken(env: Env, body: Record<string, any>, request: 
   await Promise.all([
     env.DB.prepare("INSERT INTO tokens (id, email, github_username, status, token, plan, quota_monthly, tc_agreed, created_at, updated_at) VALUES (?, ?, ?, 'active', ?, 'free', 5600, ?, ?, ?)")
       .bind(uuid(), email, email, token, tcValue, now(), now()).run(),
-    logCrmAction(env, email, isMaster ? "token_master_created" : "token_created", "new token via CRM", request).run(),
+    logCrmAction(env, email, isMaster ? "token_master_created" : "token_created", "new token via CRM", request),
   ]);
   return { status: "active", token, train_with_all: true, tc_agreed: true };
 }
@@ -1268,7 +1265,7 @@ async function handleDisableToken(env: Env, body: Record<string, any>, request: 
   const row = await env.DB.prepare("SELECT id, status FROM tokens WHERE email = ?").bind(email).first<{ id: string; status: string }>();
   if (!row) return { error: "no token found" };
   if (row.status === "disabled") {
-    await logCrmAction(env, email, "token_disabled_again", "attempted re-disable", request).run();
+    await logCrmAction(env, email, "token_disabled_again", "attempted re-disable", request);
     return { status: "disabled" };
   }
   await Promise.all([
@@ -1279,7 +1276,7 @@ async function handleDisableToken(env: Env, body: Record<string, any>, request: 
     env.DB.prepare("UPDATE oauth_access_tokens SET revoked = 1 WHERE user_id = ?").bind(row.id).run(),
     env.DB.prepare("UPDATE oauth_codes SET used = 1 WHERE user_id = ? AND used = 0").bind(row.id).run(),
     logCrmAction(env, email, isMaster ? "token_master_disabled" : "token_disabled",
-      isMaster ? "token and OAuth grants revoked" : "token revoked, OAuth grants revoked", request).run(),
+      isMaster ? "token and OAuth grants revoked" : "token revoked, OAuth grants revoked", request),
   ]);
   return { status: "disabled" };
 }
@@ -1381,11 +1378,11 @@ async function handleVerifyToken(env: Env, request: Request): Promise<Record<str
 async function handleAdminStats(env: Env, body: Record<string, any>, url: URL, request: Request): Promise<Record<string, any>> {
   const auth = await adminGate(env, request, body, url);
   if (!auth.ok) {
-    await logCrmAction(env, "unknown", "admin_stats_fail", "failed admin stats attempt", request).run().catch(() => {});
+    await logCrmAction(env, "unknown", "admin_stats_fail", "failed admin stats attempt", request).catch(() => {});
     if (auth.reason === "totp_required") return { error: "totp_required" };
     return { error: "unauthorized" };
   }
-  await logCrmAction(env, "admin", "admin_stats_success", "viewed admin stats", request).run().catch(() => {});
+  await logCrmAction(env, "admin", "admin_stats_success", "viewed admin stats", request).catch(() => {});
   const now_ = now();
   const day = 86400 * 1000;
   const month = 30 * day;

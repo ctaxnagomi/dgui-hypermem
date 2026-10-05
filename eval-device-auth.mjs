@@ -86,14 +86,20 @@ db.prepare(
   "INSERT INTO tokens (id,email,github_username,status,token,plan,quota_monthly,requests_used,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?)",
 ).run("tok-dev", EMAIL, "device-test", "active", "secret-token-dev", "free", 5600, 1, ts, ts);
 
-// crm_logs as the real schema has it. logCrmAction inserts a `device` column that
-// no migration creates, so the stock migrations alone make every admin handler
-// that logs throw SQLITE_ERROR -- including the pre-existing ones. That is a real
-// production/schema drift, not a test artefact, so the fix belongs here rather
-// than in a mock: production's crm_logs evidently has the column and the
-// migration set does not describe it. Applying the stock set, then widening it to
-// match what the deployed table actually is.
-db.exec("ALTER TABLE crm_logs ADD COLUMN device TEXT");
+// crm_logs is deliberately NOT widened here. It is left exactly as the stock
+// migrations create it -- with no `device` column -- so nothing in this suite
+// depends on the drift being papered over.
+//
+// Note that this suite CANNOT prove the crm_logs fix, and deliberately does not
+// pretend to. 11 logCrmAction call sites end in .catch(() => {}), so a failed
+// audit write is silent by design and the request still returns 200. Asserting
+// on handler responses therefore cannot observe it; breaking the fix leaves this
+// suite fully green. eval-crm-logs.mjs calls logCrmAction directly and is the
+// suite that guards the fix.
+//
+// Production's crm_logs does have the column (added out of band), which is why
+// the bug was invisible there and fatal on any fresh database. util.ts now
+// self-heals via ensureCrmLogsDevice().
 
 let failed = 0;
 const check = (name, cond, detail) => {

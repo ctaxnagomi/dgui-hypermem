@@ -70,7 +70,7 @@ export async function handleStartTrial(env: Env, body: Record<string, any>, requ
     return json({ error: "trial already used" }, { status: 409 });
   }
 
-  await logCrmAction(env, email, "trial_started", `${TRIAL_DAYS}-day ${TRIAL_PLAN} trial claimed`, request).run();
+  await logCrmAction(env, email, "trial_started", `${TRIAL_DAYS}-day ${TRIAL_PLAN} trial claimed`, request);
   return json({
     status: "active",
     plan: TRIAL_PLAN,
@@ -97,7 +97,7 @@ export async function creditAccount(env: Env, email: string, amountCents: number
   await Promise.all([
     env.DB.prepare("UPDATE tokens SET payg_credits_micro = payg_credits_micro + ?, updated_at = ? WHERE id = ?")
       .bind(micro, now(), account.id).run(),
-    logCrmAction(env, email, "payg_topup", `$${(amountCents / 100).toFixed(2)} via ${reference}`, request).run(),
+    logCrmAction(env, email, "payg_topup", `$${(amountCents / 100).toFixed(2)} via ${reference}`, request),
   ]);
   return true;
 }
@@ -109,7 +109,7 @@ export async function debitAccount(env: Env, email: string, amountCents: number,
   const removed = await env.DB.prepare(
     "UPDATE tokens SET payg_credits_micro = MAX(0, payg_credits_micro - ?), updated_at = ? WHERE email = ? AND payg_credits_micro >= ?",
   ).bind(micro, now(), email, micro).run();
-  await logCrmAction(env, email, "payg_refund", `$${(amountCents / 100).toFixed(2)} via ${reference}`, request).run();
+  await logCrmAction(env, email, "payg_refund", `$${(amountCents / 100).toFixed(2)} via ${reference}`, request);
   return Number(removed?.meta?.changes ?? 0) === 1;
 }
 
