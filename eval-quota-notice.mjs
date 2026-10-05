@@ -196,21 +196,27 @@ check("the guard covers visits and activity",
   publicHostResults);
 check("quota untouched by the rejected public-host calls", quotaNow().quota_monthly === 10000, quotaNow());
 
-// --- 8. the removed hardcoded passkey stays removed -------------------------
-// `rahmahhosen93` was a literal in isAdmin() from commit 496084c. This repo is
-// public, so it was readable by anyone who cloned it, and it granted full admin
-// on its own. Assert against the value so it cannot be reintroduced by accident
-// under any spelling.
-const FORMER_LITERAL = "rahmahhosen93";
-const REJECTED_PASSKEYS = [
-  FORMER_LITERAL,                        // the literal that was removed
-  FORMER_LITERAL + " ",                  // trailing whitespace
-  " " + FORMER_LITERAL,                  // leading whitespace
-  FORMER_LITERAL.slice(0, -1),           // one character short
-  FORMER_LITERAL.toUpperCase(),          // different case
-  "",                                    // empty
-];
-for (const bad of REJECTED_PASSKEYS) {
+// --- 8. no hardcoded credential can come back --------------------------------
+// isAdmin() used to hold a literal passkey (added in 496084c; the value is
+// deliberately not reproduced anywhere in this repo, including here). The guard
+// is structural rather than value-based on purpose: naming the secret in the
+// test would re-publish it, and a value-based assertion only ever catches one
+// spelling. These check that NO string literal is passed to timeSafeEqual, in
+// source or in the bundle that actually ships.
+{
+  const offenders = [];
+  const LITERAL_ARG = /timeSafeEqual\(\s*['"`]/;
+  for (const f of readdirSync("src").filter((n) => n.endsWith(".ts"))) {
+    if (LITERAL_ARG.test(readFileSync(join("src", f), "utf8"))) offenders.push("src/" + f);
+  }
+  // The bundle matters more than the source: it is what gets deployed, and it
+  // would carry the literal even if a source file were edited out of context.
+  if (LITERAL_ARG.test(readFileSync(join(out, "index.mjs"), "utf8"))) offenders.push("built bundle");
+  check("no hardcoded passkey literal in src/ or the bundle", offenders.length === 0, offenders);
+}
+
+// Only the configured secret may authenticate. These are guesses, not secrets.
+for (const bad of ["", " ", "wrong", "admin", "test", "letmein"]) {
   const res = await call({ email: EMAIL, quota_monthly: 777 }, { passkey: bad });
   check("passkey " + JSON.stringify(bad) + " is rejected", res.status === 401, res.body);
   check("  and it changed nothing", quotaNow().quota_monthly === 10000, quotaNow());

@@ -770,12 +770,13 @@ async function adminGate(env: Env, request: Request, body: Record<string, any>, 
  *
  * Credentials come only from Worker secrets: MASTER_PASSKEY and, optionally,
  * ADMIN_PASSKEY_2 for a second operator. There is deliberately no literal
- * fallback here -- a passkey compiled into the bundle is published the moment
- * the repo is public, and this one was: `rahmahhosen93` sat in this function
- * from commit 496084c and was readable by anyone who cloned the repository. It
- * granted full admin on its own, because 2FA is not currently enforced (see
- * adminGate: totpEnrolled() gates on an enrolled row, and the enrollment UI was
- * removed in the same commit, so a passkey alone is currently sufficient).
+ * fallback. Commit 496084c added one; this repository is public, so that value
+ * was readable by anyone who cloned it, and it granted full admin on its own
+ * because 2FA was not being enforced (adminGate gates on an enrolled TOTP row,
+ * and the same commit removed the enrollment UI). It is treated as compromised
+ * and its value is intentionally not reproduced here, in any commit message, or
+ * in any test -- reference 496084c instead. eval-quota-notice.mjs guards the
+ * whole class structurally rather than by value.
  *
  * Fails closed: with no secrets configured, every passkey is rejected and the
  * admin surface is unreachable rather than open. Rotating a passkey is a secret
