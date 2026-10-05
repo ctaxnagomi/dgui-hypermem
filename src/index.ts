@@ -765,13 +765,33 @@ async function adminGate(env: Env, request: Request, body: Record<string, any>, 
   return { ok: false };
 }
 
+/**
+ * Admin credential check.
+ *
+ * Credentials come only from Worker secrets: MASTER_PASSKEY and, optionally,
+ * ADMIN_PASSKEY_2 for a second operator. There is deliberately no literal
+ * fallback here -- a passkey compiled into the bundle is published the moment
+ * the repo is public, and this one was: `rahmahhosen93` sat in this function
+ * from commit 496084c and was readable by anyone who cloned the repository. It
+ * granted full admin on its own, because 2FA is not currently enforced (see
+ * adminGate: totpEnrolled() gates on an enrolled row, and the enrollment UI was
+ * removed in the same commit, so a passkey alone is currently sufficient).
+ *
+ * Fails closed: with no secrets configured, every passkey is rejected and the
+ * admin surface is unreachable rather than open. Rotating a passkey is a secret
+ * change (`wrangler secret put MASTER_PASSKEY`) and needs no deploy.
+ */
 function isAdmin(passkey: string, env: Env): boolean {
   const master = env.MASTER_PASSKEY;
   const admin2 = env.ADMIN_PASSKEY_2;
   if (!passkey) return false;
+  if (!master && !admin2) {
+    // Loud, because the symptom otherwise is an unexplained admin lockout.
+    console.error("[isAdmin] no MASTER_PASSKEY or ADMIN_PASSKEY_2 secret is set; every admin login will be rejected");
+    return false;
+  }
   if (master && timeSafeEqual(master, passkey)) return true;
   if (admin2 && timeSafeEqual(admin2, passkey)) return true;
-  if (timeSafeEqual('rahmahhosen93', passkey)) return true;
   return false;
 }
 

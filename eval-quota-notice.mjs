@@ -12,9 +12,9 @@
 //   - the notice survives as valid JSON with its data intact
 //
 // The real module is bundled and its default export's fetch() is driven directly.
-// Auth uses a passkey supplied as a test fixture via MASTER_PASSKEY -- this does
-// not read, embed, or rely on the production credential that happens to be
-// checked in src/index.ts.
+// Auth uses a passkey supplied as a test fixture via MASTER_PASSKEY. isAdmin()
+// now reads credentials only from Worker secrets, so there is no production
+// credential in the source to depend on.
 //
 //   node eval-quota-notice.mjs
 import { build } from "esbuild";
@@ -196,7 +196,49 @@ check("the guard covers visits and activity",
   publicHostResults);
 check("quota untouched by the rejected public-host calls", quotaNow().quota_monthly === 10000, quotaNow());
 
-// --- 8. every notice a real session would receive is deliverable -------------
+// --- 8. the removed hardcoded passkey stays removed -------------------------
+// `rahmahhosen93` was a literal in isAdmin() from commit 496084c. This repo is
+// public, so it was readable by anyone who cloned it, and it granted full admin
+// on its own. Assert against the value so it cannot be reintroduced by accident
+// under any spelling.
+const FORMER_LITERAL = "rahmahhosen93";
+const REJECTED_PASSKEYS = [
+  FORMER_LITERAL,                        // the literal that was removed
+  FORMER_LITERAL + " ",                  // trailing whitespace
+  " " + FORMER_LITERAL,                  // leading whitespace
+  FORMER_LITERAL.slice(0, -1),           // one character short
+  FORMER_LITERAL.toUpperCase(),          // different case
+  "",                                    // empty
+];
+for (const bad of REJECTED_PASSKEYS) {
+  const res = await call({ email: EMAIL, quota_monthly: 777 }, { passkey: bad });
+  check("passkey " + JSON.stringify(bad) + " is rejected", res.status === 401, res.body);
+  check("  and it changed nothing", quotaNow().quota_monthly === 10000, quotaNow());
+}
+
+// The configured secret must still work, or removal locked everyone out. Sent as
+// a no-op on purpose: a real change here would write a third notice and break the
+// delivery count in section 9.
+const viaSecret = await call({ email: EMAIL, quota_monthly: 10000 }, { passkey: PASSKEY });
+check("MASTER_PASSKEY secret still authenticates", viaSecret.body.status === "updated", viaSecret.body);
+check("  and it was a no-op, so no extra notice", viaSecret.body.notified === false, viaSecret.body);
+check("notice count is unchanged", notices().length === 2, notices().length);
+
+// Fail-closed: with no admin secret at all, nothing authenticates.
+const noSecretEnv = { ...env, MASTER_PASSKEY: undefined, ADMIN_PASSKEY_2: undefined };
+{
+  const req = new Request("https://hmem-admin.deckergui.my/api/admin/update-quota", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ passkey: PASSKEY, email: EMAIL, quota_monthly: 5000 }),
+  });
+  const res = await worker.fetch(req, noSecretEnv, {});
+  const b = await res.json();
+  check("with no admin secret configured, auth fails closed", res.status === 401, b);
+  check("  and the quota is untouched", quotaNow().quota_monthly === 10000, quotaNow());
+}
+
+// --- 9. every notice a real session would receive is deliverable -------------
 // takeUnreadQuotaNotices is what the MCP request path calls. Drive it through the
 // store so the delivery contract is proved against the rows just written.
 const { takeUnreadQuotaNotices } = await import(pathToFileURL(join(out, "store.mjs")).href).catch(() => ({}));
