@@ -457,25 +457,30 @@ document.getElementById('lamp-form').addEventListener('submit',async function(ev
   }
   btn.disabled=true;
   lampState('checking','Checking HyperMem memory...');
+  // Hide AND clear. Leaving the previous answer on screen while a new check runs
+  // shows the old verdict against the new question, and clearing only the class
+  // (not the text) leaves it readable if the stylesheet fails.
   lampResult.classList.remove('show');
+  lampResult.innerHTML='';
   try{
     const r=await fetch('/api/solution-signal?q='+encodeURIComponent(q));
     const d=await r.json();
     if(d.has){
       lampState('lit','HyperMem already holds '+d.count+' matching memor'+(d.count===1?'y':'ies')+'.');
       lampResult.innerHTML='A token lets you read the solution itself.';
+      lampResult.classList.add('show');
     }else if(d.confident){
       lampState('','No stored memory matches that yet.');
       lampResult.innerHTML='This one is not in memory. <strong>Get a free token</strong> and it will be after the first call.';
+      lampResult.classList.add('show');
     }else{
-      // The probe failed. Stay dark and say so rather than implying "no match".
+      // The probe could not establish an answer -- too few words, or the lookup
+      // failed. Stay dark and show no verdict at all. Claiming "not in memory"
+      // here would be the exact false negative the lamp exists to avoid.
       lampState('','Could not check memory right now.');
-      lampResult.classList.remove('show');
     }
-    lampResult.classList.add('show');
   }catch(e){
     lampState('','Could not reach the memory service.');
-    lampResult.classList.remove('show');
   }
   btn.disabled=false;
 });

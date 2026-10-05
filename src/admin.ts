@@ -373,6 +373,13 @@ async function loadVisits(){
     document.getElementById('sys-visits-total').textContent=d.total;
     document.getElementById('spark-sum').textContent='last 30d: '+d.last_30;
     var days=d.days||[];
+    // The server always emits a dense 30-day series, so this is unreachable in
+    // practice. Draw the same kind of explanation the activity panel does rather
+    // than leaving a silent blank chart if the response shape ever changes.
+    if(!days.length){
+      box.innerHTML='<div class="act-empty">No visit data yet.</div>';
+      return;
+    }
     var peak=Math.max.apply(null,days.map(function(x){return x.count}).concat([1]));
     box.innerHTML=days.map(function(x){
       var h=Math.max(1,Math.round(x.count/peak*72));

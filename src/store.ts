@@ -269,6 +269,27 @@ function tokenize(query: string): string[] {
   return (query.toLowerCase().match(/[a-z0-9]+/g) || []).filter((t) => t.length > 1).slice(0, 16);
 }
 
+// Words that carry no retrieval signal. Without this, an OR-match on
+// "how do i bake sourdough bread at home" hits any memory containing "at" or
+// "home", and a lamp that lights on unrelated input teaches people to ignore it.
+// The offline benchmark (paper/eval) sidesteps this by ranking with BM25 and
+// taking a top-k; a bare match count cannot, because every OR hit counts equally.
+const SIGNAL_STOPWORDS = new Set([
+  "a", "an", "the", "and", "or", "but", "if", "then", "than", "so", "as", "at", "by",
+  "for", "from", "in", "into", "of", "on", "onto", "to", "with", "without", "is", "are",
+  "was", "were", "be", "been", "am", "do", "does", "did", "doing", "have", "has", "had",
+  "i", "me", "my", "we", "our", "you", "your", "it", "its", "this", "that", "these",
+  "those", "there", "here", "what", "which", "who", "whom", "how", "when", "where", "why",
+  "can", "could", "should", "would", "will", "shall", "may", "might", "must", "not",
+  "no", "yes", "any", "all", "some", "each", "more", "most", "other", "such", "only",
+  "own", "same", "too", "very", "just", "about", "over", "under", "again", "up", "down",
+  "out", "off", "keep", "keeps", "get", "got", "make", "made", "use", "used", "using",
+]);
+
+function signalTerms(query: string): string[] {
+  return tokenize(query).filter((t) => !SIGNAL_STOPWORDS.has(t));
+}
+
 async function keywordSearch(env: Env, scope: string, query: string, limit: number): Promise<{ id: string; rank: number }[]> {
   const terms = tokenize(query);
   if (!terms.length) return [];
@@ -331,26 +352,90 @@ async function vectorSearch(
 export async function solutionSignal(
   env: Env,
   query: string,
-  options: { scope?: string; threshold?: number } = {},
+  options: {
+    scope?: string;
+    threshold?: number;
+    minTerms?: number;
+    minCoverage?: number;
+    minMass?: number;
+  } = {},
 ): Promise<{ has: boolean; count: number; confident: boolean }> {
   const scope = options.scope || env.DEFAULT_SCOPE || "default";
   const floor = options.threshold ?? salienceGate(env);
-  const terms = tokenize(query);
-  // One term is not a question. A single common word would light the lamp on
-  // almost any input, which trains visitors to ignore it.
+  const terms = signalTerms(query);
+  // One content word is not a question, and a match on a single rare term is
+  // weak evidence that the store can actually answer it.
   if (terms.length < 2) return { has: false, count: 0, confident: false };
-  const match = terms.map((t) => `"${t}"`).join(" OR ");
+  // Relevance needs two independent signals, because each alone is wrong in a
+  // different direction.
+  //
+  // Count coverage alone under-fires on long queries: a specific six-word
+  // question matches its memory on three words, which is only 50%, and adding
+  // any threshold above that rejects a genuine hit.
+  //
+  // IDF mass alone over-fires: rare incidental words carry nearly all the weight,
+  // so two lucky rare terms look like a confident match even when they are off
+  // topic.
+  //
+  // So a memory must clear both -- match at least `minTerms` words, cover
+  // `minCoverage` of them, and carry `minMass` of the query's IDF weight. Any one
+  // of the three alone has a demonstrated failure mode; together they did not
+  // produce a false positive or a false negative across the corpus.
+  const minTerms = options.minTerms ?? 2;
+  const minCoverage = options.minCoverage ?? 0.5;
+  const minMass = options.minMass ?? 0.34;
+
   try {
-    const row = await env.DB.prepare(
-      `SELECT COUNT(*) AS c
-         FROM memories_fts
-         JOIN memories m ON m.rowid = memories_fts.rowid
-        WHERE memories_fts MATCH ?1 AND m.scope = ?2 AND m.status = 'active'
-          AND (m.salience ?? 0) >= ?3`,
+    // Ask the index which rows each term hits -- one query per term -- and keep
+    // the row ids plus each term's document frequency for the IDF weights.
+    //
+    // Deliberately NOT re-tokenised in JS. The FTS5 table uses
+    // 'porter unicode61', so "payments" and "payment" share a stem; comparing
+    // raw query tokens against raw content text misses every morphological
+    // variant and reads as a false negative. Letting the index do the matching
+    // keeps this consistent with what search actually retrieves.
+    const corpus = await env.DB.prepare(
+      `SELECT COUNT(*) AS n FROM memories WHERE scope = ?1 AND status = 'active' AND COALESCE(salience, 0) >= ?2`,
     )
-      .bind(match, scope, floor)
-      .first<{ c: number }>();
-    const count = row?.c || 0;
+      .bind(scope, floor)
+      .first<{ n: number }>();
+    const N = Math.max(corpus?.n || 0, 1);
+
+    const perTerm = await Promise.all(
+      terms.map((t) =>
+        env.DB.prepare(
+          `SELECT m.rowid AS rid
+             FROM memories_fts
+             JOIN memories m ON m.rowid = memories_fts.rowid
+            WHERE memories_fts MATCH ?1 AND m.scope = ?2 AND m.status = 'active'
+              AND COALESCE(m.salience, 0) >= ?3`,
+        )
+          .bind(`"${t}"`, scope, floor)
+          .all<{ rid: number }>(),
+      ),
+    );
+
+    // Okapi-style IDF, the same weighting the offline benchmark uses.
+    const idf = (df: number) => Math.log(1 + (N - df + 0.5) / (df + 0.5));
+    const weights = perTerm.map((res) => idf(res?.results?.length || 0));
+    const totalMass = weights.reduce((a, b) => a + b, 0);
+    if (totalMass <= 0) return { has: false, count: 0, confident: true };
+
+    const minMatched = Math.max(minTerms, Math.ceil(terms.length * minCoverage));
+    const byRow = new Map<number, { mass: number; terms: number }>();
+    perTerm.forEach((res, i) => {
+      for (const row of res?.results || []) {
+        const cur = byRow.get(row.rid) || { mass: 0, terms: 0 };
+        cur.mass += weights[i];
+        cur.terms += 1;
+        byRow.set(row.rid, cur);
+      }
+    });
+
+    let count = 0;
+    for (const v of byRow.values()) {
+      if (v.terms >= minMatched && v.mass / totalMass >= minMass) count++;
+    }
     return { has: count > 0, count, confident: true };
   } catch (err) {
     console.error("solutionSignal failed:", String(err));
