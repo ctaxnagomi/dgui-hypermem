@@ -13,7 +13,19 @@ import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/
 import { z } from "zod";
 
 import type { Env } from "./types";
-import { addMemory, forgetMemories, listMemories, profile, searchMemories, solutionSignal } from "./store";
+import {
+  ackQuotaNotices,
+  addMemory,
+  forgetMemories,
+  listMemories,
+  listQuotaNotices,
+  profile,
+  recordQuotaNotice,
+  searchMemories,
+  solutionSignal,
+  takeUnreadQuotaNotices,
+  type QuotaNotice,
+} from "./store";
 import { getSuggestions } from "./suggest";
 import { MEMORY_TYPES, resolveMode } from "./jev";
 import { flushJevExamples, jevQueueStats } from "./dataset";
@@ -75,6 +87,10 @@ Tools
            Flush queued JEV decisions to the configured training dataset (also runs hourly).
   jev_queue_stats
            Show how many JEV examples are queued, uploaded, or failed, and the target dataset.
+  quota_notices
+           Account notices, e.g. an administrator changing your monthly quota. New
+           notices also ride along on the response of your next call, under a
+           "quota_notice" key, so you learn about a quota change without asking.
   help     This text.
 
 Memory types (choice): ${Object.keys(MEMORY_TYPES).join(", ")}
@@ -86,7 +102,20 @@ be queued for dataset synchronization.`;
 
 type ToolText = { content: { type: "text"; text: string }[]; isError?: boolean };
 
-function ok(value: unknown): ToolText {
+/**
+ * Per-request MCP context. `email` is null for the master token, which is not
+ * tied to an account and therefore has no notices of its own.
+ */
+type McpCtx = { email?: string | null; notices?: QuotaNotice[] };
+
+function credentialEmail(credential: Credential | null): string | null {
+  // Both the per-user token and the OAuth grant already carry the email, so this
+  // needs no query. The master token is account-less by design.
+  if (!credential || credential.kind === "master") return null;
+  return credential.email;
+}
+
+function okBase(value: unknown): ToolText {
   return { content: [{ type: "text", text: JSON.stringify(value, null, 2) }] };
 }
 
@@ -94,7 +123,37 @@ function fail(message: string): ToolText {
   return { content: [{ type: "text", text: JSON.stringify({ error: message }) }], isError: true };
 }
 
-function buildServer(env: Env): McpServer {
+function buildServer(env: Env, ctx: McpCtx = {}): McpServer {
+  // Shadow the module-level ok() for the duration of this server so that EVERY
+  // tool response carries any pending notice for the caller. Doing it here rather
+  // than at each of the ten call sites means a tool added later cannot forget.
+  //
+  // The notice is a sibling key, not a wrapper, so a client parsing the tool's
+  // own payload sees exactly the shape it did before.
+  const ok = (value: unknown): ToolText => {
+    const base = okBase(value);
+    if (!ctx.notices || !ctx.notices.length) return base;
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify(
+            {
+              quota_notice: ctx.notices.map((n) => ({
+                kind: n.kind,
+                message: n.message,
+                at: new Date(n.created_at).toISOString(),
+                ...(n.data || {}),
+              })),
+              ...(value && typeof value === "object" && !Array.isArray(value) ? value : { result: value }),
+            },
+            null,
+            2,
+          ),
+        },
+      ],
+    };
+  };
   const server = new McpServer(
     { name: SERVER_NAME, version: SERVER_VERSION },
     { instructions: HELP },
@@ -418,11 +477,75 @@ function buildServer(env: Env): McpServer {
     },
   );
 
+  server.registerTool(
+    "quota_notices",
+    {
+      title: "Account notices",
+      description:
+        "Notices about this account, such as an administrator changing your monthly quota. Unread notices are delivered on the response of your next call too, so this is mainly for history and explicit acknowledgement.",
+      inputSchema: {
+        limit: z.number().int().min(1).max(100).optional().describe("How many notices to return (default 20)."),
+        unread_only: z.boolean().optional().describe("Return only notices that have not been delivered yet (default false)."),
+        ack: z
+          .array(z.string())
+          .optional()
+          .describe("Notice ids to mark as read. Omit or pass an empty list to acknowledge every undelivered notice."),
+      },
+      annotations: {
+        // Reads and marks notices read. Nothing user-visible is dropped, so it is
+        // not destructive, and it stays inside the account.
+        readOnlyHint: false,
+        destructiveHint: false,
+        openWorldHint: false,
+        idempotentHint: true,
+      },
+    },
+    async (args: { limit?: number; unread_only?: boolean; ack?: string[] }) => {
+      // The master token is not tied to an account, so there is nothing to
+      // report. Saying so plainly beats returning another account's notices.
+      if (!ctx.email) {
+        return fail("quota_notices is per-account; this request used the master token, which has no account.");
+      }
+      try {
+        if (args.ack) await ackQuotaNotices(env, ctx.email, args.ack);
+        const notices = await listQuotaNotices(env, ctx.email, args.limit ?? 20, !!args.unread_only);
+        return ok({
+          email: ctx.email,
+          count: notices.length,
+          undelivered: notices.filter((n) => n.read_at === null).length,
+          notices: notices.map((n) => ({
+            id: n.id,
+            kind: n.kind,
+            message: n.message,
+            data: n.data,
+            at: new Date(n.created_at).toISOString(),
+            delivered: n.read_at !== null,
+          })),
+        });
+      } catch (err) {
+        return fail(String(err));
+      }
+    },
+  );
+
   return server;
 }
 
-async function handleMcp(request: Request, env: Env): Promise<Response> {
-  const server = buildServer(env);
+async function handleMcp(request: Request, env: Env, credential: Credential | null): Promise<Response> {
+  // Resolve and deliver pending notices BEFORE building the server, so the
+  // closure can hand them to every tool response.
+  //
+  // This must not be able to fail the request. A missing notice table or a D1
+  // hiccup has to degrade to "no notice", never to a 500 on a memory call.
+  const email = credentialEmail(credential);
+  let notices: QuotaNotice[] = [];
+  if (email) {
+    notices = await takeUnreadQuotaNotices(env, email).catch((err: unknown) => {
+      console.error("quota notice delivery failed:", String(err));
+      return [] as QuotaNotice[];
+    });
+  }
+  const server = buildServer(env, { email, notices });
   const transport = new WebStandardStreamableHTTPServerTransport({
     sessionIdGenerator: undefined,
     enableJsonResponse: true,
@@ -698,6 +821,11 @@ async function handleUpdateQuota(env: Env, body: Record<string, any>, request?: 
     return { error: "unauthorized" };
   }
   if (quota_monthly !== undefined && (typeof quota_monthly !== 'number' || quota_monthly < 0)) return { error: "invalid quota" };
+  // Read the current state first: a notice that says "raised from X to Y" is
+  // worth reading, one that says "your quota is now Y" is not. Also lets us skip
+  // writing a notice for a no-op, which would otherwise spam the user.
+  const before = await env.DB.prepare("SELECT plan, quota_monthly FROM tokens WHERE email = ?").bind(email).first<{ plan: string; quota_monthly: number }>();
+  if (!before) return { error: "account not found" };
   const updates: string[] = [];
   const params: any[] = [];
   if (quota_monthly !== undefined) { updates.push("quota_monthly = ?"); params.push(quota_monthly); }
@@ -705,7 +833,45 @@ async function handleUpdateQuota(env: Env, body: Record<string, any>, request?: 
   if (!updates.length) return { error: "nothing to update" };
   updates.push("updated_at = ?"); params.push(now()); params.push(email);
   await env.DB.prepare(`UPDATE tokens SET ${updates.join(", ")} WHERE email = ?`).bind(...params).run();
-  return { email, quota_monthly, plan, status: "updated" };
+
+  const newQuota = quota_monthly !== undefined ? quota_monthly : before.quota_monthly;
+  const newPlan = plan !== undefined ? plan : before.plan;
+  const quotaMoved = quota_monthly !== undefined && quota_monthly !== before.quota_monthly;
+  const planMoved = plan !== undefined && plan !== before.plan;
+
+  if (quotaMoved || planMoved) {
+    const parts: string[] = [];
+    if (quotaMoved) parts.push(`monthly quota ${quotaMonthly(before.quota_monthly)} to ${quotaMonthly(newQuota)}`);
+    if (planMoved) parts.push(`plan ${before.plan} to ${newPlan}`);
+    // Delivery is the caller's next MCP call, not a push: the transport is
+    // stateless so there is no connection to write to. See the note in store.ts.
+    const notified = await recordQuotaNotice(
+      env,
+      email,
+      "quota_changed",
+      `An administrator changed your ${parts.join(" and ")}.`,
+      {
+        previous_quota_monthly: before.quota_monthly,
+        quota_monthly: newQuota,
+        previous_plan: before.plan,
+        plan: newPlan,
+      },
+    )
+      .then(() => true)
+      .catch((err: unknown) => {
+        // The quota change itself is already committed. Failing the whole request
+        // would tell the admin it did not apply, so report the miss instead.
+        console.error("quota notice write failed:", String(err));
+        return false;
+      });
+    return { email, quota_monthly: newQuota, plan: newPlan, status: "updated", notified };
+  }
+  return { email, quota_monthly: newQuota, plan: newPlan, status: "updated", notified: false };
+}
+
+// Thousands separator for notice text, so "5600" does not read as noise.
+function quotaMonthly(n: number): string {
+  return Number(n).toLocaleString("en-US");
 }
 
 async function handleAdminClock(env: Env, body: Record<string, any>, request?: Request, url?: URL): Promise<Record<string, any>> {
@@ -1398,8 +1564,11 @@ export default {
   "/api/admin/activity",
   "/api/check-quota",
 ];
+    // Hoisted out of the block below: the MCP route needs the resolved credential
+    // to know which account's notices to deliver, and the gate block is a sibling.
+    let credential: Credential | null = null;
     if (path === "/mcp" || (path.startsWith("/api/") && !CRM_ROUTES.includes(path))) {
-      const credential = await resolveCredential(env, request);
+      credential = await resolveCredential(env, request);
       if (!credential) {
         // Point an OAuth-capable client at the resource metadata instead of
         // returning a bare 401. A 401 with no WWW-Authenticate leaves clients
@@ -1432,7 +1601,7 @@ export default {
       }
     }
 
-    if (path === "/mcp") return handleMcp(request, env);
+    if (path === "/mcp") return handleMcp(request, env, credential);
     if (path.startsWith("/api/")) return handleRest(request, env, path);
 
     // Serve static icon files

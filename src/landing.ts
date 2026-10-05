@@ -111,20 +111,46 @@ footer p{font-size:14px;color:var(--text-muted)}footer a{color:var(--accent-cyan
 /* Invisible scrollbar, all engines. The rail is still keyboard-scrollable. */
 .live-track{scrollbar-width:none;-ms-overflow-style:none}
 .live-track::-webkit-scrollbar{width:0;height:0;display:none}
+/* pan-y keeps vertical page scrolling native and hands horizontal movement to
+   the gesture handler below, so a swipe never has to fight the page. */
+.live-track{touch-action:pan-y}
 .live-track.dragging{cursor:grabbing;scroll-behavior:auto;scroll-snap-type:none;user-select:none;-webkit-user-select:none}
-.live-card{flex:0 0 auto;width:min(320px,78vw);scroll-snap-align:center;border-radius:12px;overflow:hidden;border:1px solid var(--border-glass);background:var(--glass);box-shadow:var(--shadow);transition:border-color .2s,transform .2s}
+.live-card{flex:0 0 auto;width:min(320px,78vw);scroll-snap-align:center;border-radius:16px;overflow:hidden;border:1px solid var(--border-glass);background:var(--glass);box-shadow:var(--shadow);transition:border-color .25s,transform .25s,width .32s cubic-bezier(.34,1.3,.5,1);position:relative}
+/* Clicking "open" grows the card in place. It never navigates, so the reader
+   stays on the landing page and the rail keeps its place. */
+.live-card.wide{width:min(520px,88vw)}
 .live-card:hover{border-color:var(--accent-cyan);transform:translateY(-2px)}
-.live-frame{width:100%;height:190px;border:0;display:block;background:#0b1220}
-.live-head{display:flex;align-items:center;gap:8px;padding:10px 12px;font-size:12px;color:var(--text-secondary)}
+/* iOS glass: a translucent ring over the live content, with an inset top
+   highlight and a soft outer bloom, so the frame reads as glass rather than as
+   a bordered box. Sits above the iframe, which is itself opaque. */
+.live-card::after{content:'';position:absolute;inset:0;border-radius:15px;pointer-events:none;z-index:3;
+  background:linear-gradient(160deg,rgba(255,255,255,.14),rgba(255,255,255,.02) 38%,rgba(255,255,255,0) 60%);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.28),inset 0 0 0 1px rgba(255,255,255,.07),inset 0 -18px 30px -18px rgba(0,0,0,.55)}
+/* The frame area: a fixed logical desktop viewport, scaled down to fit. The
+   inner site therefore lays out at 1280x800, which is what removes its own
+   scrollbar -- a cross-origin iframe's inner scrollbar cannot be styled away
+   from the parent, but it does not appear if the page fits the viewport. */
+.live-viewport{position:relative;width:100%;aspect-ratio:1280/800;overflow:hidden;border-radius:15px 15px 0 0;background:#0b1220;isolation:isolate}
+.live-frame{position:absolute;top:0;left:0;width:1280px;height:800px;border:0;display:block;background:#0b1220;transform-origin:top left;pointer-events:none}
+/* Interaction stays with the card, so a drag can never start inside the iframe,
+   whose document would swallow the pointer events. */
+.live-viewport{pointer-events:none}
+.live-head{display:flex;align-items:center;gap:8px;padding:10px 12px;font-size:12px;color:var(--text-secondary);position:relative;z-index:4}
 .live-head i{color:var(--accent-cyan);font-size:11px}
-.live-head span{margin-left:auto;font-size:10px;color:var(--text-muted)}
+.live-head .live-actions{margin-left:auto;display:flex;align-items:center;gap:8px}
+.live-open{font:inherit;font-size:10px;color:var(--text-muted);background:rgba(255,255,255,.06);border:1px solid var(--border-glass);border-radius:999px;padding:3px 9px;cursor:pointer;transition:color .2s,background .2s,border-color .2s}
+.live-open:hover{color:var(--accent-cyan);background:rgba(34,199,220,.12);border-color:var(--accent-cyan)}
+.live-open[aria-expanded="true"]{color:var(--accent-cyan);background:rgba(34,199,220,.16);border-color:var(--accent-cyan)}
+.live-out{font-size:11px;color:var(--text-muted);text-decoration:none;padding:2px;border-radius:6px;line-height:1}
+.live-out:hover{color:var(--accent-cyan)}
 /* Fallback card for a site that sends X-Frame-Options / frame-ancestors. */
-.live-card.blocked .live-frame{display:none}
-.live-blocked{display:none;height:190px;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:20px;text-align:center;background:linear-gradient(160deg,rgba(21,31,53,.9),rgba(12,20,36,.9))}
+.live-card.blocked .live-viewport{display:none}
+.live-blocked{display:none;aspect-ratio:1280/800;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:20px;text-align:center;background:linear-gradient(160deg,rgba(21,31,53,.9),rgba(12,20,36,.9))}
 .live-card.blocked .live-blocked{display:flex}
 .live-blocked i{font-size:22px;color:var(--text-muted)}
 .live-blocked p{font-size:11px;color:var(--text-muted);line-height:1.5;margin:0}
-@media(prefers-reduced-motion:reduce){.live-track{scroll-behavior:auto}.live-card:hover{transform:none}}
+@media(prefers-reduced-motion:reduce){.live-track{scroll-behavior:auto}.live-card:hover{transform:none}.live-card{transition:border-color .2s}}
+@media(prefers-reduced-motion:reduce){.live-card.wide{width:min(320px,78vw)}}
 
 /* --- solution lamp --- */
 .lamp-probe{margin:28px auto 0;max-width:640px;padding:18px 20px;background:var(--glass);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid var(--border-glass);border-radius:12px;box-shadow:var(--shadow);display:grid;grid-template-columns:auto 1fr;gap:14px;align-items:center;text-align:left}
@@ -379,8 +405,11 @@ footer p{font-size:14px;color:var(--text-muted)}footer a{color:var(--accent-cyan
 </div>
 <footer>
 <!-- Live-site carousel: six real iframes of the DeckerGUI ecosystem, driven by
-     wheel/drag, scrollbar hidden. Sites that forbid framing fall back to a link
-     card (see SITES and frameOk in the script). -->
+     wheel/drag/swipe with a hidden scrollbar. Each frame is laid out at a fixed
+     1280x800 logical viewport and scaled to fit, which is what removes the
+     embedded page's own scrollbar. A site that forbids framing still falls back
+     to a link card (see SITES in the script). "open" expands a card in place and
+     never navigates; the small arrow is the only control that leaves the page. -->
 <div class="live-rail" id="live-rail" tabindex="0" aria-label="DeckerGUI live sites">
 <div class="live-track" id="live-track"></div>
 </div>
@@ -489,39 +518,108 @@ document.getElementById('lamp-form').addEventListener('submit',async function(ev
 const SITES=[
   {name:'DeckerGUI',url:'https://deckergui.my',icon:'fa-globe',allow:true},
   {name:'CTECX',url:'https://ctecx.deckergui.my',icon:'fa-diagram-project',allow:true},
-  // krackeddevs.com sends X-Frame-Options: DENY and CSP frame-ancestors 'none',
-  // so an iframe of it can only ever render as a blank box. Rather than ship a
-  // dead rectangle, render it as a link card.
-  {name:'KrackedDevs',url:'https://krackeddevs.com',icon:'fa-code',allow:false,reason:'This site refuses to be embedded.'},
+  // Replaces krackeddevs.com, which sends X-Frame-Options: DENY plus CSP
+  // frame-ancestors 'none' and could therefore only ever render as a blank box.
+  // Verified 200 with neither header, so this one embeds.
+  {name:'Agent KD Skill',url:'https://agent-kd-skill.ctaxnagomi.workers.dev/',icon:'fa-code',allow:true},
   {name:'DGUI App',url:'https://app.deckergui.my',icon:'fa-key',allow:true},
   {name:'DeckerGUI Guild',url:'https://portfolios.deckergui.my',icon:'fa-id-badge',allow:true},
   {name:'CORPUSLIB',url:'https://corpuslib-ui.deckergui.my',icon:'fa-book-open',allow:true}
 ];
+
+// The logical viewport each embedded site is laid out at. The frame is rendered
+// at this size and then scaled down with a CSS transform, which is what makes a
+// cross-origin site render whole and scrollbar-free inside a small card: the
+// page never overflows, because it is not being squeezed into 320px.
+const FRAME_W=1280, FRAME_H=800;
+
+function escAttr(v){return String(v).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
 (function buildRail(){
   const track=document.getElementById('live-track');
   if(!track) return;
   track.innerHTML=SITES.map(function(s){
-    const esc=s.url.replace(/"/g,'&quot;');
+    const esc=escAttr(s.url);
     const frame=s.allow
-      ?'<iframe class="live-frame" src="'+esc+'" loading="lazy" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin allow-popups allow-forms" title="'+s.name+'"></iframe>'
+      ?'<div class="live-viewport"><iframe class="live-frame" src="'+esc+'" loading="lazy" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin allow-popups allow-forms" title="'+escAttr(s.name)+'"></iframe></div>'
       :'';
-    const blocked=s.allow?'':'<div class="live-blocked"><i class="fas fa-external-link-alt"></i><p>'+s.reason+'<br>Open it in a new tab.</p></div>';
-    const open=s.allow?'<a href="'+esc+'" target="_blank" rel="noopener noreferrer">open</a>':'<a href="'+esc+'" target="_blank" rel="noopener noreferrer">open</a>';
-    return '<div class="live-card'+(s.allow?'':' blocked')+'">'+frame+blocked
-      +'<div class="live-head"><i class="fas '+s.icon+'"></i>'+s.name+'<span>'+open+'</span></div></div>';
+    const blocked=s.allow?'':'<div class="live-blocked"><i class="fas fa-external-link-alt"></i><p>'+escAttr(s.reason||'')+'<br>Open it in a new tab.</p></div>';
+    // "open" expands the card and deliberately does not navigate. The separate
+    // external-link anchor is the only control that leaves the page, so the
+    // gesture and the label never disagree about what a click will do.
+    const open=s.allow
+      ?'<button class="live-open" type="button" data-open aria-expanded="false" aria-label="Expand '+escAttr(s.name)+' preview">open</button>'
+      :'<span class="live-open" style="opacity:.5;cursor:default">open</span>';
+    return '<div class="live-card'+(s.allow?'':' blocked')+'" data-site="'+escAttr(s.name)+'">'+frame+blocked
+      +'<div class="live-head"><i class="fas '+s.icon+'"></i>'+escAttr(s.name)
+      +'<span class="live-actions">'+open
+      +'<a class="live-out" href="'+esc+'" target="_blank" rel="noopener noreferrer" title="Open '+escAttr(s.name)+' in a new tab" aria-label="Open '+escAttr(s.name)+' in a new tab"><i class="fas fa-arrow-up-right-from-square"></i></a>'
+      +'</span></div></div>';
   }).join('');
 })();
 
-// Wheel -> horizontal scroll. Only hijack the wheel when the rail is not already
-// at its horizontal extreme in the direction being scrolled, so the page keeps
-// scrolling vertically once the rail is exhausted.
-(function wheelRail(){
+// Scale every embedded frame to its card's width. Recomputed on resize and when
+// a card expands, so the preview is always whole and never letterboxed.
+(function fitFrames(){
+  const track=document.getElementById('live-track');
+  if(!track||!window.ResizeObserver) return;
+  const fit=function(){
+    track.querySelectorAll('.live-viewport').forEach(function(vp){
+      const f=vp.querySelector('.live-frame');
+      if(!f) return;
+      const w=vp.clientWidth;
+      if(!w) return;
+      const k=w/FRAME_W;
+      f.style.transform='scale('+k+')';
+      // The frame is a fixed 800px tall; scaling it alone would leave the
+      // bottom of the scaled page short of the viewport, leaving a gap.
+      vp.style.height=Math.round(FRAME_H*k)+'px';
+    });
+  };
+  new ResizeObserver(fit).observe(track);
+  // Card width changes when one expands, and that is not a track resize.
+  track.addEventListener('transitionend',function(ev){
+    if(ev.target&&ev.classList&&ev.classList.contains('live-card')) fit();
+  });
+  window.addEventListener('resize',fit);
+  fit();
+  // Iframes finish loading at their own pace; refit once the initial paint is
+  // done so a late layout change inside a card cannot leave it mis-scaled.
+  window.addEventListener('load',fit);
+  setTimeout(fit,600);
+})();
+
+// Wheel, drag and tap, with the feel of a native iOS carousel: velocity-tracked
+// drag, momentum on release, resistance past either end, and a settle onto the
+// nearest card. Vertical page scrolling is left entirely alone (touch-action:
+// pan-y plus a single axis lock), so the rail can never trap the scroll.
+(function railGestures(){
   const rail=document.getElementById('live-rail');
   const track=document.getElementById('live-track');
   if(!rail||!track) return;
+
+  const reduced=function(){return window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;};
+  const maxScroll=function(){return Math.max(0,track.scrollWidth-track.clientWidth);};
+
+  // iOS resistance curve. Asymptotic, so a long pull keeps moving but can never
+  // run the rail away from its bounds.
+  const rubber=function(over,dim){
+    const c=0.55;
+    return (over*dim*c)/(dim+c*Math.abs(over));
+  };
+  const setScroll=function(x){
+    const max=maxScroll();
+    if(x<0) track.scrollLeft=rubber(x,track.clientWidth);
+    else if(x>max) track.scrollLeft=max+rubber(x-max,track.clientWidth);
+    else track.scrollLeft=x;
+  };
+
+  // --- wheel: only hijack while the rail still has room in that direction, so
+  // vertical page scrolling resumes the moment the rail is exhausted.
   rail.addEventListener('wheel',function(ev){
     if(ev.ctrlKey) return;                       // leave pinch-zoom alone
-    const max=track.scrollWidth-track.clientWidth;
+    if(Math.abs(ev.deltaY)<=Math.abs(ev.deltaX)) return;  // let real horizontal input through
+    const max=maxScroll();
     if(max<=0) return;
     const atStart=track.scrollLeft<=0;
     const atEnd=track.scrollLeft>=max-1;
@@ -530,21 +628,128 @@ const SITES=[
     track.scrollLeft+=ev.deltaY;
   },{passive:false});
 
-  // Drag to pan, so the rail is usable without a horizontal scrollbar.
-  let down=false,sx=0,sl=0,moved=false;
+  // --- velocity tracking -------------------------------------------------
+  let pid=null,sx=0,sy=0,sl=0,axis=null,dragging=false,raf=0,vel=0,movedFar=false,samples=[];
+  const pushSample=function(t,x){samples.push([t,x]);if(samples.length>6)samples.shift();};
+  const velocity=function(){
+    if(samples.length<2) return 0;
+    const first=samples[0],last=samples[samples.length-1];
+    const dt=last[0]-first[0];
+    if(dt<=0) return 0;
+    return (last[1]-first[1])/dt*16;              // px per frame
+  };
+  const stopGlide=function(){if(raf){cancelAnimationFrame(raf);raf=0;}};
+
+  // Centre of whichever card is nearest, clamped into range.
+  const snapTarget=function(){
+    const cards=track.querySelectorAll('.live-card');
+    if(!cards.length) return null;
+    const mid=track.scrollLeft+track.clientWidth/2;
+    let best=null,bd=Infinity;
+    cards.forEach(function(c){
+      const d=Math.abs(c.offsetLeft+c.offsetWidth/2-mid);
+      if(d<bd){bd=d;best=c;}
+    });
+    if(!best) return null;
+    return Math.max(0,Math.min(maxScroll(),best.offsetLeft-(track.clientWidth-best.offsetWidth)/2));
+  };
+
+  const settle=function(){
+    const max=maxScroll();
+    const clamped=Math.min(max,Math.max(0,track.scrollLeft));
+    track.scrollLeft=clamped;
+    const target=snapTarget();
+    // Hand control back to the browser's mandatory snap only once we are sitting
+    // on a card boundary, so the two never disagree about where the rail rests.
+    track.classList.remove('dragging');
+    if(target!==null&&Math.abs(target-clamped)>1){
+      if(track.scrollTo) track.scrollTo({left:target,behavior:reduced()?'auto':'smooth'});
+    }
+  };
+
+  const glide=function(){
+    const max=maxScroll();
+    const next=track.scrollLeft+vel;
+    if(next<0||next>max){setScroll(next);vel*=0.35;}   // hit a wall: bleed speed
+    else {track.scrollLeft=next;vel*=0.94;}
+    if(Math.abs(vel)<0.4){raf=0;settle();return;}
+    raf=requestAnimationFrame(glide);
+  };
+
   track.addEventListener('pointerdown',function(ev){
-    if(ev.pointerType==='touch') return;          // native touch panning is better
-    down=true;moved=false;sx=ev.clientX;sl=track.scrollLeft;
-    track.classList.add('dragging');
+    if(ev.pointerType==='mouse'&&ev.button!==0) return;
+    // The header controls own their own clicks; a drag must not start on them.
+    if(ev.target&&ev.target.closest&&ev.target.closest('[data-open],.live-out')) return;
+    pid=ev.pointerId;sx=ev.clientX;sy=ev.clientY;sl=track.scrollLeft;
+    axis=null;movedFar=false;vel=0;samples=[[ev.timeStamp,sl]];
+    stopGlide();
   });
+
   window.addEventListener('pointermove',function(ev){
-    if(!down) return;
-    const dx=ev.clientX-sx;
-    if(Math.abs(dx)>3&&!moved){moved=true;track.setPointerCapture&&track.setPointerCapture(ev.pointerId)}
-    if(moved){ev.preventDefault();track.scrollLeft=sl-dx}
+    if(ev.pointerId!==pid) return;
+    const dx=ev.clientX-sx,dy=ev.clientY-sy;
+    if(axis===null){
+      if(Math.abs(dx)<4&&Math.abs(dy)<4) return;
+      // Lock the axis once, like a native scroller. A diagonal swipe would
+      // otherwise flip between the rail and the page and feel broken.
+      axis=Math.abs(dx)>Math.abs(dy)?'x':'y';
+      if(axis==='x'){
+        dragging=true;
+        track.classList.add('dragging');
+        try{track.setPointerCapture(pid);}catch(e){}
+      }
+    }
+    if(axis!=='x'||!dragging) return;
+    ev.preventDefault();
+    movedFar=Math.abs(dx)>6;
+    setScroll(sl-dx);
+    pushSample(ev.timeStamp,track.scrollLeft);
+  },{passive:false});
+
+  const endDrag=function(ev){
+    if(ev&&ev.pointerId!==pid) return;
+    if(!dragging){pid=null;axis=null;return;}
+    dragging=false;pid=null;axis=null;
+    // A pause before lifting the finger means the user parked the rail, not
+    // flicked it. Sampling stale positions would otherwise fling it anyway.
+    const last=samples.length?samples[samples.length-1][0]:0;
+    vel=(ev&&ev.timeStamp-last<90)?velocity():0;
+    if(reduced()||!vel){track.classList.remove('dragging');settle();return;}
+    track.classList.add('dragging');
+    raf=requestAnimationFrame(glide);
+  };
+  window.addEventListener('pointerup',endDrag);
+  window.addEventListener('pointercancel',endDrag);
+
+  // --- expand / collapse, and click suppression after a drag -------------
+  track.addEventListener('click',function(ev){
+    if(movedFar){movedFar=false;ev.preventDefault();ev.stopPropagation();return;}
+    const btn=ev.target&&ev.target.closest&&ev.target.closest('[data-open]');
+    if(!btn) return;
+    const card=btn.closest('.live-card');
+    if(!card) return;
+    const wide=card.classList.toggle('wide');
+    const name=card.dataset.site||'this';
+    btn.setAttribute('aria-expanded',wide?'true':'false');
+    btn.setAttribute('aria-label',(wide?'Collapse ':'Expand ')+name+' preview');
   });
-  window.addEventListener('pointerup',function(){down=false;track.classList.remove('dragging')});
-  track.addEventListener('click',function(ev){if(moved){ev.preventDefault();moved=false}},true);
+
+  // Arrow keys move the rail a card at a time for keyboard users, since the
+  // scrollbar is hidden and there is nothing else to grab.
+  rail.addEventListener('keydown',function(ev){
+    if(ev.key!=='ArrowRight'&&ev.key!=='ArrowLeft') return;
+    const cards=track.querySelectorAll('.live-card');
+    if(!cards.length) return;
+    const mid=track.scrollLeft+track.clientWidth/2;
+    let idx=0,bd=Infinity;
+    cards.forEach(function(c,i){const d=Math.abs(c.offsetLeft+c.offsetWidth/2-mid);if(d<bd){bd=d;idx=i;}});
+    const dir=ev.key==='ArrowRight'?1:-1;
+    const next=cards[Math.max(0,Math.min(cards.length-1,idx+dir))];
+    if(!next) return;
+    ev.preventDefault();
+    const left=Math.max(0,Math.min(maxScroll(),next.offsetLeft-(track.clientWidth-next.offsetWidth)/2));
+    if(track.scrollTo) track.scrollTo({left:left,behavior:reduced()?'auto':'smooth'});
+  });
 })();
 
 async function sendEnterprise(){

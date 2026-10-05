@@ -670,3 +670,139 @@ export async function forgetMemories(
   await logEvent(env, scope, "forget", { detail: { ids } });
   return { forgotten: ids.length, ids };
 }
+
+/* --- quota change notices ----------------------------------------------------
+ *
+ * The MCP transport here is stateless: a fresh McpServer and transport per
+ * request, `sessionIdGenerator: undefined`, closed in a `finally`. There is
+ * therefore no long-lived connection and no session id to address, so an
+ * administrative change cannot be pushed down to a connected client the way a
+ * stateful SSE transport could.
+ *
+ * A push would also be the wrong contract even if it were available: a notice
+ * that arrives only while the client happens to be connected is not durable, and
+ * quota changes are exactly the kind of thing a user should discover rather than
+ * have to ask for. So the notice is persisted and delivered by the caller's NEXT
+ * call -- it appears in the response of whatever the agent does next -- and the
+ * `quota_notices` tool exposes the history.
+ *
+ * Delivery marks the notice read, so an unacknowledged change is never repeated
+ * forever and never silently dropped either.
+ */
+
+let noticesReady: Promise<void> | null = null;
+
+// The wrangler token in use has no D1 write scope, so migrations cannot be
+// applied. The table is created lazily on first use, matching the analytics
+// tables. `noticesReady` is reset to null on failure so a transient error does
+// not permanently poison the isolate.
+function ensureNoticeTable(env: Env): Promise<void> {
+  if (!noticesReady) {
+    noticesReady = env.DB.prepare(
+      `CREATE TABLE IF NOT EXISTS quota_notices (
+         id TEXT PRIMARY KEY,
+         email TEXT NOT NULL,
+         kind TEXT NOT NULL,
+         message TEXT NOT NULL,
+         data TEXT,
+         created_at INTEGER NOT NULL,
+         read_at INTEGER
+       )`,
+    )
+      .run()
+      .then(() => undefined)
+      .catch((err: unknown) => {
+        noticesReady = null;
+        throw err;
+      });
+  }
+  return noticesReady;
+}
+
+export interface QuotaNotice {
+  id: string;
+  email: string;
+  kind: string;
+  message: string;
+  data: Record<string, unknown> | null;
+  created_at: number;
+  read_at: number | null;
+}
+
+export async function recordQuotaNotice(
+  env: Env,
+  email: string,
+  kind: string,
+  message: string,
+  data: Record<string, unknown> = {},
+): Promise<void> {
+  await ensureNoticeTable(env);
+  await env.DB.prepare(
+    "INSERT INTO quota_notices (id, email, kind, message, data, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+  )
+    .bind(crypto.randomUUID(), email, kind, message, JSON.stringify(data), now())
+    .run();
+}
+
+export async function listQuotaNotices(
+  env: Env,
+  email: string,
+  limit = 20,
+  unreadOnly = false,
+): Promise<QuotaNotice[]> {
+  await ensureNoticeTable(env);
+  // `data` comes back as the raw JSON text, so the row type is deliberately not
+  // QuotaNotice -- its `data` is the parsed object.
+  const res = await env.DB.prepare(
+    `SELECT id, email, kind, message, data, created_at, read_at
+       FROM quota_notices
+      WHERE email = ?1 ${unreadOnly ? "AND read_at IS NULL" : ""}
+      ORDER BY created_at DESC
+      LIMIT ?2`,
+  )
+    .bind(email, Math.max(1, Math.min(limit, 100)))
+    .all<Omit<QuotaNotice, "data"> & { data: string | null }>();
+  return (res?.results || []).map((r) => {
+    let parsed: Record<string, unknown> | null = null;
+    try {
+      parsed = r.data ? JSON.parse(r.data) : null;
+    } catch {
+      // A malformed blob must not hide the notice itself; the message is the
+      // part a human reads.
+      parsed = null;
+    }
+    return { ...r, data: parsed };
+  });
+}
+
+export async function ackQuotaNotices(env: Env, email: string, ids?: string[]): Promise<number> {
+  await ensureNoticeTable(env);
+  if (!ids || !ids.length) {
+    const all = await env.DB.prepare(
+      "UPDATE quota_notices SET read_at = ?1 WHERE email = ?2 AND read_at IS NULL",
+    )
+      .bind(now(), email)
+      .run();
+    return all?.meta?.changes || 0;
+  }
+  // Only the placeholder list is interpolated; every value is bound, and the
+  // clause is additionally scoped to this email so an id from another account
+  // can never be acked.
+  const ph = ids.map((_, i) => `?${i + 2}`).join(",");
+  const some = await env.DB.prepare(
+    `UPDATE quota_notices SET read_at = ?1 WHERE email = ?2 AND id IN (${ph})`,
+  )
+    .bind(now(), email, ...ids)
+    .run();
+  return some?.meta?.changes || 0;
+}
+
+/**
+ * Fetch the caller's unread notices and mark them delivered in the same step.
+ * Used on the request path, so that a quota change surfaces exactly once.
+ */
+export async function takeUnreadQuotaNotices(env: Env, email: string): Promise<QuotaNotice[]> {
+  const pending = await listQuotaNotices(env, email, 5, true);
+  if (pending.length) await ackQuotaNotices(env, email, pending.map((n) => n.id));
+  return pending;
+}
