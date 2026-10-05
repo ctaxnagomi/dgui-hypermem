@@ -123,7 +123,7 @@ footer p{font-size:14px;color:var(--text-muted)}footer a{color:var(--accent-cyan
 /* iOS glass: a translucent ring over the live content, with an inset top
    highlight and a soft outer bloom, so the frame reads as glass rather than as
    a bordered box. Sits above the iframe, which is itself opaque. */
-.live-card::after{content:'';position:absolute;inset:0;border-radius:15px;pointer-events:none;z-index:3;
+.live-card::after{content:'';position:absolute;inset:0;border-radius:16px;pointer-events:none;z-index:3;
   background:linear-gradient(160deg,rgba(255,255,255,.14),rgba(255,255,255,.02) 38%,rgba(255,255,255,0) 60%);
   box-shadow:inset 0 1px 0 rgba(255,255,255,.28),inset 0 0 0 1px rgba(255,255,255,.07),inset 0 -18px 30px -18px rgba(0,0,0,.55)}
 /* The frame area: a fixed logical desktop viewport, scaled down to fit. The
@@ -576,35 +576,35 @@ function escAttr(v){return String(v).replace(/&/g,'&amp;').replace(/"/g,'&quot;'
   }).join('');
 })();
 
-// Scale every embedded frame to its card's width. Recomputed on resize and when
-// a card expands, so the preview is always whole and never letterboxed.
+// Scale every embedded frame to its own card width. Each viewport is observed
+// individually rather than the track, because the width that matters is the
+// card's -- and a card expanding does not resize the track, so an observer on
+// the track never fires and the frame would sit letterboxed in the extra space.
 (function fitFrames(){
   const track=document.getElementById('live-track');
   if(!track||!window.ResizeObserver) return;
-  const fit=function(){
-    track.querySelectorAll('.live-viewport').forEach(function(vp){
-      const f=vp.querySelector('.live-frame');
-      if(!f) return;
-      const w=vp.clientWidth;
-      if(!w) return;
-      const k=w/FRAME_W;
-      f.style.transform='scale('+k+')';
-      // The frame is a fixed 800px tall; scaling it alone would leave the
-      // bottom of the scaled page short of the viewport, leaving a gap.
-      vp.style.height=Math.round(FRAME_H*k)+'px';
-    });
+  const fitOne=function(vp){
+    const f=vp.querySelector('.live-frame');
+    if(!f) return;
+    const w=vp.clientWidth;
+    if(!w) return;
+    const k=w/FRAME_W;
+    f.style.transform='scale('+k+')';
+    // The frame is a fixed 800px tall; scaling width alone would leave the
+    // bottom of the scaled page short of the viewport, showing a gap.
+    vp.style.height=Math.round(FRAME_H*k)+'px';
   };
-  new ResizeObserver(fit).observe(track);
-  // Card width changes when one expands, and that is not a track resize.
-  track.addEventListener('transitionend',function(ev){
-    if(ev.target&&ev.classList&&ev.classList.contains('live-card')) fit();
+  const fitAll=function(){track.querySelectorAll('.live-viewport').forEach(fitOne);};
+  const ro=new ResizeObserver(function(entries){
+    entries.forEach(function(e){fitOne(e.target);});
   });
-  window.addEventListener('resize',fit);
-  fit();
-  // Iframes finish loading at their own pace; refit once the initial paint is
-  // done so a late layout change inside a card cannot leave it mis-scaled.
-  window.addEventListener('load',fit);
-  setTimeout(fit,600);
+  track.querySelectorAll('.live-viewport').forEach(function(vp){ro.observe(vp);});
+  window.addEventListener('resize',fitAll);
+  // Refit once the initial paint is done: a card's own content can settle after
+  // first layout and leave a width measured too early.
+  window.addEventListener('load',fitAll);
+  fitAll();
+  setTimeout(fitAll,600);
 })();
 
 // Wheel, drag and tap, with the feel of a native iOS carousel: velocity-tracked
