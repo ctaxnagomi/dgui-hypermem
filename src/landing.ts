@@ -909,9 +909,38 @@ if (document.readyState === 'loading') {
   const strip = function () {
     if (location.hash) history.replaceState(null, '', location.pathname + location.search);
   };
+  // Layout here is not final when the script runs. The six carousel iframes have
+  // not loaded, so everything below the fold can still be collapsed and the
+  // document may not be tall enough to scroll to #crm at all. One scrollIntoView
+  // at DOMContentLoaded therefore lands at the top of a page that is about to
+  // grow past the target -- verified live: the fragment was stripped but the
+  // section sat 2407px below the viewport.
+  //
+  // So the position is re-asserted while the document is still growing, and the
+  // loop stops as soon as the height holds. The first move is smooth for a
+  // click; the re-assertions are instant, because repeatedly restarting a
+  // smooth scroll would fight itself and never arrive.
+  const place = function (target, smooth) {
+    target.scrollIntoView({ behavior: smooth && !reduced() ? 'smooth' : 'auto', block: 'start' });
+  };
+  const settle = function (target) {
+    place(target, true);
+    var lastHeight = -1;
+    var deadline = Date.now() + 5000;
+    var tick = function () {
+      if (Date.now() > deadline) return;
+      var h = document.documentElement.scrollHeight;
+      if (h !== lastHeight) {
+        lastHeight = h;
+        place(target, false);
+      }
+      requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  };
   const goTo = function (target) {
     strip();
-    target.scrollIntoView({ behavior: reduced() ? 'auto' : 'smooth', block: 'start' });
+    settle(target);
   };
 
   document.addEventListener('click', function (ev) {
