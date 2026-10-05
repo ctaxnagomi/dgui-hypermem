@@ -103,19 +103,23 @@ export async function verifyTotp(env: Env, code: string): Promise<boolean> {
 
 const SESSION_TTL_MS = 12 * 60 * 60 * 1000; // 12 hours
 
-function b64url(bytes: Uint8Array): string {
+/** base64url without padding. Exported: the device-challenge module signs its
+ *  tokens in this same shape so there is one token grammar in the codebase. */
+export function b64url(bytes: Uint8Array): string {
   let bin = "";
   for (const b of bytes) bin += String.fromCharCode(b);
   return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
-function b64urlDecode(s: string): Uint8Array {
+export function b64urlDecode(s: string): Uint8Array {
   const pad = s.replace(/-/g, "+").replace(/_/g, "/");
   const bin = atob(pad);
   return Uint8Array.from(bin, (ch) => ch.charCodeAt(0));
 }
 
-async function hmacSha256(key: string, data: string): Promise<Uint8Array> {
+/** Exported: the device-challenge module signs tokens with the same primitive so
+ *  there is one HMAC-with-ADMIN_SESSION_SECRET convention in the codebase. */
+export async function hmacSha256(key: string, data: string): Promise<Uint8Array> {
   const k = await crypto.subtle.importKey(
     "raw",
     new TextEncoder().encode(key),

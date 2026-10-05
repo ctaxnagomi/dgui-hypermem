@@ -6,6 +6,9 @@
 .env
 .env.*
 
+# Admin device private key (admin-device.mjs writes this next to itself)
+.admin-device-key.json
+
 # Dependencies & build
 node_modules/
 dist/

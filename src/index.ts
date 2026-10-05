@@ -24,6 +24,12 @@ import {
   searchMemories,
   solutionSignal,
   takeUnreadQuotaNotices,
+  getActiveDevice,
+  listDevices,
+  registerDevice,
+  revokeDevice,
+  touchDevice,
+  type AdminDevice,
   type QuotaNotice,
 } from "./store";
 import { getSuggestions } from "./suggest";
@@ -38,6 +44,13 @@ import {
   verifyAdminSession,
   verifyTotp,
 } from "./admin_auth";
+import {
+  isValidDeviceId,
+  isValidDevicePublicKey,
+  issueDeviceChallenge,
+  readDeviceChallenge,
+  verifyDeviceSignature,
+} from "./admin_device";
 import {
   ACCOUNT_COLUMNS,
   effectiveQuota,
@@ -591,6 +604,13 @@ async function handleRest(request: Request, env: Env, path: string): Promise<Res
     // but reachable and enumerable where every other admin route 404s.
     "/api/admin/visits",
     "/api/admin/activity",
+    // Device auth. `/challenge` is deliberately in this set even though it is
+    // unauthenticated: 404 off the admin host, so the device endpoints are not
+    // discoverable from the public one.
+    "/api/admin/device/register",
+    "/api/admin/device/challenge",
+    "/api/admin/device/verify",
+    "/api/admin/devices",
     "/api/setup-dataset",
   ]);
   if (ADMIN_API.has(path) && url.hostname !== ADMIN_HOST) {
@@ -600,6 +620,14 @@ async function handleRest(request: Request, env: Env, path: string): Promise<Res
   switch (path) {
     case "/api/admin/login":
       return adminJson(await handleAdminLogin(env, body, request));
+    case "/api/admin/device/register":
+      return adminJson(await handleDeviceRegister(env, body, url, request));
+    case "/api/admin/device/challenge":
+      return adminJson(await handleDeviceChallenge(env, body, url));
+    case "/api/admin/device/verify":
+      return adminJson(await handleDeviceVerify(env, body, url, request));
+    case "/api/admin/devices":
+      return adminJson(await handleAdminDevices(env, body, url, request));
     case "/api/add":
       return json(await addMemory(env, { content: body.content, scope, tags: body.tags, source: body.source, provider: body.provider, origin_system: body.origin_system, corpus_type: body.corpus_type, client_id: body.client_id, user_id: body.user_id, metadata: body.metadata }), {
         headers: CORS,
@@ -698,6 +726,98 @@ async function handleAdminLogin(env: Env, body: Record<string, any>, request: Re
   const session = await createAdminSession(env);
   await logCrmAction(env, "admin", "admin_login_success", "admin login", request).run().catch(() => {});
   return { status: "ok", session: session || null };
+}
+
+/* --- device authentication ----------------------------------------------------
+ *
+ * Three endpoints, described in src/admin_device.ts. The important property here
+ * is that the passkey is only ever needed to register the FIRST device. After
+ * that, authentication is proof of possession of a private key the server never
+ * holds, so there is no shared secret left to leak.
+ *
+ * `/challenge` is intentionally unauthenticated -- a client must be able to ask
+ * for a nonce before it can prove anything -- so it is in ADMIN_API (404 off the
+ * admin host) but not gated.
+ */
+
+async function handleDeviceRegister(env: Env, body: Record<string, any>, url: URL, request: Request): Promise<Record<string, any>> {
+  const auth = await adminGate(env, request, body, url);
+  if (!auth.ok) {
+    await logCrmAction(env, "unknown", "admin_device_register_fail", "unauthenticated device registration", request)
+      .run()
+      .catch(() => {});
+    if (auth.reason === "totp_required") return { error: "totp_required" };
+    return { error: "unauthorized" };
+  }
+  const id = typeof body.id === "string" ? body.id.trim() : "";
+  const name = typeof body.name === "string" ? body.name.trim().slice(0, 64) : "";
+  const publicKey = typeof body.public_key === "string" ? body.public_key.trim() : "";
+  if (!isValidDeviceId(id)) return { error: "invalid device id" };
+  if (!name) return { error: "invalid device name" };
+  // Validate before storing: a key that cannot verify would lock the device out
+  // later, with registration looking innocent.
+  if (!(await isValidDevicePublicKey(publicKey))) return { error: "invalid public key" };
+  await registerDevice(env, id, name, publicKey, url.hostname);
+  await logCrmAction(env, "admin", "admin_device_register", `registered admin device ${name}`, request).run().catch(() => {});
+  return { status: "registered", id, name, origin: url.hostname };
+}
+
+async function handleDeviceChallenge(env: Env, body: Record<string, any>, url: URL): Promise<Record<string, any>> {
+  const id = typeof body.device_id === "string" ? body.device_id.trim() : "";
+  if (!isValidDeviceId(id)) return { error: "invalid device id" };
+  const issued = await issueDeviceChallenge(env, id, url.hostname);
+  if (!issued) return { error: "auth unavailable" };
+  return issued;
+}
+
+async function handleDeviceVerify(env: Env, body: Record<string, any>, url: URL, request: Request): Promise<Record<string, any>> {
+  const id = typeof body.device_id === "string" ? body.device_id.trim() : "";
+  const challenge = typeof body.challenge === "string" ? body.challenge : "";
+  const signature = typeof body.signature === "string" ? body.signature : "";
+  // Every rejection below returns the identical body, so a caller cannot tell an
+  // unknown device from a revoked one from a bad signature, and cannot use this
+  // endpoint to learn whether a device id exists.
+  const denied = async (why: string) => {
+    await logCrmAction(env, "unknown", "admin_device_verify_fail", `device auth failed (${why})`, request)
+      .run()
+      .catch(() => {});
+    return { error: "unauthorized" };
+  };
+  if (!isValidDeviceId(id)) return denied("bad id");
+  const parsed = await readDeviceChallenge(env, challenge);
+  if (!parsed) return denied("challenge invalid or expired");
+  if (parsed.did !== id) return denied("challenge/device mismatch");
+  // The challenge is bound to the host that issued it, so a challenge obtained
+  // from one host cannot be redeemed against another.
+  if (parsed.org !== url.hostname) return denied("origin mismatch");
+  const device = await getActiveDevice(env, id);
+  if (!device) return denied("unknown or revoked device");
+  if (!(await verifyDeviceSignature(device.public_key, challenge, signature))) return denied("bad signature");
+  await touchDevice(env, id).catch(() => {});
+  const session = await createAdminSession(env);
+  await logCrmAction(env, "admin", "admin_device_login", `admin login via device ${device.name}`, request)
+    .run()
+    .catch(() => {});
+  return { status: "ok", session: session || null, device: { id: device.id, name: device.name } };
+}
+
+async function handleAdminDevices(env: Env, body: Record<string, any>, url: URL, request: Request): Promise<Record<string, any>> {
+  const auth = await adminGate(env, request, body, url);
+  if (!auth.ok) {
+    if (auth.reason === "totp_required") return { error: "totp_required" };
+    return { error: "unauthorized" };
+  }
+  if (body.action === "revoke") {
+    const id = typeof body.id === "string" ? body.id.trim() : "";
+    if (!isValidDeviceId(id)) return { error: "invalid device id" };
+    const revoked = await revokeDevice(env, id);
+    await logCrmAction(env, "admin", "admin_device_revoke", `revoked admin device ${id}`, request).run().catch(() => {});
+    return { status: revoked ? "revoked" : "not found" };
+  }
+  const devices = await listDevices(env);
+  // public_key is omitted: it is not secret, but there is no reason for the
+  // dashboard to handle key material.
+  return { devices: devices.map((d) => ({ id: d.id, name: d.name, origin: d.origin, created_at: d.created_at, last_used_at: d.last_used_at, revoked_at: d.revoked_at })) };
 }
 
 async function handleAdminTokens(env: Env, body: Record<string, any>, url: URL, request: Request): Promise<Record<string, any>> {
@@ -1588,6 +1708,17 @@ export default {
   "/api/admin/clock",
   "/api/admin/visits",
   "/api/admin/activity",
+  // Device auth. Every one of these is here because the gate below runs for any
+  // /api/ path not listed in CRM_ROUTES, and it demands an account bearer token
+  // before dispatch. An admin device holds no such token: its credential is a
+  // signed challenge. Listing them exempts them from that gate so they reach
+  // their own handlers, which do their own auth -- register and devices require
+  // adminGate, verify requires a valid signature, and challenge is deliberately
+  // unauthenticated.
+  "/api/admin/device/register",
+  "/api/admin/device/challenge",
+  "/api/admin/device/verify",
+  "/api/admin/devices",
   "/api/check-quota",
 ];
     // Hoisted out of the block below: the MCP route needs the resolved credential
