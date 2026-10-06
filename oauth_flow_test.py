@@ -22,7 +22,7 @@ import urllib.request
 from html.parser import HTMLParser
 from pathlib import Path
 
-BASE = (sys.argv[1] if len(sys.argv) > 1 else "https://dgui-hypermem.ctaxnagomi.workers.dev").rstrip("/")
+BASE = (sys.argv[1] if len(sys.argv) > 1 else "https://dgui-hmem.deckergui.my").rstrip("/")
 REDIRECT = "http://127.0.0.1:8765/callback"
 EMAIL = "oauth-flow-test@demo.com"
 # The test signs in as a dedicated fixture account rather than a real user, so
@@ -357,10 +357,16 @@ print("\nresource access")
 status, _, body = mcp_call(tokens["access_token"])
 check("access token works on /mcp", status == 200, f"got {status}")
 try:
-    tool_count = len(json.loads(body)["result"]["tools"])
-    check("all 8 tools exposed", tool_count == 8, f"got {tool_count}")
+    exposed = {t["name"] for t in json.loads(body)["result"]["tools"]}
+    expected = {
+        "add", "search", "suggest", "list", "profile", "forget", "help",
+        "sync_jev_dataset", "jev_queue_stats", "quota_notices",
+    }
+    missing = sorted(expected - exposed)
+    check("all 10 tools exposed", not missing,
+          f"missing: {', '.join(missing)}" if missing else f"got {len(exposed)}")
 except Exception as exc:  # noqa: BLE001
-    check("all 8 tools exposed", False, str(exc))
+    check("all 10 tools exposed", False, str(exc))
 
 status, _, body = mcp_call("not-a-real-token")
 check("bogus bearer rejected", status == 401, f"got {status}")
