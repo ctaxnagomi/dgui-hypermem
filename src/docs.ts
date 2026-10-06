@@ -432,7 +432,7 @@ curl -X POST "https://dgui-hmem.deckergui.my/api/search" \\
 
         <h3 id="pipeline-private">Private data</h3>
         <p>Point <code>HF_DATASET</code> at a repository you own and supply an <code>HF_TOKEN</code> that can write to it. Every flush then appends to <code>train.jsonl</code> and rewrites <code>metadata.json</code> in that repository instead of the public one. <code>/api/setup-dataset</code> validates a token against a repository and records the setup so an operator can confirm the binding before the first sync; the effective sync target always remains the <code>HF_DATASET</code> binding.</p>
-        <div class="warning"><strong>Two caveats before you rely on a private dataset.</strong> The Worker only auto-creates a repository when one does not exist yet, and it creates it as public — so create the private repository yourself first. And <code>/api/setup-dataset</code> records a short token prefix in the CRM audit log, so treat that log as sensitive.</div>
+        <div class="warning"><strong>One caveat before you rely on a private dataset.</strong> The Worker only auto-creates a repository when one does not exist yet, and it creates it as public — so create the private repository yourself first. <code>/api/setup-dataset</code> records only the dataset name in the CRM audit log; no token material is logged.</div>
 
         <h3 id="pipeline-public">Public data</h3>
         <p>With no override, rows go to the public <code>ctaxnagomi/DGUI_HYPERMEM-JEV</code> dataset, which is created on first flush if it is missing. Each row keeps its <code>use_case</code>, <code>instruct_type</code>, the exact questions sent, the answers returned, and the <code>provider</code> and <code>model</code> that produced them, so the corpus is usable as-is for few-shot or fine-tuning work.</p>
@@ -649,7 +649,7 @@ curl "https://YOUR_WORKER_HOST/health"</code></pre>
           <li>Disable or tightly control JEV dataset export when memory content must not leave the primary deployment.</li>
           <li>Use HTTPS-only Worker routes and restrict administrative endpoints at the network or application layer.</li>
         </ul>
-        <div class="warning"><strong>Current deployment audit:</strong> the repository has known hardening gaps around fail-open authentication, source-level secret fallback, setup-token logging, and migration completeness. Review and remediate them before using a fresh self-hosted deployment for sensitive or multi-tenant data.</div>
+        <div class="warning"><strong>Current deployment audit:</strong> the repository has known hardening gaps around fail-open authentication, source-level secret fallback, and migration completeness. Review and remediate them before using a fresh self-hosted deployment for sensitive or multi-tenant data.</div>
       </section>
 
       <section id="troubleshooting">
