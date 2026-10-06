@@ -215,5 +215,32 @@ for (const [text, needle] of KEEP) {
   redacts("the passkey is abcdef7", "abcdef7", "digit-rescues-short-value");
 }
 
+{
+  // Corpus exclusions: the webhook env-var name and email addresses. Neither
+  // is a credential, and both were found in published train.jsonl rows (22 and
+  // 3 respectively), so the dataset policy bars them outright.
+  const IDENT = "Set STRIPE_WEBHOOK_SECRET Worker secret from the Stripe Dashboard";
+  redacts(IDENT, "STRIPE_WEBHOOK_SECRET", "corpus :: env-var name removed");
+  redacts("copy the Stripe Webhook Secret into the dashboard", "Stripe Webhook Secret",
+    "corpus :: prose variant removed");
+
+  const MAIL = "ping wan.mohd.azizi.seggaf@gmail.com or 179611955+ctaxnagomi@users.noreply.github.com about row 12";
+  const out = redactSecrets(MAIL);
+  ok(!out.text.includes("@"), "corpus :: every email address removed", out.text);
+  ok(out.text.includes("about row 12"), "corpus :: surrounding prose intact", out.text);
+  ok(out.findings.includes("email-address"), "corpus :: email rule fired", summariseFindings(out.findings));
+
+  // Guards: the endpoint path and the plain webhook word are ordinary prose.
+  preserves("configure the stripe-webhook endpoint URL for checkout", "stripe-webhook", "corpus");
+  preserves("every webhook event is logged before replay", "webhook event", "corpus");
+
+  // Idempotency matters because flushJevExamples re-scrubs the whole published
+  // file on every run; a mask that re-matched itself would grow forever.
+  const once = redactSecrets(IDENT + " " + MAIL).text;
+  const twice = redactSecrets(once).text;
+  ok(once === twice, "corpus :: re-scrub is byte-identical (idempotent)",
+    `pass1: ${once}\npass2: ${twice}`);
+}
+
 console.log(`\n  ${checks - failures}/${checks} checks passed, ${failures} failure(s)`);
 if (failures) process.exit(1);

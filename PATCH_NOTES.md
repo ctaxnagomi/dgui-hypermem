@@ -4,6 +4,32 @@ Postponed work and known issues, carried forward between releases.
 
 ---
 
+## Corpus redaction: webhook env-var name and emails excluded from the dataset (6 Oct 2026)
+
+22 published `train.jsonl` rows carried the Stripe webhook signing-secret **env-var
+name** (a name, never a value) and 3 rows carried personal email addresses. The
+dataset policy now bars both, even though the privacy policy still allows them
+in stored memory content:
+
+- `src/redact.ts` gains `email-address`, `stripe-webhook-secret-name`
+  (case-sensitive, underscore form) and `stripe-webhook-secret-phrase`
+  (space-separated prose form) rules. Every mask is lowercase-hyphenated with
+  no `@` and no underscore-triplet, so re-scrubbing already-masked text is
+  byte-identical (the idempotency pinned in `redact_test.ts`).
+- `src/dataset.ts` `flushJevExamples` now re-scrubs the whole published file
+  on **every** flush (`scrubJsonl`), not just new rows: the enqueue gate stops
+  new leaks, this pass repairs history. When the queue is empty but scrubbing
+  changed rows, it uploads a repair-only commit (`uploadRepair`). Queue rows
+  are scrubbed once more on the way out.
+- **Executed 6 Oct 2026 (12:23Z)** against `ctaxnagomi/DGUI_HYPERMEM-JEV`:
+  repair commit `cf4d7cd` scrubbed **29 published rows**. Verified at that
+  commit: env-var name 50→0 hits, email addresses 4→0 (16 masks), all other
+  rows byte-identical.
+- The hourly cron keeps the repair pass armed; a future rule addition therefore
+  self-heals history without a hand-rolled migration.
+
+---
+
 ## Moved: production account migration to wan.mohd.azizi.seggaf — DEPLOYED (30 Sep 2026)
 
 dgui-hypermem now runs from the **wan.mohd.azizi.seggaf** Cloudflare account

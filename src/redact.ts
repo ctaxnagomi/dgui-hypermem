@@ -11,6 +11,9 @@
  *
  * Scope, deliberately: this guards the *training corpus* only. Memory content
  * is stored as-is, which is what the privacy policy actually promises users.
+ * The corpus rules also exclude two things that are not secrets at all but are
+ * barred from published rows by dataset policy: the STRIPE_WEBHOOK_SECRET
+ * env-var name and email addresses (see RULES below).
  *
  * Known limitation, stated rather than papered over: a secret of fewer than 12
  * characters that contains no digit, carries no known format prefix, and never
@@ -92,6 +95,23 @@ const SEPARATOR =
   "\\s*[\\s`'\"\\[]*){0,4})";
 
 const RULES: readonly Rule[] = [
+  // --- corpus exclusions: not secrets, but barred from the published rows ---
+  //
+  // Two identifiers the dataset policy excludes even though the privacy policy
+  // lets them exist in memory content: the Stripe webhook secret's env-var
+  // *name* (22 published rows carried it; it is a name, not a value, but the
+  // corpus must not mention it at all) and email addresses (personal
+  // identifiers, 3 published rows carried them).
+  //
+  // Shape notes that keep these idempotent under a re-scrub:
+  //  - the email mask contains no "@", so it cannot re-match;
+  //  - the identifier rule is case-sensitive with underscores, and the phrase
+  //    rule requires spaces, while every mask is lowercase-hyphenated -- a
+  //    second pass over already-masked text finds nothing.
+  { name: "email-address", re: /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g, valueGroup: 0 },
+  { name: "stripe-webhook-secret-name", re: /\bSTRIPE_WEBHOOK_SECRET\b/g, valueGroup: 0 },
+  { name: "stripe-webhook-secret-phrase", re: /\bSTRIPE\s+WEBHOOK\s+SECRET\b/gi, valueGroup: 0 },
+
   // --- known provider formats: unambiguous, no context needed ---------------
   { name: "openai-key", re: /sk-(?:live-|test-)?[A-Za-z0-9_-]{16,}/gi, valueGroup: 0 },
   { name: "stripe-key", re: /sk_(?:live|test)_[A-Za-z0-9]{10,}/gi, valueGroup: 0 },

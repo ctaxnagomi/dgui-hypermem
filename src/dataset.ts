@@ -9,7 +9,7 @@
 
 import type { Env, MemoryAnalysis } from "./types";
 import { analyzeQuestions, rerankQuestions, resolveMode, supersedeQuestions } from "./jev";
-import { scrubJevRow, summariseFindings } from "./redact";
+import { redactSecrets, scrubJevRow, summariseFindings } from "./redact";
 import { now, uuid } from "./util";
 
 export type JevUseCase = "analyze" | "rerank" | "supersede";
@@ -350,6 +350,65 @@ export interface FlushResult {
   error?: string;
 }
 
+/**
+ * Re-scrub a whole train.jsonl body, line by line.
+ *
+ * The enqueue gate stops new leaks, but rows written before a rule existed are
+ * already published and rows sitting in the queue were scrubbed with whatever
+ * rules were current when they entered. This pass makes the published file
+ * reflect the *current* rules on every flush, so adding a rule repairs history
+ * without a hand-rolled migration. It must stay idempotent: an unchanged row
+ * re-serialises byte-identical, so rows_changed counts real work and a second
+ * run over repaired text reports zero.
+ */
+function scrubJsonl(file: string): { text: string; rows_changed: number } {
+  if (!file) return { text: file, rows_changed: 0 };
+  const out: string[] = [];
+  let rowsChanged = 0;
+  for (const line of file.split("\n")) {
+    if (!line.trim()) continue;
+    try {
+      const row = JSON.parse(line) as Record<string, unknown>;
+      const { row: scrubbed, findings } = scrubJevRow(row);
+      const next = JSON.stringify(scrubbed);
+      if (findings.length && next !== line) rowsChanged++;
+      out.push(next);
+    } catch {
+      // A line we cannot parse cannot be walked field-by-field, but it can
+      // still carry a leak: scrub it as free text rather than passing it on.
+      const fallback = redactSecrets(line);
+      if (fallback.findings.length) rowsChanged++;
+      out.push(fallback.text);
+    }
+  }
+  return { text: out.length ? out.join("\n") + "\n" : "", rows_changed: rowsChanged };
+}
+
+/**
+ * Upload a repair-only commit: no queue rows, just the scrubbed history.
+ */
+async function uploadRepair(env: Env, body: string, rowsChanged: number): Promise<FlushResult> {
+  await ensureRepo(env);
+  const upload = await createCommit(
+    env,
+    [{ path: "train.jsonl", content: body }],
+    `DGUI_HYPERMEM-JEV redaction repair: scrubbed ${rowsChanged} published rows (webhook-secret names, email addresses)`,
+  );
+  if (!upload.ok) {
+    const text = (await upload.text()).slice(0, 300);
+    throw new Error(`hf upload: HTTP ${upload.status}: ${text}`);
+  }
+  const stats = await jevQueueStats(env);
+  return {
+    dataset: datasetRepo(env),
+    batch: now(),
+    uploaded_rows: 0,
+    queue_remaining: stats.pending,
+    total_rows: stats.uploaded,
+    commit_ok: true,
+  };
+}
+
 export async function flushJevExamples(env: Env, limit = 200): Promise<FlushResult> {
   if (!env.HF_TOKEN) return { dataset: datasetRepo(env), batch: 0, uploaded_rows: 0, queue_remaining: 0, total_rows: 0, commit_ok: false, error: "HF_TOKEN not set" };
 
@@ -360,7 +419,28 @@ export async function flushJevExamples(env: Env, limit = 200): Promise<FlushResu
     .bind(limit)
     .all<{ id: string; use_case: string; payload: string }>();
   const pending = results || [];
+
+  let existingFile: string | null = null;
+  let existingMeta: string | null = null;
+  let existingReadme: string | null = null;
+  try {
+    [existingFile, existingMeta, existingReadme] = await Promise.all([
+      readFile(env, "train.jsonl"),
+      readFile(env, "metadata.json").catch(() => null),
+      readFile(env, "README.md").catch(() => null),
+    ]);
+  } catch (err) {
+    // With rows waiting, failing blind would publish an append against an
+    // unread base. With nothing waiting, the only thing lost is the repair,
+    // and the next cron pass retries it.
+    if (pending.length) throw err;
+    console.error("flushJevExamples: HF read failed, skipping repair pass:", String(err));
+  }
+
+  const repair = scrubJsonl(existingFile ?? "");
+
   if (!pending.length) {
+    if (repair.rows_changed) return uploadRepair(env, repair.text, repair.rows_changed);
     const stats = await jevQueueStats(env);
     return { dataset: datasetRepo(env), batch: 0, uploaded_rows: 0, queue_remaining: 0, total_rows: stats.uploaded, commit_ok: true };
   }
@@ -368,16 +448,10 @@ export async function flushJevExamples(env: Env, limit = 200): Promise<FlushResu
   const rows: JevExampleRow[] = pending.map((p) => JSON.parse(p.payload) as JevExampleRow);
   const batchId = now();
 
-  const [existingFile, existingMeta, existingReadme] = await Promise.all([
-    readFile(env, "train.jsonl").catch((e) => { throw e; }),
-    readFile(env, "metadata.json").catch(() => null),
-    readFile(env, "README.md").catch(() => null),
-  ]);
-
   const seen = new Set<string>();
   const newRows: JevExampleRow[] = [];
-  if (existingFile) {
-    for (const line of existingFile.split("\n")) {
+  if (repair.text) {
+    for (const line of repair.text.split("\n")) {
       if (!line.trim()) continue;
       try {
         const r = JSON.parse(line) as { id?: string };
@@ -389,7 +463,10 @@ export async function flushJevExamples(env: Env, limit = 200): Promise<FlushResu
   }
   for (const row of rows) {
     if (seen.has(row.id)) continue;
-    newRows.push(row);
+    // Queue rows may predate the current rules; the enqueue gate is only as
+    // new as the deploy that wrote it. Scrub once more on the way out.
+    const { row: safe } = scrubJevRow(row as unknown as Record<string, unknown>);
+    newRows.push(safe as unknown as JevExampleRow);
     seen.add(row.id);
   }
 
@@ -398,11 +475,12 @@ export async function flushJevExamples(env: Env, limit = 200): Promise<FlushResu
     await env.DB.prepare(`UPDATE jev_examples SET status = 'uploaded', uploaded_at = ? WHERE id IN (${ph})`)
       .bind(now(), ...pending.map((p) => p.id))
       .run();
+    if (repair.rows_changed) return uploadRepair(env, repair.text, repair.rows_changed);
     const stats = await jevQueueStats(env);
     return { dataset: datasetRepo(env), batch: 0, uploaded_rows: 0, queue_remaining: stats.pending, total_rows: stats.uploaded, commit_ok: true };
   }
 
-  const appended = (existingFile ? existingFile.replace(/\n?$/, "\n") : "") + newRows.map((r) => JSON.stringify(r)).join("\n") + "\n";
+  const appended = (repair.text ? repair.text.replace(/\n?$/, "\n") : "") + newRows.map((r) => JSON.stringify(r)).join("\n") + "\n";
 
   // metadata.json: merge running totals with this batch.
   const meta: Record<string, any> = { ...META_DEFAULTS, ...(existingMeta ? JSON.parse(existingMeta) : {}) };
