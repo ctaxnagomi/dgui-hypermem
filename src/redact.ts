@@ -234,11 +234,14 @@ function deepRedact(value: unknown, findings: string[], depth = 0): unknown {
  * `id` and `memory_id` are the dedup key in `flushJevExamples` -- redacting them
  * would republish every row forever. `scope`, `provider`, `model`, `use_case`
  * and `instruct_type` are the axes a training set is sliced by. `created_at`
- * and `source` are not user text.
+ * and `source` are not user text. `tag_id` is attribution metadata, not user
+ * text: it is a `u_`-prefixed hex digest (see `tagIdFor` in util.ts), safe by
+ * construction, and it must round-trip byte-identically so the repair pass
+ * never churns published rows.
  */
 export const JEV_IDENTITY_FIELDS = [
   "id", "use_case", "instruct_type", "provider", "model",
-  "scope", "memory_id", "source", "created_at",
+  "scope", "memory_id", "source", "created_at", "tag_id",
 ] as const;
 
 /**

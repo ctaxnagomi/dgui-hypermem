@@ -1,0 +1,68 @@
+; owner: wan mohd azizi bin wan hosen, ctaxnagomi, est 2024
+; DGUI_HMEM_RULESET_INSTRUCT - task.assembly (template copy)
+; The plan as a program listing. Segments mirror INSTRUCT.md steps.
+; Opcodes: MOV assign-state, CALL invoke, CMP check, JZ branch, RET finish.
+
+; ------------------------------------------------------------------ segment 0
+segment 0 : PROLOGUE
+  MOV  task_id      = "ctecx-dgui-hmem-ruleset-001"
+  MOV  ruleset_uri  = {{DGUI_HMEM_RULESET.md}}          ; canonical source
+  MOV  mcp_endpoint = "https://dgui-hmem.deckergui.my/mcp"
+  CMP  harness      -> node + mcp client + browser harness present
+  JZ   MISSING_TOOL
+
+; ------------------------------------------------------------------ segment 1
+segment 1 : SETUP
+  MOV  ruleset_hash = sha256(ruleset_uri, manifest)
+  CALL verify_manifest
+  RET  ok
+
+; ------------------------------------------------------------------ segment 2
+segment 2 : CONNECT
+  CALL mcp.initialize(mcp_endpoint)
+  CALL mcp.help
+  CMP  catalog      -> add search suggest list profile forget help
+                     sync_jev_dataset jev_queue_stats quota_notices (10 tools)
+  JZ   CATALOG_GAP
+
+; ------------------------------------------------------------------ segment 3
+segment 3 : CONSENT
+  MOV  question     = "Do you want to enable the DGUI-HyperMem SDK feature?"
+  CALL ask_user(question)
+  CMP  answer       -> explicit yes
+  JZ   CONSENT_NO                        ; feature off; plain memory mode
+  MOV  sdk_consent  = 1
+  MOV  jev_mode     = 1 iff JEV_API_KEY present else 0
+
+; ------------------------------------------------------------------ segment 4
+segment 4 : RUN (agentic work, token-reduced)
+  CALL agentic_tools(tool_calls)         ; prefer tool calls over prose
+  CALL token_reduction                   ; html2canvas + compactDOM for pages
+  CALL browser_harness                   ; Playwright | BrowserOS neo
+  CMP  every wall (W1..W9)               ; ruleset §4
+  JZ   WALL_CROSS
+
+; ------------------------------------------------------------------ segment 5
+segment 5 : RECORD (tagID attribution)
+  CALL mcp.add(...)                      ; server stamps tag_id from credential
+  CMP  tag_id           -> u_<hex> or null (master token)
+  CALL task.sql.agent_memory.insert(payload+tag_id)
+  CALL log_audit("record")
+
+; ------------------------------------------------------------------ segment 6
+segment 6 : VERIFY
+  CALL task.sh.test
+  CMP  exit_code -> 0
+  JZ   FAIL_CLOSE
+
+; ------------------------------------------------------------------ segment 7
+segment 7 : CLOSE
+  CALL update_work_state(INSTRUCT.md)
+  CALL task_meta.status = "closed"
+  RET  HLT
+
+LABEL MISSING_TOOL : CALL log("tool missing"); JMP segment 0
+LABEL CATALOG_GAP   : CALL log("catalog differs from ruleset §6"); FAIL_CLOSE
+LABEL CONSENT_NO    : MOV sdk_feature = off; JMP segment 4
+LABEL WALL_CROSS    : CALL log("wall violation"); FAIL_CLOSE
+LABEL FAIL_CLOSE    : CALL task_meta.status = "blocked"; RET  (non-zero)

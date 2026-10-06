@@ -29,6 +29,9 @@ export interface JevExampleRow {
   scope: string;
   memory_id: string | null;
   source: string | null;
+  /** Attribution tag of the credential owner who triggered the row (`u_<hex>`,
+   *  see `tagIdFor`). Null for master-token / untagged traffic. */
+  tag_id: string | null;
   created_at: number;
 }
 
@@ -42,7 +45,7 @@ export function datasetRepo(env: Env): string {
 
 export function buildAnalyzeRow(
   env: Env,
-  input: { memory_id: string | null; scope: string; content: string; analysis: MemoryAnalysis; source: string | null; created_at?: number },
+  input: { memory_id: string | null; scope: string; content: string; analysis: MemoryAnalysis; source: string | null; created_at?: number; tag_id?: string | null },
 ): JevExampleRow {
   const questions = analyzeQuestions();
   const answers = {
@@ -67,6 +70,7 @@ export function buildAnalyzeRow(
     scope: input.scope,
     memory_id: input.memory_id,
     source: input.source,
+    tag_id: input.tag_id ?? null,
     created_at: input.created_at ?? now(),
   };
 }
@@ -80,6 +84,7 @@ export function buildRerankRow(
     provider: string;
     scope: string;
     created_at?: number;
+    tag_id?: string | null;
   },
 ): JevExampleRow {
   const questions = rerankQuestions(input.query, input.candidates);
@@ -107,13 +112,14 @@ export function buildRerankRow(
     scope: input.scope,
     memory_id: null,
     source: null,
+    tag_id: input.tag_id ?? null,
     created_at: input.created_at ?? now(),
   };
 }
 
 export function buildSupersedeRow(
   env: Env,
-  input: { existing: string; incoming: string; probability: number; scope: string; created_at?: number },
+  input: { existing: string; incoming: string; probability: number; scope: string; created_at?: number; tag_id?: string | null },
 ): JevExampleRow {
   const questions = supersedeQuestions();
   const state = { existing_memory: input.existing, incoming_memory: input.incoming };
@@ -135,6 +141,7 @@ export function buildSupersedeRow(
     scope: input.scope,
     memory_id: null,
     source: null,
+    tag_id: input.tag_id ?? null,
     created_at: input.created_at ?? now(),
   };
 }

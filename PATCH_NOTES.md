@@ -25,6 +25,46 @@ Postponed work and known issues, carried forward between releases.
 
 ---
 
+## Training governance: tagID attribution, ruleset templates, embedding corpus skeleton (7 Oct 2026)
+
+Training/corpus governance patch. Every queued and published JEV row is now
+attributable to the MCP user who triggered it, without publishing anything
+identifiable.
+
+- **tagID** — `tag_id` field added to `JevExampleRow` and stamped server-side on
+  `add` / `search` (rerank) / supersede rows from the credential owner's email:
+  `u_` + first-16-hex of SHA-256 (lowercased). Threaded through the MCP
+  handlers and the REST `/api/add` + `/api/search` paths; master-token and
+  unauthenticated traffic stays untagged (`null`). `tag_id` is an identity
+  field in `scrubJevRow`, so it round-trips byte-identically and is never
+  redacted. New rows carry it going forward; already-published rows are left
+  untouched (no backfill churn).
+- **Ruleset artefacts** — commit-safe *template* forms only, under
+  `ruleset/templates/`:
+  - `DGUI_HMEM_RULESET.template.md` — per-user contract: strict data-flow
+    pipeline, training-only scope, air-gap walls W1–W9, tagID, opt-in consent,
+    owner-gated DeckerGUI SDK.
+  - `DGUI_HMEM_RULESET_INSTRUCT` pack (ctecx_instruct@1, five parts) + zip —
+    executable harness contract (agentic tools, `tool_calls`, html2canvas +
+    compactDOM token reduction, Playwright/BrowserOS neo), JEV driven by an
+    owner-minted key injected at runtime only.
+  - `DECKERGUI_SDK_RULESET.template.md` — owner-only SDK config (same
+    ctecx_instruct@1 shape), never distributed to MCP users.
+  - Concrete grant versions (paths, key name) are **gitignored, owner-local**
+    by policy: nothing with a real path/email/key is ever committed.
+- **Pipeline spec** — `RULESET_TRAIN_CORPUS.md` at repo root documents both
+  corpora: Train (`DGUI_HYPERMEM-JEV`, tagID now in every row) and the new
+  Embed corpus in embedding-model format, with gates, single-writer rule,
+  air-gap guarantees, and the intended daily-ingest schedule.
+- **HuggingFace corpus** — `ctaxnagomi/dgui-hypermem-embed-corpus` created
+  (public). Schema-complete and empty: corpus.jsonl / queries.jsonl /
+  train.jsonl + metadata.json + dataset card. Ingestion code ships later per
+  `RULESET_TRAIN_CORPUS.md` §3.2; until then the format is the contract.
+- **Tests** — `tagid_test.ts` (19 checks; run with `npx tsx tagid_test.ts`),
+  alongside `redact_test.ts`. `typecheck` clean.
+
+---
+
 ## Moved: production account migration to wan.mohd.azizi.seggaf — DEPLOYED (30 Sep 2026)
 
 dgui-hypermem now runs from the **wan.mohd.azizi.seggaf** Cloudflare account

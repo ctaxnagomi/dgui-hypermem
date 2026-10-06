@@ -35,7 +35,7 @@ import {
 import { getSuggestions } from "./suggest";
 import { MEMORY_TYPES, resolveMode } from "./jev";
 import { flushJevExamples, jevQueueStats } from "./dataset";
-import { json, logCrmAction, now, timeSafeEqual, uuid } from "./util";
+import { json, logCrmAction, now, tagIdFor, timeSafeEqual, uuid } from "./util";
 import { checkPasskey, extractToken, resolveCredential, type Credential } from "./auth";
 import {
   createAdminSession,
@@ -224,6 +224,8 @@ function buildServer(env: Env, ctx: McpCtx = {}): McpServer {
           user_id: args.user_id,
           metadata: args.metadata,
           checkContradictions: args.check_contradictions,
+          // tagID: attribute this memory's JEV rows (Train) to the calling user.
+          tag_id: await tagIdFor(ctx.email),
         });
         return ok({
           id: result.memory.id,
@@ -269,6 +271,8 @@ function buildServer(env: Env, ctx: McpCtx = {}): McpServer {
           limit: args.limit,
           type: args.type ?? null,
           durableOnly: args.durable_only,
+          // tagID: attribute this search's rerank JEV row (Train) to the calling user.
+          tag_id: await tagIdFor(ctx.email),
         });
         return ok({
           query: args.query,
@@ -588,6 +592,18 @@ async function handleRest(request: Request, env: Env, path: string): Promise<Res
   const url = new URL(request.url);
   const scope = body.scope || url.searchParams.get("scope") || undefined;
 
+  // tagID for REST callers (see util.tagIdFor). handleRest receives the request,
+  // not the credential the gate resolved, so the bearer credential is resolved
+  // once more only on the two routes that enqueue training rows. Master-token
+  // and unauthenticated traffic yield null -> untagged, by design.
+  const requestTagId = async (): Promise<string | null> => {
+    try {
+      return await tagIdFor(credentialEmail(await resolveCredential(env, request)));
+    } catch {
+      return null;
+    }
+  };
+
   // Admin APIs are only reachable on the admin hostname. On the public host
   // they return 404 so the admin surface is not guessable there.
   const ADMIN_HOST = env.ADMIN_HOST || "hmem-admin.deckergui.my";
@@ -629,7 +645,7 @@ async function handleRest(request: Request, env: Env, path: string): Promise<Res
     case "/api/admin/devices":
       return adminJson(await handleAdminDevices(env, body, url, request));
     case "/api/add":
-      return json(await addMemory(env, { content: body.content, scope, tags: body.tags, source: body.source, provider: body.provider, origin_system: body.origin_system, corpus_type: body.corpus_type, client_id: body.client_id, user_id: body.user_id, metadata: body.metadata }), {
+      return json(await addMemory(env, { content: body.content, scope, tags: body.tags, source: body.source, provider: body.provider, origin_system: body.origin_system, corpus_type: body.corpus_type, client_id: body.client_id, user_id: body.user_id, metadata: body.metadata, tag_id: await requestTagId() }), {
         headers: CORS,
       });
     case "/api/search":
@@ -639,6 +655,7 @@ async function handleRest(request: Request, env: Env, path: string): Promise<Res
           limit: body.limit ? Number(body.limit) : undefined,
           type: body.type ?? null,
           durableOnly: body.durable_only,
+          tag_id: await requestTagId(),
         }),
         { headers: CORS },
       );
