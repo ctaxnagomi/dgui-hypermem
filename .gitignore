@@ -9,6 +9,18 @@
 # Admin device private key (admin-device.mjs writes this next to itself)
 .admin-device-key.json
 
+# Defensive net. No tracked file matches any pattern below (verified with
+# `git ls-files | grep`), so these cannot hide source. They exist to catch a
+# credential written by a future script under a name I have not anticipated —
+# a key exported for debugging is the failure mode, not a missing entry.
+*.pem
+*.key
+*.p12
+*.pfx
+*token*.json
+*secret*.json
+*credential*
+
 # Dependencies & build
 node_modules/
 dist/
