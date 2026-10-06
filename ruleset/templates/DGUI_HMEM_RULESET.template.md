@@ -5,7 +5,7 @@
 **Owner:** wan mohd azizi bin wan hosen, ctaxnagomi, est 2024
 **Service:** DGUI-HyperMem (DeckerGUI HyperMemory) — https://dgui-hmem.deckergui.my/mcp
 **Applies to:** every MCP user of the DGUI-HyperMem service.
-**Version:** 1.0.0 (2026-10-07)
+**Version:** 1.0.1 (2026-10-07)
 **License:** MIT
 
 > **TEMPLATE COPY — placeholder rules.**
@@ -200,6 +200,11 @@ tagID = "u_" + first-16-hex(SHA-256(lowercased token-owner email))
 - The INSTRUCT pack's `Important Details` section carries every constraint this
   file imposes; a harness that violates a wall fails verification (non-zero
   exit) and must not close its task.
+- **GitHub / repository operations require the user.** Any `commit`, `push`,
+  `pull`, PR creation, `merge`, or `reset` against a repository is performed
+  only with the owner's explicit permission for that operation. **Merging
+  always requires asking the owner first** — a standing push/merge permission
+  does not waive confirm-before-each-merge.
 
 ## 9. Verification
 

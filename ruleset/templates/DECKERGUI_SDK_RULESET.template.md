@@ -63,10 +63,15 @@ complete (tagID), and in strict compliance with `{{DGUI_HMEM_RULESET.md}}`.
    configuration never overrides a ruleset wall.
 6. **Grant lifecycle.** A grant is per-user, per-scope, time-boxed. The owner
    records grants in `task_meta`-style ledger rows (owner-side store).
+7. **GitHub / repository operations require the user.** Any `commit`, `push`,
+   `pull`, PR creation, `merge`, or `reset` against a repository happens only
+   with the owner's explicit permission for that operation. **Merging always
+   requires asking the owner first** — a standing push/merge permission does not
+   waive confirm-before-each-merge.
 
 ## Work State
 
-- **Completed:** ruleset v1.0.0; tagID live (`u_<hex>` stamped server-side);
+- **Completed:** ruleset v1.0.1; tagID live (`u_<hex>` stamped server-side);
   harness stack defined (agentic tools, tool_calls, html2canvas/compactDOM,
   Playwright/BrowserOS neo, MCP Streamable HTTP).
 - **Active:** SDK grants are issued by the owner on request; no grant is

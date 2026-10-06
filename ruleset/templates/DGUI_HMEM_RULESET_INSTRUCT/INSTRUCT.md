@@ -57,10 +57,15 @@ sits below.
 8. **Never** store credentials, private keys, or personal data in memory.
 9. **Resumability.** A fresh session must be able to continue from this file
    alone: never close without a complete Work State / Next Move.
+10. **GitHub / repository operations require the user.** Any `commit`, `push`,
+    `pull`, PR creation, `merge`, or `reset` against a repository happens only
+    with the owner's explicit permission for that operation. **Merging always
+    requires asking the owner first**, even under a standing push/merge
+    permission — each merge asks anew.
 
 ## Work State
 
-- **Completed:** ruleset v1.0.0 adopted; MCP endpoint verified reachable;
+- **Completed:** ruleset v1.0.1 adopted; MCP endpoint verified reachable;
   tagID mechanism live (server-stamped).
 - **Active:** running the session under this pack; JEV mode depends on
   `JEV_API_KEY` presence (see Important Details #2).

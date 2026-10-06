@@ -4,6 +4,22 @@ Postponed work and known issues, carried forward between releases.
 
 ---
 
+## Ruleset v1.0.1: GitHub / repository operations require user permission (7 Oct 2026)
+
+`DGUI_HMEM_RULESET` bumped 1.0.0 → 1.0.1. Both ruleset forms (HMEM §8
+compliance contract for harnesses; SDK Important Details) and the executable
+`DGUI_HMEM_RULESET_INSTRUCT` pack now carry the same clause:
+
+- `commit`, `push`, `pull`, PR creation, `merge`, and `reset` against any
+  repository happen only with the owner's explicit permission **for that
+  operation**.
+- **Merging always requires asking the owner first** — a standing push/merge
+  permission does not waive confirm-before-each-merge.
+- Template zip rebuilt (`build_instruct_pack.py --template`); leak check
+  passes (`NONE`).
+
+---
+
 ## Fixed: stale OpenAI submission URL, setup-token logging; token-wan.md moved (7 Oct 2026)
 
 - **Stale OpenAI URL.** The OpenAI Plugins submission checklist told the portal
