@@ -1423,8 +1423,9 @@ async function handleSetupDataset(env: Env, body: Record<string, any>, request?:
     });
     if (test.status === 401) return { error: "invalid HF token or token lacks access to this dataset" };
     // Store in env for future syncs — we'll save to D1 for now
+    // No token material is logged: the audit row records the dataset only.
     await env.DB.prepare("INSERT INTO crm_logs (email, action, detail, device, created_at) VALUES (?, ?, ?, ?, ?)")
-      .bind("admin", "dataset_setup", `dataset: ${dataset_name}, token: ${hf_token.substring(0, 8)}...`, "setup-page", now()).run();
+      .bind("admin", "dataset_setup", `dataset: ${dataset_name} (validated)`, "setup-page", now()).run();
     return { ok: true, dataset: dataset_name, note: "configured for future syncs. Use /api/sync_jev to push." };
   } catch (e: any) {
     return { error: `HF API error: ${e.message}` };

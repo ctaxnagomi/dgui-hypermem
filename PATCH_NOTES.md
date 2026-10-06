@@ -4,6 +4,27 @@ Postponed work and known issues, carried forward between releases.
 
 ---
 
+## Fixed: stale OpenAI submission URL, setup-token logging; token-wan.md moved (7 Oct 2026)
+
+- **Stale OpenAI URL.** The OpenAI Plugins submission checklist told the portal
+  to use `https://dgui-hypermem.ctaxnagomi.workers.dev/mcp`, which 404s since
+  the account migration. It now points at the production endpoint
+  `https://dgui-hmem.deckergui.my/mcp`.
+- **Setup-token logging.** `/api/setup-dataset` no longer records an HF-token
+  prefix in the CRM audit log — the `dataset_setup` entry stores only the
+  dataset name. The rest of the setup path (`handleRequestToken` actions etc.)
+  already logged generic action strings only, so no token material ever reaches
+  a log now. Docs and the deployment-audit note updated accordingly
+  (setup-token logging removed from known gaps).
+- **token-wan.md moved** out of the repo root into the migration bundle
+  directory (`hmem-migration/`, not a git repository). It remains untracked,
+  gitignored, and never committed; the `.gitignore` entry stays as a defensive
+  net.
+- No pipeline or training-governance surface changed; `DGUI_HMEM_RULESET`
+  policy is unaffected.
+
+---
+
 ## Moved: production account migration to wan.mohd.azizi.seggaf — DEPLOYED (30 Sep 2026)
 
 dgui-hypermem now runs from the **wan.mohd.azizi.seggaf** Cloudflare account
@@ -137,7 +158,7 @@ plain GET.
 ### OpenAI submission checklist (user-actionable, at submission time)
 
 1. In the portal choose **With MCP → Universal**; enter the production URL
-   `https://dgui-hypermem.ctaxnagomi.workers.dev/mcp`.
+   `https://dgui-hmem.deckergui.my/mcp`.
 2. Complete the domain-verification challenge — place the token OpenAI
    generates at `/.well-known/openai-apps-challenge` (set `OPENAI_APPS_CHALLENGE`).
 3. Provide reviewer demo credentials (an MCP token via the normal
@@ -548,7 +569,6 @@ Now capped at 64,000 characters.
 
 ## Outstanding security work
 
-- **Setup-token logging.** Tokens are written to logs on the setup path.
 - **Incomplete migrations.** `migrations/0001_init.sql` … `0006_logs.sql` do not
   fully reproduce the live schema, so clean self-host installs remain broken.
   `schema.sql` in the migration bundle is the authoritative version.
@@ -560,6 +580,8 @@ Now capped at 64,000 characters.
   and hiding it raises the bar but does not fix the model. This now also gates
   the OAuth consent flow, so it is worth more attention than before. A per-user
   invitation or email magic-link flow would be the real answer.
-- **Credential in the working tree.** `token-wan.md` holds a Cloudflare API
-  token in plaintext. It is untracked and gitignored (`.gitignore:23`) and has
-  never been committed, but it should not sit at the repo root.
+- **Credential in the working tree — resolved (7 Oct).** `token-wan.md` held a
+  Cloudflare API token in plaintext at the repo root. It was untracked and
+  gitignored and has never been committed; it is now moved out of the repo root
+  into the migration bundle directory (`hmem-migration/`, outside any git
+  repository). The `.gitignore` entry stays as a defensive net.
