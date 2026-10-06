@@ -100,6 +100,40 @@ export interface AddResult {
   analysis: MemoryAnalysis;
   created: boolean;
   superseded: { id: string; content: string; probability: number }[];
+  /**
+   * Whether the Vectorize index accepted the embedding.
+   *
+   * Always true on a healthy system. It goes false only when D1 has already
+   * committed the row and the index write failed after retries — a genuinely
+   * partitioned backend. The row is NOT lost in that case: `memories_fts` is
+   * maintained by a D1 trigger in the same transaction as the row, so keyword
+   * recall still finds it. Only semantic recall is degraded until an index
+   * reconciliation runs.
+   *
+   * Reported rather than thrown, because the inverse is worse: throwing here
+   * tells the client the write failed when D1 accepted it, so a caller that
+   * retries creates a duplicate and a caller that does not believes data it
+   * actually has was dropped.
+   */
+  indexed: boolean;
+}
+
+/**
+ * Upsert a single memory into Vectorize, retrying once, never throwing.
+ *
+ * Returns false only when both attempts failed. Callers must treat false as
+ * "the index is behind", not "the write failed" — see AddResult.indexed.
+ */
+async function indexMemory(env: Env, entry: { id: string; values: number[]; metadata: Record<string, unknown> }): Promise<boolean> {
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      await env.VECTORIZE.upsert([entry as never]);
+      return true;
+    } catch (err) {
+      console.error(`vector index upsert failed (attempt ${attempt + 1}) for ${entry.id}:`, String(err));
+    }
+  }
+  return false;
 }
 
 export async function addMemory(env: Env, input: AddInput): Promise<AddResult> {
@@ -198,18 +232,25 @@ export async function addMemory(env: Env, input: AddInput): Promise<AddResult> {
       .run();
   }
 
-  await env.VECTORIZE.upsert([
-    {
-      id,
-      values: vector,
-      metadata: {
-        scope,
-        memory_type: analysis.memory_type,
-        status,
-        salience: analysis.salience ?? 2,
-      },
+  // D1 has committed. From here on nothing may fail the request, because the
+  // row is durable and reachable through memories_fts regardless: a CP system
+  // answers from its source of truth, and D1 is that source. The index is an
+  // accelerator, so a partition degrades semantic recall but does not make the
+  // write "not happened".
+  //
+  // One retry, then report rather than throw. Throwing would tell the caller
+  // the write failed while D1 holds it — a client that then retries creates a
+  // duplicate, and a client that does not believes real data was rejected.
+  const indexed = await indexMemory(env, {
+    id,
+    values: vector,
+    metadata: {
+      scope,
+      memory_type: analysis.memory_type,
+      status,
+      salience: analysis.salience ?? 2,
     },
-  ]);
+  });
 
   if (analysis.provider !== "off") {
     await enqueueJevExample(
@@ -239,7 +280,13 @@ export async function addMemory(env: Env, input: AddInput): Promise<AddResult> {
           await env.DB.prepare(`UPDATE memories SET status = 'superseded', superseded_by = ?, updated_at = ? WHERE id = ?`)
             .bind(id, now(), row.id)
             .run();
-          await env.VECTORIZE.deleteByIds([row.id]);
+          // D1 has marked the row superseded, so searchMemories' authoritative
+          // read-back already excludes it. Failing to drop the vector leaves
+          // harmless index cruft, not a resurrected memory — so swallow it
+          // rather than abandoning the remaining contradiction matches.
+          await env.VECTORIZE.deleteByIds([row.id]).catch((err: unknown) =>
+            console.error("vector delete failed after supersede:", String(err)),
+          );
           superseded.push({ id: row.id, content: row.content, probability });
           await logEvent(env, scope, "supersede", { memoryId: row.id, detail: { superseded_by: id, probability } });
         }
@@ -252,7 +299,7 @@ export async function addMemory(env: Env, input: AddInput): Promise<AddResult> {
   const memory = await getMemory(env, id);
   if (!memory) throw new Error("failed to persist memory");
   await logEvent(env, scope, existing ? "update" : "add", { memoryId: id, detail: { memory_type: analysis.memory_type } });
-  return { memory, analysis, created: !existing, superseded };
+  return { memory, analysis, created: !existing, superseded, indexed };
 }
 
 // ---------------------------------------------------------------- read path
@@ -666,6 +713,12 @@ export async function forgetMemories(
   await env.DB.prepare(`UPDATE memories SET status = 'deleted', updated_at = ? WHERE id IN (${ph})`)
     .bind(now(), ...ids)
     .run();
+  // Deliberately swallowed, and it must stay that way. D1 is the consistency
+  // authority: searchMemories generates candidates (including any stale vector
+  // this failure leaves behind) and then re-reads D1, dropping everything not
+  // status='active'. A dead row therefore cannot be served even while its vector
+  // lingers. Throwing would report a deletion as failed when it has in fact
+  // taken effect for every read path that matters.
   await env.VECTORIZE.deleteByIds(ids).catch((err: unknown) => console.error("vector delete failed:", String(err)));
   await logEvent(env, scope, "forget", { detail: { ids } });
   return { forgotten: ids.length, ids };
