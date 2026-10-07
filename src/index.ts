@@ -35,6 +35,7 @@ import {
 import { getSuggestions } from "./suggest";
 import { MEMORY_TYPES, resolveMode } from "./jev";
 import { flushJevExamples, jevQueueStats } from "./dataset";
+import { ingestEmbedCorpus } from "./corpus";
 import { json, logCrmAction, now, tagIdFor, timeSafeEqual, uuid } from "./util";
 import { checkPasskey, extractToken, resolveCredential, type Credential } from "./auth";
 import {
@@ -98,6 +99,8 @@ Tools
   forget   Delete by id, by search query, or everything in a scope.
   sync_jev_dataset
            Flush queued JEV decisions to the configured training dataset (also runs hourly).
+  sync_embed_corpus
+           Ingest active memories into the embedding corpus (also runs daily).
   jev_queue_stats
            Show how many JEV examples are queued, uploaded, or failed, and the target dataset.
   quota_notices
@@ -473,6 +476,32 @@ function buildServer(env: Env, ctx: McpCtx = {}): McpServer {
   );
 
   server.registerTool(
+    "sync_embed_corpus",
+    {
+      title: "Sync embed corpus",
+      description: "Ingest active memories into the ctaxnagomi/dgui-hypermem-embed-corpus HuggingFace dataset (also runs on a daily schedule).",
+      inputSchema: {
+        limit: z.number().int().min(1).max(500).optional().describe("Max memories to ingest this call (default 200)."),
+      },
+      annotations: {
+        // Uploads corpus rows to the external HF repo and rewrites metadata.json
+        // there; not read-only, and an external side effect.
+        readOnlyHint: false,
+        destructiveHint: false,
+        openWorldHint: true,
+        idempotentHint: false,
+      },
+    },
+    async (args) => {
+      try {
+        return ok(await ingestEmbedCorpus(env, args.limit));
+      } catch (err) {
+        return fail(String(err));
+      }
+    },
+  );
+
+  server.registerTool(
     "jev_queue_stats",
     {
       title: "JEV queue stats",
@@ -671,6 +700,8 @@ async function handleRest(request: Request, env: Env, path: string): Promise<Res
       });
     case "/api/sync_jev":
       return json(await flushJevExamples(env, body.limit ? Number(body.limit) : undefined), { headers: CORS });
+    case "/api/sync_embed_corpus":
+      return json(await ingestEmbedCorpus(env, body.limit ? Number(body.limit) : undefined), { headers: CORS });
     case "/api/jev_queue_stats":
       return json(await jevQueueStats(env, scope), { headers: CORS });
     case "/api/request-token":
@@ -988,7 +1019,17 @@ async function handleUpdateQuota(env: Env, body: Record<string, any>, request?: 
   if (!before) return { error: "account not found" };
   const updates: string[] = [];
   const params: any[] = [];
-  if (quota_monthly !== undefined) { updates.push("quota_monthly = ?"); params.push(quota_monthly); }
+  if (quota_monthly !== undefined) {
+    // The enforcement gate reads effectiveQuota(), which consults quota_override
+    // first and the plan ladder second -- quota_monthly alone never decides the
+    // allowance. Mirror the typed value into quota_override so what the admin
+    // sets here is what is enforced, for laddered and non-laddered (e.g. "PAYG")
+    // plans alike. This is the regression documented in PATCH_NOTES: the Quota
+    // button used to write only quota_monthly, which PAYG accounts silently
+    // ignored (collapsing to the free allowance).
+    updates.push("quota_monthly = ?", "quota_override = ?");
+    params.push(quota_monthly, quota_monthly);
+  }
   if (plan !== undefined) { updates.push("plan = ?"); params.push(plan); }
   if (!updates.length) return { error: "nothing to update" };
   updates.push("updated_at = ?"); params.push(now()); params.push(email);
@@ -1587,7 +1628,7 @@ export default {
         endpoints: {
           docs: "/docs",
           mcp: "/mcp",
-          rest: ["/api/add", "/api/search", "/api/list", "/api/profile", "/api/forget", "/api/sync_jev", "/api/jev_queue_stats", "/api/request-token", "/api/check-star", "/api/disable-token", "/api/check-quota", "/api/verify-token", "/api/setup-dataset", "/api/enterprise-inquiry", "/api/create-checkout-session", "/api/stripe-webhook", "/api/admin/tokens", "/api/admin/stats", "/api/admin/logs", "/api/admin/toggle-train", "/api/admin/update-quota", "/api/admin/clock", "/api/admin/visits", "/api/admin/activity", "/api/visitor", "/api/solution-signal"],
+          rest: ["/api/add", "/api/search", "/api/list", "/api/profile", "/api/forget", "/api/sync_jev", "/api/sync_embed_corpus", "/api/jev_queue_stats", "/api/request-token", "/api/check-star", "/api/disable-token", "/api/check-quota", "/api/verify-token", "/api/setup-dataset", "/api/enterprise-inquiry", "/api/create-checkout-session", "/api/stripe-webhook", "/api/admin/tokens", "/api/admin/stats", "/api/admin/logs", "/api/admin/toggle-train", "/api/admin/update-quota", "/api/admin/clock", "/api/admin/visits", "/api/admin/activity", "/api/visitor", "/api/solution-signal"],
         },
       });
     }
@@ -1801,7 +1842,16 @@ export default {
     return json({ error: "not found" }, { status: 404 });
   },
 
-  async scheduled(_event: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
+  async scheduled(event: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
+    // Two crons share this handler; `event.cron` tells them apart.
+    if (event.cron === "17 3 * * *") {
+      ctx.waitUntil(
+        ingestEmbedCorpus(env, 200)
+          .then((r) => console.log("embed sync:", JSON.stringify(r)))
+          .catch((err) => console.error("embed sync failed:", String(err))),
+      );
+      return;
+    }
     ctx.waitUntil(
       flushJevExamples(env, 200)
         .then((r) => console.log("jev sync:", JSON.stringify(r)))
