@@ -93,6 +93,8 @@ export interface AddInput {
   client_id?: string | null;
   user_id?: string | null;
   metadata?: any;
+  /** Attribution tag of the calling credential owner (`u_<hex>`, see `tagIdFor`). */
+  tag_id?: string | null;
 }
 
 export interface AddResult {
@@ -255,7 +257,7 @@ export async function addMemory(env: Env, input: AddInput): Promise<AddResult> {
   if (analysis.provider !== "off") {
     await enqueueJevExample(
       env,
-      buildAnalyzeRow(env, { memory_id: id, scope, content, analysis, source: input.source ?? null, created_at: timestamp }),
+      buildAnalyzeRow(env, { memory_id: id, scope, content, analysis, source: input.source ?? null, created_at: timestamp, tag_id: input.tag_id ?? null }),
     );
   }
 
@@ -275,7 +277,7 @@ export async function addMemory(env: Env, input: AddInput): Promise<AddResult> {
           .first<MemoryRow>();
         if (!row) continue;
         const probability = await supersedeScore(env, row.content, content);
-        await enqueueJevExample(env, buildSupersedeRow(env, { existing: row.content, incoming: content, probability, scope, created_at: timestamp }));
+        await enqueueJevExample(env, buildSupersedeRow(env, { existing: row.content, incoming: content, probability, scope, created_at: timestamp, tag_id: input.tag_id ?? null }));
         if (probability >= SUPERSEDE_THRESHOLD) {
           await env.DB.prepare(`UPDATE memories SET status = 'superseded', superseded_by = ?, updated_at = ? WHERE id = ?`)
             .bind(id, now(), row.id)
@@ -310,6 +312,8 @@ export interface SearchOptions {
   type?: string | null;
   durableOnly?: boolean;
   useJev?: boolean;
+  /** Attribution tag of the calling credential owner (`u_<hex>`, see `tagIdFor`). */
+  tag_id?: string | null;
 }
 
 function tokenize(query: string): string[] {
@@ -555,6 +559,7 @@ export async function searchMemories(env: Env, query: string, options: SearchOpt
         scores: jevScores,
         provider: resolveMode(env),
         scope,
+        tag_id: options.tag_id ?? null,
       }),
     );
   }
