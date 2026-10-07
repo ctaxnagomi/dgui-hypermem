@@ -4,6 +4,73 @@ Postponed work and known issues, carried forward between releases.
 
 ---
 
+## Fixed: admin Quota button ignored on PAYG / non-ladder plans (7 Oct 2026)
+
+The Quota button (`/api/admin/update-quota`) wrote only `quota_monthly`, but
+the enforcement gate reads `effectiveQuota()` (src/billing.ts) — `quota_override`
+first, then the plan ladder. `quota_monthly` alone never decided the allowance.
+For a plan label the ladder does not know (e.g. `PAYG`, "Pay As You Go") the
+ladder lookup collapsed to the Free allowance (2,000), so a typed quota like
+100,000 "updated" but was silently ignored and the account 429'd well past
+its effective cap.
+
+- **`handleUpdateQuota`** now mirrors the typed `quota_monthly` into
+  `quota_override` on the same UPDATE, so what the admin sets is what is
+  enforced (this is the mechanism docs.ts already advertised).
+- **`effectiveQuota`** falls back to the stored `quota_monthly` when the plan
+  label is unknown instead of collapsing to the Free ladder — belt-and-braces
+  for rows edited outside the admin UI. Known ladder plans still resolve
+  through the ladder (`quota_monthly` stays decorative there).
+- **Tests** — `billing_test.ts` added (9 checks: ladder plans, case
+  insensitivity, override-wins, PAYG honors `quota_monthly`, unknown plan
+  without a stored quota falls back to Free, `planQuota` itself still
+  collapses). Run with `npx tsx billing_test.ts`.
+
+---
+
+## Embed-corpus daily ingest (7 Oct 2026)
+
+The embed corpus (`ctaxnagomi/dgui-hypermem-embed-corpus`) gets its
+daily-ingest code (`src/corpus.ts`), implementing RULESET_TRAIN_CORPUS.md
+§3.2/§3.3:
+
+- **Select** — active memories with a derived `tag_id` (latest analyze row per
+  memory via `json_extract(payload,'$.tag_id')` on `jev_examples`), filtered to
+  accounts opted in (`tokens.train_with_all = 1`, mirroring the admin
+  toggle-train flag).
+- **Gate (fail-closed)** — blocked-content patterns (shared with `addMemory`
+  via `findBlockedPattern` in `src/store.ts`) drop the row entirely; W1–W3
+  secrets are redacted from the published text. A redaction change invalidates
+  the live vector, so changed rows are re-embedded rather than reusing the
+  stale vector.
+- **Embed** — reuses the live 768-d Vectorize vector when the published text
+  is byte-identical to what was embedded; otherwise re-embeds via
+  `@cf/baai/bge-base-en-v1.5`. Missing/undersized vectors fail closed (row not
+  published this pass, retried next daily run).
+- **Dedup** — `doc_id = mem_<memory id>` upsert: identical text is skipped,
+  changed text replaces in place, `mem_<uuid>` is never duplicated.
+- **Write (single writer)** — gated on `HF_TOKEN` like Train; new cron
+  `17 3 * * *` (daily 03:17 UTC) alongside the hourly `17 * * * *`, dispatched
+  in the scheduled handler on `event.cron`; `sync_embed_corpus` MCP tool +
+  `/api/sync_embed_corpus` for manual runs.
+- **Env/config** — `HF_EMBED_DATASET` var added (default
+  `ctaxnagomi/dgui-hypermem-embed-corpus`).
+- **Tests** — `corpus_test.ts` (32 checks) covering repo resolution, the
+  redaction gate, row shape, dedup/upsert, and metadata totals. Redact 64/64,
+  tagID 19/19 stay green. Run with `npx tsx corpus_test.ts` (Node
+  `--experimental-strip-types` cannot follow the source modules' extensionless
+  relative imports on this Node version; the RULESET test note was corrected
+  to match).
+
+**Known write-path gaps (not this patch).** `queries.jsonl` / `train.jsonl`
+remain schema-complete but empty by design: search events carry no `tag_id`,
+and rerank rows drop candidate ids in `buildRerankRow` (state candidates are
+`{index, memory: content}` without ids), so faithful query→doc pairs cannot be
+reconstructed from persisted state yet. Wiring those files needs an events/
+state change first; recorded here so the gap is explicit.
+
+---
+
 ## Ruleset v1.0.1: GitHub / repository operations require user permission (7 Oct 2026)
 
 `DGUI_HMEM_RULESET` bumped 1.0.0 → 1.0.1. Both ruleset forms (HMEM §8

@@ -120,9 +120,10 @@ memories table (D1) ── daily ingest ─▶ embed corpus (HF)
   5. write:  single writer only (the production Worker, same rule as Train)
 ```
 
-Until the daily-ingest code ships, the corpus stays schema-complete and empty
-(skeleton committed at creation), and the format above is the contract it will
-be filled against. repo creation and skeleton: this change (see PATCH_NOTES).
+The daily-ingest code ships in `src/corpus.ts` (this repo, via the worker's
+scheduled handler and the `sync_embed_corpus` MCP tool / REST route). Until a
+deploy runs it once, the corpus stays schema-complete and empty (skeleton
+committed at creation). repo creation and skeleton: see PATCH_NOTES.
 
 ### 3.3 Gates (identical policy to Train + one extra)
 
@@ -148,9 +149,10 @@ be filled against. repo creation and skeleton: this change (see PATCH_NOTES).
 
 ## 5. Ownership & verification
 
-- Code owners: `src/dataset.ts` (Train), future `src/corpus.ts` (Embed).
-- Tests: `redact_test.ts` (72 checks), `tagid_test.ts` (19 checks) — run with
-  `node --experimental-strip-types redact_test.ts` and
-  `npx tsx tagid_test.ts`.
+- Code owners: `src/dataset.ts` (Train), `src/corpus.ts` (Embed).
+- Tests: `redact_test.ts` (64 checks), `tagid_test.ts` (19 checks),
+  `corpus_test.ts` (32 checks) — run with `npx tsx <file>.ts` (and
+  `node --experimental-strip-types` for files whose import graph has no
+  extensionless relative imports).
 - Every pipeline change MUST be recorded in `PATCH_NOTES.md` with a version bump
   to `ruleset/templates/DGUI_HMEM_RULESET.template.md` when user-facing policy changes.

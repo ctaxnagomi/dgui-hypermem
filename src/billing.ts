@@ -118,9 +118,16 @@ export const ACCOUNT_COLUMNS =
  * common case is NULL and the plan decides. Reading `quota_monthly` here instead
  * is what previously made the plan ladder decorative.
  */
-export function effectiveQuota(account: Pick<AccountState, "quota_override"> & { plan: string }, plan?: string): number {
+export function effectiveQuota(account: Pick<AccountState, "quota_override" | "quota_monthly"> & { plan: string }, plan?: string): number {
   if (account.quota_override != null) return account.quota_override;
-  return planQuota(plan ?? account.plan);
+  const def = lookupPlan(plan ?? account.plan);
+  // A plan label the ladder does not know (e.g. "PAYG") falls back to the free
+  // allowance in planQuota. That collapse is correct for open signups but wrong
+  // for accounts an operator has already given an explicit quota_monthly: an
+  // unknown label must not silently shrink their allowance to 2,000. Known
+  // plans keep the ladder authoritative -- quota_monthly stays decorative.
+  if (!def) return account.quota_monthly != null ? account.quota_monthly : PLANS.free.quota;
+  return def.quota;
 }
 
 export type AccountRow = Record<string, unknown>;

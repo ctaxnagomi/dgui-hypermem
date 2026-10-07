@@ -38,7 +38,8 @@
     "binding": "AI"
   },
   "triggers": {
-    "crons": ["17 * * * *"]
+    // Hourly: training flush. Daily at 03:17 UTC: embed-corpus ingest.
+    "crons": ["17 * * * *", "17 3 * * *"]
   },
   "vars": {
     "JEV_MODE": "auto",
@@ -48,6 +49,7 @@
     "FALLBACK_MODEL": "@cf/meta/llama-3.1-8b-fast-v2",
     "DEFAULT_SCOPE": "default",
     "SALIENCE_GATE": 3.0,
-    "HF_DATASET": "ctaxnagomi/DGUI_HYPERMEM-JEV"
+    "HF_DATASET": "ctaxnagomi/DGUI_HYPERMEM-JEV",
+    "HF_EMBED_DATASET": "ctaxnagomi/dgui-hypermem-embed-corpus"
   }
 }

@@ -138,26 +138,36 @@ async function indexMemory(env: Env, entry: { id: string; values: number[]; meta
   return false;
 }
 
+// Harmful content patterns checked at write time (and re-checked at ingest):
+// secrets, CVE references, gRPC threats, pornography, CSAM indicators. Kept as a
+// module-level list so the embedding-corpus ingest can apply the same gate
+// (RULESET_TRAIN_CORPUS.md §3.3: redaction fail-closed for Train + Embed).
+const BLOCKED_PATTERNS = [
+  /\b(?:sk_live_|rk_live_|pk_live_|sk_test_|rk_test_|pk_test_)\w+/i,  // Stripe keys
+  /\b(?:ghp_|gho_|ghu_|ghs_|ghr_)\w+/i,                               // GitHub tokens
+  /\b(?:AKIA[0-9A-Z]{16})\b/,                                           // AWS keys
+  /\b(?:-----BEGIN (?:RSA |EC )?PRIVATE KEY-----)/i,                     // Private keys
+  /\b(?:cve-\d{4}-\d{4,7})\b/i,                                          // CVE exploit references
+  /(?:underage|minor\s+(?:girl|boy|child)|preteen|cp\s+(?:content|collection))/i, // CSAM indicators
+  /(?:child\s+(?:porn|abuse|exploit)|loli|shota)/i,                      // Prohibited content
+];
+
+/** First blocked pattern matched by `content`, or null. Shared by addMemory and the embed ingest gate. */
+export function findBlockedPattern(content: string): RegExp | null {
+  for (const pattern of BLOCKED_PATTERNS) {
+    if (pattern.test(content)) return pattern;
+  }
+  return null;
+}
+
 export async function addMemory(env: Env, input: AddInput): Promise<AddResult> {
   const scope = input.scope || env.DEFAULT_SCOPE || "default";
   const content = input.content.trim();
   if (!content) throw new Error("content must not be empty");
 
   // Block harmful content patterns (secrets, CVE exploits, gRPC threats, pornography, CSAM)
-  const lower = content.toLowerCase();
-  const blockedPatterns = [
-    /\b(?:sk_live_|rk_live_|pk_live_|sk_test_|rk_test_|pk_test_)\w+/i,  // Stripe keys
-    /\b(?:ghp_|gho_|ghu_|ghs_|ghr_)\w+/i,                               // GitHub tokens
-    /\b(?:AKIA[0-9A-Z]{16})\b/,                                           // AWS keys
-    /\b(?:-----BEGIN (?:RSA |EC )?PRIVATE KEY-----)/i,                     // Private keys
-    /\b(?:cve-\d{4}-\d{4,7})\b/i,                                          // CVE exploit references
-    /(?:underage|minor\s+(?:girl|boy|child)|preteen|cp\s+(?:content|collection))/i, // CSAM indicators
-    /(?:child\s+(?:porn|abuse|exploit)|loli|shota)/i,                      // Prohibited content
-  ];
-  for (const pattern of blockedPatterns) {
-    if (pattern.test(content)) {
-      throw new Error("memory content rejected: prohibited pattern detected");
-    }
+  if (findBlockedPattern(content)) {
+    throw new Error("memory content rejected: prohibited pattern detected");
   }
 
   const tags = parseTags(input.tags);
