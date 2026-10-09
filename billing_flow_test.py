@@ -22,7 +22,7 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
-BASE = (sys.argv[1] if len(sys.argv) > 1 else "https://dgui-hypermem.ctaxnagomi.workers.dev").rstrip("/")
+BASE = (sys.argv[1] if len(sys.argv) > 1 else "https://dgui-hmem.deckergui.my").rstrip("/")
 EMAIL = "billing-flow-test@demo.com"
 FIXTURE_ID = "billing-flow-test"
 UA = (

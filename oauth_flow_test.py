@@ -22,7 +22,7 @@ import urllib.request
 from html.parser import HTMLParser
 from pathlib import Path
 
-BASE = (sys.argv[1] if len(sys.argv) > 1 else "https://dgui-hypermem.ctaxnagomi.workers.dev").rstrip("/")
+BASE = (sys.argv[1] if len(sys.argv) > 1 else "https://dgui-hmem.deckergui.my").rstrip("/")
 REDIRECT = "http://127.0.0.1:8765/callback"
 EMAIL = "oauth-flow-test@demo.com"
 # The test signs in as a dedicated fixture account rather than a real user, so
