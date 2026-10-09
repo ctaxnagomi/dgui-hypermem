@@ -76,7 +76,11 @@ def d1(sql: str) -> list:
     # passed to subprocess directly (no shell), which avoids the cmd.exe
     # quoting issues that break --command via a shell.
     cfg = os.environ.get("WRANGLER_TEST_CONFIG")
-    db = "dgui-hypermem"
+    # Without an explicit migration config, resolve the binding "DB" from the
+    # repo's wrangler.jsonc (wrangler auto-detects it in the cwd). Hardcoding a
+    # database name here silently drifted once the D1 was renamed during the
+    # account migration, so the test wrote to a database the Worker never reads.
+    db = "DB"
     if cfg:
         db = json.load(open(cfg, encoding="utf-8"))["d1_databases"][0]["database_name"]
     cmd = ["npx.cmd", "wrangler", "d1", "execute", db, "--remote", "--json", "--command", sql]
@@ -84,7 +88,9 @@ def d1(sql: str) -> list:
         cmd += ["--config", cfg]
     out = subprocess.run(cmd, capture_output=True, cwd=str(Path(__file__).parent), timeout=300)
     if out.returncode != 0:
-        raise SystemExit(f"d1 failed: {out.stderr.decode('utf-8', 'replace')[-400:]}")
+        # wrangler reports errors on stdout, so stderr alone can be empty.
+        err = out.stderr.decode("utf-8", "replace").strip() or out.stdout.decode("utf-8", "replace")[-400:]
+        raise SystemExit(f"d1 failed: {err}")
     # wrangler prints an upload banner before the JSON document on stdout
     text = out.stdout.decode("utf-8", "replace").lstrip()
     start = text.find("[")
