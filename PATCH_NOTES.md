@@ -4,6 +4,47 @@ Postponed work and known issues, carried forward between releases.
 
 ---
 
+## Fixed: "create key" said nothing, generic passkey, usage reset, monthly rollover (9 Oct 2026)
+
+**The reported symptom.** Creating a token with a new email appeared to do
+nothing. The backend was healthy: `POST /api/request-token` returned a token and
+it verified at the current free allowance (32,000 requests). The bug was on the
+client.
+
+**Landing token form (`src/landing.ts`).** Both error branches of
+`requestToken()` wrote the message into `#crm-status-text` and then set
+`#crm-status` to `display:none` -- hiding the element that carried the message.
+Every failure (invalid passkey, invalid email, user limit) therefore looked like
+a dead button: the form just reappeared. The status panel now stays visible on
+error.
+
+**Generic passkey.** The token form shows and prefills `0866` once the terms are
+accepted, with a note that it is a generic passkey shared by all DGUI HyperMem
+users. The live `PASSKEY` secret is set to `0866` as well; displaying a value
+the server does not accept is the bug the user hit ("invalid passkey" for
+`0866`).
+
+**Monthly rollover was not persisted.** `checkAndTrackUsage` reset only the
+in-memory `used = 0` when the 30-day window elapsed, then the increment wrote
+`requests_used` back to the exhausted count -- so the account was re-blocked on
+its very next call. The rollover now persists `requests_used = 0` with a fresh
+window.
+
+**Admin usage Reset.** Each active account row gains a **Reset** action beside
+Revoke/Quota, backed by `POST /api/admin/reset-usage` (admin host,
+`adminGate`). It zeroes `requests_used` with a new 30-day window; plan and
+wallet are untouched. The owner account `ctaxnagomi@gmail.com` was reset and its
+`/mcp` round-trip confirmed (12 tools).
+
+**Verified.** `tsc --noEmit`; `eval-request-token.mjs`, `eval-scroll.mjs`,
+`eval-cap.mjs` (15/15). Live: passkey `0866` issues a token, a fresh token
+answers `initialize`/`tools/list`, and `/api/admin/reset-usage` 404s on the
+public host while the admin host enforces `adminGate`.
+
+Deployed `646e2814`; the `PASSKEY` secret was then set.
+
+---
+
 ## Changed: plan quotas raised, trial widened to 17 days on Median and Pro (8 Oct 2026)
 
 The plan ladder in `src/billing.ts` is the single source of truth for
