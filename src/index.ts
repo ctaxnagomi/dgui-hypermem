@@ -36,6 +36,7 @@ import { getSuggestions } from "./suggest";
 import { MEMORY_TYPES, resolveMode } from "./jev";
 import { flushJevExamples, jevQueueStats } from "./dataset";
 import { ingestEmbedCorpus } from "./corpus";
+import { runTechnicianCheck } from "./technician";
 import { json, logCrmAction, now, tagIdFor, timeSafeEqual, uuid } from "./util";
 import { checkPasskey, extractToken, resolveCredential, type Credential } from "./auth";
 import {
@@ -56,9 +57,9 @@ import {
   ACCOUNT_COLUMNS,
   effectiveQuota,
   PAYG_MICRO_PER_REQUEST,
-  TRIAL_PLAN,
   planQuota,
   resolveTrial,
+  trialPlanName,
   upgradeOptions,
   type AccountState,
 } from "./billing";
@@ -107,6 +108,10 @@ Tools
            Account notices, e.g. an administrator changing your monthly quota. New
            notices also ride along on the response of your next call, under a
            "quota_notice" key, so you learn about a quota change without asking.
+  technician_check
+           Owner-only: corpus-backed diagnostic sweep. Lists accounts matching
+           known issue signatures from the solution corpus, with the option to
+           apply the documented fixes and notify the affected accounts.
   help     This text.
 
 Memory types (choice): ${Object.keys(MEMORY_TYPES).join(", ")}
@@ -574,6 +579,39 @@ function buildServer(env: Env, ctx: McpCtx = {}): McpServer {
     },
   );
 
+  server.registerTool(
+    "technician_check",
+    {
+      title: "Technician check",
+      description:
+        "Owner-only corpus-backed diagnostic sweep: lists accounts matching known issue signatures from the solution corpus, and optionally applies the documented fixes (quota_override mirror) and notifies affected accounts.",
+      inputSchema: {
+        apply_fixes: z.boolean().optional().describe("Apply the corpus-prescribed fixes to affected accounts and notify them (default false: read-only sweep)."),
+        email: z.string().optional().describe("Restrict the sweep to one account email."),
+      },
+      annotations: {
+        // Reads every account row and, only when apply_fixes is set, writes
+        // quota_override and queues notices. Owner-only (master token).
+        readOnlyHint: false,
+        destructiveHint: false,
+        openWorldHint: false,
+        idempotentHint: true,
+      },
+    },
+    async (args: { apply_fixes?: boolean; email?: string }) => {
+      // The sweep reads every account in the store; the master token alone is
+      // the owner. An account token must not be able to enumerate the fleet.
+      if (ctx.email) {
+        return fail("technician_check is owner-only; use the master token.");
+      }
+      try {
+        return ok(await runTechnicianCheck(env, { apply_fixes: args.apply_fixes, email: args.email }));
+      } catch (err) {
+        return fail(String(err));
+      }
+    },
+  );
+
   return server;
 }
 
@@ -657,6 +695,7 @@ async function handleRest(request: Request, env: Env, path: string): Promise<Res
     "/api/admin/device/verify",
     "/api/admin/devices",
     "/api/setup-dataset",
+    "/api/technician_check",
   ]);
   if (ADMIN_API.has(path) && url.hostname !== ADMIN_HOST) {
     return json({ error: "not found" }, { status: 404, headers: CORS });
@@ -749,6 +788,8 @@ async function handleRest(request: Request, env: Env, path: string): Promise<Res
       return json(await handleBillingSummary(env, body, request), { headers: CORS });
     case "/api/admin/stats":
       return adminJson(await handleAdminStats(env, body, url, request));
+    case "/api/technician_check":
+      return adminJson(await handleTechnicianCheck(env, body, url, request));
     default:
       return json({ error: "not found" }, { status: 404, headers: CORS });
   }
@@ -1075,6 +1116,23 @@ function quotaMonthly(n: number): string {
   return Number(n).toLocaleString("en-US");
 }
 
+/**
+ * Corpus-backed technician sweep (owner surface). Mirrors the MCP
+ * `technician_check` tool behind the admin gate, so the REST caller can be a
+ * curl/automation client with a passkey instead of the master MCP token.
+ */
+async function handleTechnicianCheck(env: Env, body: Record<string, any>, url?: URL, request?: Request): Promise<Record<string, any>> {
+  const auth = await adminGate(env, request || new Request("https://dummy"), body, url || new URL("https://dummy"));
+  if (!auth.ok) {
+    if (auth.reason === "totp_required") return { error: "totp_required" };
+    return { error: "unauthorized" };
+  }
+  return await runTechnicianCheck(env, {
+    apply_fixes: body.apply_fixes === true || body.apply_fixes === 1,
+    email: typeof body.email === "string" && body.email ? body.email : undefined,
+  });
+}
+
 async function handleAdminClock(env: Env, body: Record<string, any>, request?: Request, url?: URL): Promise<Record<string, any>> {
   const { action } = body;
   if (!action) return { error: "action required" };
@@ -1292,8 +1350,8 @@ async function handleRequestToken(env: Env, body: Record<string, any>, request: 
   const token = uuid();
   const tcValue = tc_agreed === true || tc_agreed === 1 ? 1 : 0;
   await Promise.all([
-    env.DB.prepare("INSERT INTO tokens (id, email, github_username, status, token, plan, quota_monthly, tc_agreed, created_at, updated_at) VALUES (?, ?, ?, 'active', ?, 'free', 5600, ?, ?, ?)")
-      .bind(uuid(), email, email, token, tcValue, now(), now()).run(),
+    env.DB.prepare("INSERT INTO tokens (id, email, github_username, status, token, plan, quota_monthly, tc_agreed, created_at, updated_at) VALUES (?, ?, ?, 'active', ?, 'free', ?, ?, ?, ?)")
+      .bind(uuid(), email, email, token, planQuota("free"), tcValue, now(), now()).run(),
     logCrmAction(env, email, isMaster ? "token_master_created" : "token_created", "new token via CRM", request),
   ]);
   return { status: "active", token, train_with_all: true, tc_agreed: true };
@@ -1394,7 +1452,7 @@ async function handleCheckQuota(env: Env, request: Request): Promise<Record<stri
     resets_at: resetAt,
     usage_30d: user30d?.c || 0,
     usage_year: userYear?.c || 0,
-    trial: row.trial_ends_at ? { active: row.trial_ends_at > now_, ends_at: row.trial_ends_at, plan: TRIAL_PLAN } : null,
+    trial: row.trial_ends_at ? { active: row.trial_ends_at > now_, ends_at: row.trial_ends_at, plan: trialPlanName(row.plan) } : null,
     payg: {
       // Remaining wallet, and what that buys at the current per-request rate.
       credits_usd: creditsMicro / 1_000_000,
@@ -1414,10 +1472,13 @@ async function handleVerifyToken(env: Env, request: Request): Promise<Record<str
   const mcpToken = env.MCP_TOKEN;
   if (mcpToken && token === mcpToken) return { valid: true, type: "mcp_token", note: "global MCP token" };
   try {
-    const row = await env.DB.prepare("SELECT email, status, quota_monthly, requests_used, tc_agreed, created_at FROM tokens WHERE token = ?").bind(token).first<{ email: string; status: string; quota_monthly: number; requests_used: number; tc_agreed: number; created_at: number }>();
+    const row = await env.DB.prepare("SELECT email, status, plan, quota_monthly, quota_override, requests_used, tc_agreed, created_at FROM tokens WHERE token = ?").bind(token).first<{ email: string; status: string; plan: string; quota_monthly: number; quota_override: number | null; requests_used: number; tc_agreed: number; created_at: number }>();
     if (!row) return { valid: false, error: "token not found in database" };
     if (row.status !== "active") return { valid: false, error: `token status is '${row.status}' (not active)` };
-    const quotaOk = (row.requests_used || 0) < (row.quota_monthly || 1000);
+    // Report the allowance the gate actually enforces (override, else ladder)
+    // rather than the stored reporting column, so a plan change is reflected.
+    const quota = effectiveQuota(row, row.plan);
+    const quotaOk = (row.requests_used || 0) < quota;
     return {
       valid: true,
       email: row.email,
@@ -1425,7 +1486,7 @@ async function handleVerifyToken(env: Env, request: Request): Promise<Record<str
       tc_agreed: !!row.tc_agreed,
       quota_ok: quotaOk,
       requests_used: row.requests_used,
-      quota_monthly: row.quota_monthly,
+      quota_monthly: quota,
       type: "crm_token",
     };
   } catch (e: any) {

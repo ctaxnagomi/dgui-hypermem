@@ -4,6 +4,78 @@ Postponed work and known issues, carried forward between releases.
 
 ---
 
+## Changed: plan quotas raised, trial widened to 17 days on Median and Pro (8 Oct 2026)
+
+The plan ladder in `src/billing.ts` is the single source of truth for
+enforcement, the pricing page, the docs, and upgrade copy, so all of these move
+together:
+
+| Plan | Old quota | New quota |
+| --- | --- | --- |
+| Free | 2,000 | **32,000** |
+| Median | 8,500 | **82,000** |
+| Pro | 15,000 | **112,000** |
+| Enterprise | 25,000 | **142,000** |
+
+- **Trial** — `TRIAL_DAYS` 15 → **17**, and both **Median and Pro** are now
+  trial-eligible (`TRIAL_PLANS`). `/api/start-trial` takes an optional `plan`
+  (validated against `TRIAL_PLANS`, defaults to Pro), writes that plan into the
+  row, and reports it back; the pricing page offers the trial button on both
+  cards. `resolveTrial` reads the trial plan back from the row via
+  `trialPlanName()` instead of assuming the old constant.
+- **New-account rows** — `handleRequestToken` and OAuth `findOrCreateAccount`
+  wrote a hardcoded `quota_monthly = 5600`; both now bind `planQuota("free")`,
+  so a fresh row matches the ladder instead of advertising a stale value.
+- **Reporting** — `billingSummary`, `/api/check-quota`, and `/api/verify-token`
+  now report `effectiveQuota()` (override, else ladder) rather than reading the
+  stored reporting column directly, so a plan change is visible without a write.
+- **Migration `0014_quota_ladder_v2.sql`** realigns the stored `quota_monthly`
+  reporting column for the four ladder plans where no override exists, and
+  mirrors overrides; unknown-plan rows (e.g. PAYG) keep their bespoke value.
+  Enforcement already follows the ladder in code, so this migration is for
+  consistent reporting, not for the gate.
+
+- **Tests** — `billing_test.ts` (9 checks) and `technician_test.ts` (21 checks)
+  updated to the new ladder; `billing_flow_test.py` updated for the live E2E
+  assertions. `eval-request-token.mjs` asserts a fresh row carries 32,000, not
+  the legacy 5,600.
+
+---
+
+## Added: technician JEV agent (8 Oct 2026)
+
+`src/technician.ts` — a corpus-backed diagnostic sweep surfaced two ways:
+
+- **MCP tool `technician_check`** (owner/master token only — an account token
+  must not be able to enumerate the fleet; it is rejected).
+- **REST `/api/technician_check`** (admin host, `adminGate` passkey + TOTP),
+  mirroring the tool so curl/automation can drive the sweep.
+
+The technician debugs **from the solution corpus**: the checklist is the set of
+active `solution`-type memories in the store (the same rows the daily embed
+ingest publishes), matched by rule tag. Every finding carries the `solution_doc_id`
+that prescribes it, so the owner can cross-reference the corpus entry.
+
+Signatures evaluated (all pure in `diagnoseAccount`, none invented locally):
+
+- `quota.plan_outside_ladder` (e.g. PAYG) — typed quota with no override on a
+  non-ladder plan; the gate collapses the account to the Free allowance.
+- `quota.raised_but_not_enforced` — ladder plan whose `quota_monthly` exceeds
+  its plan quota with no override (pre-fix admin writes).
+- `quota.near_exhaustion` / `quota.exhausted` — ≥90% / at-cap with an empty
+  pay-as-you-go wallet (→ next request 429s).
+
+Fixes are **opt-in** (`apply_fixes: true`): the sweep mirrors `quota_monthly`
+into `quota_override` for the two fixable signatures, then records a
+`service_notice` to each affected account carrying the corpus protocol —
+self-hosters apply the fix in their deployment, hosted users contact the owner.
+A plain run is read-only.
+
+- **Tests** — `technician_test.ts` added (21 checks). Run with
+  `npx tsx technician_test.ts`.
+
+---
+
 ## Fixed: admin Quota button ignored on PAYG / non-ladder plans (7 Oct 2026)
 
 The Quota button (`/api/admin/update-quota`) wrote only `quota_monthly`, but

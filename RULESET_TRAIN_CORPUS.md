@@ -149,9 +149,13 @@ committed at creation). repo creation and skeleton: see PATCH_NOTES.
 
 ## 5. Ownership & verification
 
-- Code owners: `src/dataset.ts` (Train), `src/corpus.ts` (Embed).
+- Code owners: `src/dataset.ts` (Train), `src/corpus.ts` (Embed),
+  `src/technician.ts` (embedded-consumer: the technician agent reads the
+  solution corpus back from D1 — the same population the ingest publishes —
+  as its diagnostic checklist; see PATCH_NOTES "technician JEV agent").
 - Tests: `redact_test.ts` (64 checks), `tagid_test.ts` (19 checks),
-  `corpus_test.ts` (32 checks) — run with `npx tsx <file>.ts` (and
+  `corpus_test.ts` (32 checks), `technician_test.ts` (21 checks) — run with
+  `npx tsx <file>.ts` (and
   `node --experimental-strip-types` for files whose import graph has no
   extensionless relative imports).
 - Every pipeline change MUST be recorded in `PATCH_NOTES.md` with a version bump
