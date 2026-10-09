@@ -356,8 +356,9 @@ footer p{font-size:14px;color:var(--text-muted)}footer a{color:var(--accent-cyan
 <button class="btn-primary" onclick="showTerms()" id="btn-review"><i class="fas fa-file-contract"></i> Review &amp; Agree</button>
 </div>
 <div class="crm-card" id="crm-form" style="display:none">
+<div style="font-size:13px;color:var(--text-secondary);margin-bottom:14px;line-height:1.6">Generic passkey: <b style="color:var(--accent-cyan)">0866</b> &mdash; don't worry, this is a generic passkey that all DGUI HyperMem users use. Leave it as is and enter your email.</div>
 <input type="email" id="crm-email" placeholder="Email" autocomplete="email">
-<input type="password" id="crm-passkey" placeholder="Passkey" maxlength="128" autocomplete="off">
+<input type="password" id="crm-passkey" placeholder="Passkey" maxlength="128" value="0866" autocomplete="off">
 <button class="btn-primary" onclick="requestToken()"><i class="fas fa-paper-plane"></i> Get Token</button>
 </div>
 <div class="crm-card" id="crm-status" style="display:none">
@@ -472,9 +473,9 @@ async function requestToken(){
   try{
     const r=await fetch('/api/request-token',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email:e,passkey:p,tc_agreed:true})});
     const d=await r.json();
-    if(d.error){tx.textContent='❌ '+d.error;document.getElementById('crm-form').style.display='block';document.getElementById('crm-status').style.display='none';return}
-    showToken(e,d.token);
-  }catch(e){tx.textContent='❌ Error';document.getElementById('crm-form').style.display='block';document.getElementById('crm-status').style.display='none'}
+    if(d.error){tx.textContent='❌ '+d.error;document.getElementById('crm-form').style.display='block';document.getElementById('crm-status').style.display='block';return}
+    showToken(e,d.token);
+  }catch(e){tx.textContent='❌ Error';document.getElementById('crm-form').style.display='block';document.getElementById('crm-status').style.display='block'}
 }
 function showToken(e,t){
   document.getElementById('crm-token-result').style.display='block';

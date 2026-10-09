@@ -680,6 +680,7 @@ async function handleRest(request: Request, env: Env, path: string): Promise<Res
     "/api/admin/logs",
     "/api/admin/toggle-train",
     "/api/admin/update-quota",
+    "/api/admin/reset-usage",
     "/api/admin/clock",
     "/api/admin/stats",
     // These two were added without joining this set, so they were the only admin
@@ -757,6 +758,8 @@ async function handleRest(request: Request, env: Env, path: string): Promise<Res
       return adminJson(await handleToggleTrain(env, body, request, url));
     case "/api/admin/update-quota":
       return adminJson(await handleUpdateQuota(env, body, request, url));
+    case "/api/admin/reset-usage":
+      return adminJson(await handleResetUsage(env, body, request, url));
     case "/api/admin/clock":
       return adminJson(await handleAdminClock(env, body, request, url));
     case "/api/visitor":
@@ -1109,6 +1112,33 @@ async function handleUpdateQuota(env: Env, body: Record<string, any>, request?: 
     return { email, quota_monthly: newQuota, plan: newPlan, status: "updated", notified };
   }
   return { email, quota_monthly: newQuota, plan: newPlan, status: "updated", notified: false };
+}
+
+/**
+ * Admin-only: zero the current window's usage for an account.
+ *
+ * The monthly counter is the thing that blocks a user; the plan and the wallet
+ * are untouched. Setting requests_used = 0 with a fresh +30d window is exactly
+ * the state a successful rollover produces, so an admin reset is a month early
+ * rather than a special case the quota gate has to understand.
+ */
+async function handleResetUsage(env: Env, body: Record<string, any>, request?: Request, url?: URL): Promise<Record<string, any>> {
+  const { email } = body;
+  if (!email) return { error: "email required" };
+  const auth = await adminGate(env, request || new Request("https://dummy"), body, url || new URL("https://dummy"));
+  if (!auth.ok) {
+    if (auth.reason === "totp_required") return { error: "totp_required" };
+    return { error: "unauthorized" };
+  }
+  const now_ = now();
+  const resetAt = now_ + 30 * 86400 * 1000;
+  const result = await env.DB.prepare(
+    "UPDATE tokens SET requests_used = 0, requests_reset_at = ?, updated_at = ? WHERE email = ?",
+  )
+    .bind(resetAt, now_, email)
+    .run();
+  if (Number(result?.meta?.changes ?? 0) === 0) return { error: "account not found" };
+  return { email, requests_used: 0, requests_reset_at: resetAt, status: "reset" };
 }
 
 // Thousands separator for notice text, so "5600" does not read as noise.
@@ -1614,6 +1644,12 @@ async function checkAndTrackUsage(env: Env, request: Request, credential: Creden
   if (!resetAt || now_ > resetAt) {
     used = 0;
     resetAt = now_ + 30 * 86400 * 1000;
+    // Persist the rollover. Relying on the local `used = 0` alone left the
+    // exhausted count in the row: the increment below writes requests_used back
+    // to the old value, so the account is re-blocked on its very next call.
+    await env.DB.prepare("UPDATE tokens SET requests_used = 0, requests_reset_at = ? WHERE id = ?")
+      .bind(resetAt, account.id)
+      .run();
   }
   const maxQuota = effectiveQuota(account, effectivePlan);
 
@@ -1689,7 +1725,7 @@ export default {
         endpoints: {
           docs: "/docs",
           mcp: "/mcp",
-          rest: ["/api/add", "/api/search", "/api/list", "/api/profile", "/api/forget", "/api/sync_jev", "/api/sync_embed_corpus", "/api/jev_queue_stats", "/api/request-token", "/api/check-star", "/api/disable-token", "/api/check-quota", "/api/verify-token", "/api/setup-dataset", "/api/enterprise-inquiry", "/api/create-checkout-session", "/api/stripe-webhook", "/api/admin/tokens", "/api/admin/stats", "/api/admin/logs", "/api/admin/toggle-train", "/api/admin/update-quota", "/api/admin/clock", "/api/admin/visits", "/api/admin/activity", "/api/visitor", "/api/solution-signal"],
+          rest: ["/api/add", "/api/search", "/api/list", "/api/profile", "/api/forget", "/api/sync_jev", "/api/sync_embed_corpus", "/api/jev_queue_stats", "/api/request-token", "/api/check-star", "/api/disable-token", "/api/check-quota", "/api/verify-token", "/api/setup-dataset", "/api/enterprise-inquiry", "/api/create-checkout-session", "/api/stripe-webhook", "/api/admin/tokens", "/api/admin/stats", "/api/admin/logs", "/api/admin/toggle-train", "/api/admin/update-quota", "/api/admin/reset-usage", "/api/admin/clock", "/api/admin/visits", "/api/admin/activity", "/api/visitor", "/api/solution-signal"],
         },
       });
     }
@@ -1822,6 +1858,7 @@ export default {
   "/api/admin/logs",
   "/api/admin/toggle-train",
   "/api/admin/update-quota",
+  "/api/admin/reset-usage",
   "/api/admin/clock",
   "/api/admin/visits",
   "/api/admin/activity",
