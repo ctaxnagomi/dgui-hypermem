@@ -112,7 +112,7 @@ def reset_fixture(plan="free", credits_micro=0, spent_micro=0, used=0, override=
         "INSERT INTO tokens (id, email, github_username, status, token, plan, quota_monthly,"
         " quota_override, requests_used, requests_reset_at, payg_credits_micro, payg_spent_micro,"
         " trial_ends_at, trial_started_at, train_with_all, tc_agreed, has_connected, created_at, updated_at)"
-        f" VALUES ('{FIXTURE_ID}', '{EMAIL}', '{EMAIL}', 'active', NULL, '{plan}', 2000,"
+        f" VALUES ('{FIXTURE_ID}', '{EMAIL}', '{EMAIL}', 'active', NULL, '{plan}', 32000,"
         f" {override}, {used}, {ts + MONTH_MS}, {credits_micro}, {spent_micro}, {trial}, NULL, 0, 1, 0, {ts}, {ts})"
         " ON CONFLICT(id) DO UPDATE SET status='active', plan=excluded.plan, quota_monthly=excluded.quota_monthly,"
         " quota_override=excluded.quota_override, requests_used=excluded.requests_used,"
@@ -167,12 +167,12 @@ print("plan ladder")
 reset_fixture(plan="free")
 token = issue_token()
 q = quota_of(token)
-check("free plan allowance is 2,000", q["quota_monthly"] == 2000, q["quota_monthly"])
+check("free plan allowance is 32,000", q["quota_monthly"] == 32000, q["quota_monthly"])
 check("reported plan is free", q["plan"] == "free", q["plan"])
 check("payg block present", isinstance(q.get("payg"), dict) and q["payg"]["price_per_request_usd"] == 0.002, q.get("payg"))
 check("no upgrade block while not exhausted", "upgrade" not in q)
 
-for plan, expected in (("median", 8500), ("pro", 15000), ("enterprise", 25000)):
+for plan, expected in (("median", 82000), ("pro", 112000), ("enterprise", 142000)):
     reset_fixture(plan=plan)
     got = quota_of(issue_token())["quota_monthly"]
     check(f"{plan} allowance is {expected:,}", got == expected, got)
@@ -181,7 +181,7 @@ for plan, expected in (("median", 8500), ("pro", 15000), ("enterprise", 25000)):
 reset_fixture(plan="enterprise")
 d1(f"UPDATE tokens SET plan='Enterprise' WHERE id='{FIXTURE_ID}'")
 got = quota_of(issue_token())["quota_monthly"]
-check("capitalised plan name still resolves", got == 25000, got)
+check("capitalised plan name still resolves", got == 142000, got)
 
 # An admin override still wins over the plan.
 reset_fixture(plan="pro", override=123)
@@ -190,11 +190,11 @@ check("quota_override beats the plan", got == 123, got)
 
 # --- exhaustion and the 429 upgrade block --------------------------------
 print("\nexhaustion")
-reset_fixture(plan="free", used=1999)
+reset_fixture(plan="free", used=31999)
 token = issue_token()
 status, body = mcp(token)
 check("last plan request is allowed", status == 200, f"got {status}")
-check("that request was funded by the plan", row()["requests_used"] == 2000, row()["requests_used"])
+check("that request was funded by the plan", row()["requests_used"] == 32000, row()["requests_used"])
 check("wallet untouched while the plan holds", row()["payg_credits_micro"] == 0)
 
 status, body = mcp(token)
@@ -225,7 +225,7 @@ check("check-quota includes upgrade options", bool(q.get("upgrade", {}).get("mes
 
 # --- pay-as-you-go -------------------------------------------------------
 print("\npay as you go")
-reset_fixture(plan="free", used=2000, credits_micro=5 * MICRO, spent_micro=0)
+reset_fixture(plan="free", used=32000, credits_micro=5 * MICRO, spent_micro=0)
 token = issue_token()
 before = row()["payg_credits_micro"]
 # The per-token lifetime counter and the per-request event ledger are written in
@@ -239,7 +239,7 @@ after = row()["payg_credits_micro"]
 check("wallet funds the request past the plan", status == 200, f"got {status}")
 check("wallet debited by exactly one request", before - after == PAYG_MICRO, f"{before} -> {after}")
 check("lifetime spend accumulated", row()["payg_spent_micro"] == PAYG_MICRO, row()["payg_spent_micro"])
-check("plan usage did not move past the cap", row()["requests_used"] == 2000, row()["requests_used"])
+check("plan usage did not move past the cap", row()["requests_used"] == 32000, row()["requests_used"])
 check("ledger gained exactly one request's cost", events_after - events_before == PAYG_MICRO,
       f"{events_before} -> {events_after} (+{events_after - events_before} micro)")
 check("wallet counter reconciles with the event ledger",
@@ -247,7 +247,7 @@ check("wallet counter reconciles with the event ledger",
       f"ledger +{events_after - events_before} vs wallet {row()['payg_spent_micro']}")
 
 # Exactly one request of credit must buy exactly one request, not zero or two.
-reset_fixture(plan="free", used=2000, credits_micro=PAYG_MICRO, spent_micro=0)
+reset_fixture(plan="free", used=32000, credits_micro=PAYG_MICRO, spent_micro=0)
 token = issue_token()
 status, _ = mcp(token)
 check("one request of credit buys one request", status == 200, f"got {status}")
@@ -257,19 +257,19 @@ check("request refused once the wallet is empty", status == 429, f"got {status}"
 check("refusal is still the quota code, not a payment error", body.get("code") == "quota_exceeded", body.get("code"))
 
 # Just under the price: must not be allowed to slip through.
-reset_fixture(plan="free", used=2000, credits_micro=PAYG_MICRO - 1, spent_micro=0)
+reset_fixture(plan="free", used=32000, credits_micro=PAYG_MICRO - 1, spent_micro=0)
 token = issue_token()
 status, _ = mcp(token)
 check("a balance one micro-unit short is refused", status == 429, f"got {status}")
 
 # Zero balance must not be treated as truthy.
-reset_fixture(plan="free", used=2000, credits_micro=0)
+reset_fixture(plan="free", used=32000, credits_micro=0)
 token = issue_token()
 status, _ = mcp(token)
 check("zero balance does not admit the request", status == 429, f"got {status}")
 
 # Overdraft must be impossible.
-reset_fixture(plan="free", used=2000, credits_micro=3 * PAYG_MICRO, spent_micro=0)
+reset_fixture(plan="free", used=32000, credits_micro=3 * PAYG_MICRO, spent_micro=0)
 token = issue_token()
 for _ in range(3):
     mcp(token)
@@ -281,7 +281,7 @@ check("balance never goes negative", row()["payg_credits_micro"] == 0, row()["pa
 # The token is fetched *before* disabling, because the token form reactivates a
 # disabled account -- that is correct product behaviour, but it would silently
 # undo the fixture setup and make this check vacuous.
-reset_fixture(plan="free", used=2000, credits_micro=5 * MICRO)
+reset_fixture(plan="free", used=32000, credits_micro=5 * MICRO)
 disabled_token = issue_token()
 d1(f"UPDATE tokens SET status='disabled' WHERE id='{FIXTURE_ID}'")
 status, _ = mcp(disabled_token)
@@ -295,11 +295,11 @@ ts = int(time.time() * 1000)
 status, _, body = post("/api/start-trial", {"email": EMAIL, "passkey": PASSKEY})
 trial = json.loads(body)
 check("trial granted", status == 200 and trial.get("plan") == "pro", body[:120])
-check("trial lasts 15 days", trial.get("trial_days") == 15, trial.get("trial_days"))
-check("trial grants the pro allowance", trial.get("quota_monthly") == 15000, trial.get("quota_monthly"))
+check("trial lasts 17 days", trial.get("trial_days") == 17, trial.get("trial_days"))
+check("trial grants the pro allowance", trial.get("quota_monthly") == 112000, trial.get("quota_monthly"))
 check("trial end persisted", bool(row()["trial_ends_at"]))
 span_days = (row()["trial_ends_at"] - ts) / 86400_000
-check("trial end is 15 days out", 14.9 < span_days < 15.1, f"{span_days:.2f} days")
+check("trial end is 17 days out", 16.9 < span_days < 17.1, f"{span_days:.2f} days")
 
 status, _, body = post("/api/start-trial", {"email": EMAIL, "passkey": PASSKEY})
 check("trial cannot be claimed twice", status == 409, f"got {status}")
@@ -314,15 +314,26 @@ check("trial needs an existing account", status == 404, f"got {status}")
 # A running trial must supply the pro allowance.
 token = issue_token()
 check("trial account is on pro", quota_of(token)["plan"] == "pro", quota_of(token)["plan"])
-check("trial account has pro quota", quota_of(token)["quota_monthly"] == 15000)
+check("trial account has pro quota", quota_of(token)["quota_monthly"] == 112000)
+
+# Median is trialable too, and grants the Median allowance. The plan is chosen
+# in the request body; Enterprise is not a self-serve trial.
+reset_fixture(plan="free")
+status, _, body = post("/api/start-trial", {"email": EMAIL, "passkey": PASSKEY, "plan": "median"})
+median_trial = json.loads(body)
+check("median trial granted", status == 200 and median_trial.get("plan") == "median", body[:120])
+check("median trial grants the median allowance", median_trial.get("quota_monthly") == 82000, median_trial.get("quota_monthly"))
+
+status, _, body = post("/api/start-trial", {"email": EMAIL, "passkey": PASSKEY, "plan": "enterprise"})
+check("enterprise is not trialable", status == 400, f"got {status}")
 
 # Lapsed trial must revert, and must not keep the pro allowance.
-reset_fixture(plan="pro", used=14999)
+reset_fixture(plan="pro", used=111999)
 d1(f"UPDATE tokens SET trial_ends_at={ts - 1000} WHERE id='{FIXTURE_ID}'")
 token = issue_token()
 q = quota_of(token)
 check("lapsed trial reports free", q["plan"] == "free", q["plan"])
-check("lapsed trial reports free quota", q["quota_monthly"] == 2000, q["quota_monthly"])
+check("lapsed trial reports free quota", q["quota_monthly"] == 32000, q["quota_monthly"])
 status, _ = mcp(token)
 check("a lapsed trial is measured at the free allowance, not pro", status == 429, f"got {status}")
 check("lapsed trial reverts the stored plan too", row()["plan"] == "free", row()["plan"])
@@ -351,7 +362,7 @@ check("enterprise is not self-serve purchasable", "not available for self-serve"
 status, _, body = post("/api/create-checkout-session", {"plan": "pro", "email": EMAIL})
 parsed = json.loads(body)
 check("pro checkout is offered once the account exists", status == 200 and "url" in parsed, body[:120])
-check("pro checkout carries the 15000 quota", parsed.get("quota_monthly") == 15000, body[:120])
+check("pro checkout carries the 112000 quota", parsed.get("quota_monthly") == 112000, body[:120])
 
 status, _, body = post("/api/create-checkout-session", {"plan": "pro", "email": "nobody@nowhere.test"})
 check("checkout needs an existing account", "no account for that email" in body, body[:120])

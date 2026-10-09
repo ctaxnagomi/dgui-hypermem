@@ -1,6 +1,6 @@
 import Stripe from "stripe";
 import { logCrmAction, now } from "./util";
-import { CREDIT_PACKS, PAYG_MICRO_PER_REQUEST, PLANS, TRIAL_DAYS, centsToMicro, planQuota } from "./billing";
+import { CREDIT_PACKS, PAYG_MICRO_PER_REQUEST, PLANS, TRIAL_DAYS, TRIAL_PLANS, centsToMicro, planQuota } from "./billing";
 import { creditAccount, debitAccount } from "./billing_api";
 
 /**
@@ -265,11 +265,11 @@ function renderPlanCards(): string {
       let action: string;
       if (!buyable) {
         action = `<a href="/#enterprise" class="btn-outline"><i class="fas fa-envelope"></i> Contact sales</a>`;
-      } else if (key === "pro") {
-        // Pro is the trial plan, so it carries both paths.
+      } else if ((TRIAL_PLANS as readonly string[]).includes(key)) {
+        // Median and Pro both carry a trial path alongside the paid subscribe.
         action =
           `<button class="btn-primary" onclick="subscribe('${key}')"><i class="fas fa-credit-card"></i> Subscribe ${price}/mo</button>` +
-          `<button class="btn-outline" style="margin-top:8px" onclick="startTrial()"><i class="fas fa-flask"></i> Try ${TRIAL_DAYS} days free</button>`;
+          `<button class="btn-outline" style="margin-top:8px" onclick="startTrial('${key}')"><i class="fas fa-flask"></i> Try ${TRIAL_DAYS} days free</button>`;
       } else {
         action = `<button class="btn-primary" onclick="subscribe('${key}')"><i class="fas fa-credit-card"></i> Subscribe ${price}/mo</button>`;
       }
@@ -431,11 +431,11 @@ async function subscribe(plan){
   }catch(e){failed('Error connecting')}
 }
 
-async function startTrial(){
+async function startTrial(plan){
   const c=credentials(); if(!c)return;
   busy(true,'Starting your trial...');
   try{
-    const r=await fetch('/api/start-trial',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(c)});
+    const r=await fetch('/api/start-trial',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({...c,plan})});
     const d=await r.json();
     if(d.error){failed(d.error);return}
     done('Trial active &mdash; '+d.quota_monthly.toLocaleString('en-US')+' requests/month on '+d.plan+'.');

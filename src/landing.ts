@@ -325,6 +325,7 @@ footer p{font-size:14px;color:var(--text-muted)}footer a{color:var(--accent-cyan
 <li><i class="fas fa-check"></i> Priority queue</li>
 <li><i class="fas fa-check"></i> Email support</li>
 <li><i class="fas fa-check"></i> Early access to new features</li>
+<li><i class="fas fa-check"></i> ${TRIAL_DAYS}-day free trial</li>
 </ul>
 <a href="/pay" class="btn-primary" style="text-align:center;width:100%;display:block;box-sizing:border-box"><i class="fas fa-credit-card"></i> Subscribe $${usd(PLANS.median)}/mo</a>
 </div>

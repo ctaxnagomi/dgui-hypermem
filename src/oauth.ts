@@ -15,6 +15,7 @@
 import type { Env } from "./types";
 import { json, now, sha256, timeSafeEqual, uuid } from "./util";
 import { checkPasskey } from "./auth";
+import { planQuota } from "./billing";
 
 const ACCESS_TTL_MS = 60 * 60 * 1000; // 1 hour
 const REFRESH_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
@@ -441,9 +442,9 @@ async function findOrCreateAccount(env: Env, email: string, isMaster: boolean) {
   const id = uuid();
   await env.DB.prepare(
     `INSERT INTO tokens (id, email, github_username, status, token, plan, quota_monthly, tc_agreed, created_at, updated_at)
-     VALUES (?, ?, ?, 'active', ?, 'free', 5600, 1, ?, ?)`,
+     VALUES (?, ?, ?, 'active', ?, 'free', ?, 1, ?, ?)`,
   )
-    .bind(id, email, email, uuid(), now(), now())
+    .bind(id, email, email, uuid(), planQuota("free"), now(), now())
     .run();
   return { id, email };
 }

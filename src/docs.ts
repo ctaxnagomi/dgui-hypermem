@@ -376,7 +376,7 @@ POST /revoke       token revocation (RFC 7009)</code></pre>
           <tr><td><code>/verify-token</code></td><td><span class="method get">GET</span></td><td>Bearer token</td><td>Validate a token</td></tr>
           <tr><td><code>/check-quota</code></td><td><span class="method get">GET</span></td><td>Bearer token</td><td>Inspect effective usage, trial and wallet</td></tr>
           <tr><td><code>/billing-summary</code></td><td><span class="method post">POST</span></td><td><code>email</code>, <code>passkey</code></td><td>Plan, trial and wallet before you hold a token</td></tr>
-          <tr><td><code>/start-trial</code></td><td><span class="method post">POST</span></td><td><code>email</code>, <code>passkey</code></td><td>Claim the one-time ${TRIAL_DAYS}-day Pro trial</td></tr>
+          <tr><td><code>/start-trial</code></td><td><span class="method post">POST</span></td><td><code>email</code>, <code>passkey</code></td><td>Claim the one-time ${TRIAL_DAYS}-day trial on the Median or Pro plan (pass <code>plan</code> to choose; defaults to Pro)</td></tr>
           <tr><td><code>/create-checkout-session</code></td><td><span class="method post">POST</span></td><td><code>plan</code>, <code>email</code></td><td>Start a subscription checkout</td></tr>
           <tr><td><code>/buy-credits</code></td><td><span class="method post">POST</span></td><td><code>pack</code>, <code>email</code></td><td>Top up pay-as-you-go credit</td></tr>
           <tr><td><code>/sync_jev</code></td><td><span class="method post">POST</span></td><td><code>limit</code></td><td>Flush queued JEV examples</td></tr>

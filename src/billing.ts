@@ -1,5 +1,5 @@
 /**
- * Billing: plan quotas, the 15-day Pro trial, and the pay-as-you-go wallet.
+ * Billing: plan quotas, the 17-day paid-plan trial, and the pay-as-you-go wallet.
  *
  * All money lives here rather than being spread across the quota gate, the REST
  * API, and the pricing page, because those three used to disagree -- the page
@@ -31,25 +31,39 @@ export interface PlanDef {
 /**
  * The plan ladder.
  *
- * Free is deliberately a small fraction of the cheapest paid tier. At Free
- * 8,500 against Pro 15,000 a free user received 57% of the paid quota for
- * nothing, which gutted upgrade pressure; 2,000 against Median 8,500 puts it at
- * 24%, so the step up is worth paying for.
+ * Defined once and read from PLANS everywhere -- the quota gate, the pricing
+ * page, the docs, the upgrade copy and the trial grant -- so the advertised
+ * numbers cannot drift from what is enforced. For a known plan the ladder is
+ * authoritative; quota_monthly is only a reporting column, and an operator can
+ * still grant a bespoke cap with quota_override.
  */
 export const PLANS: Record<string, PlanDef> = {
-  free: { name: "Free", quota: 2000, priceCents: 0 },
-  median: { name: "Median", quota: 8500, priceCents: 299, priceId: "price_1UICicLjoFSWfKc7s3edXQzs" },
-  pro: { name: "Pro", quota: 15000, priceCents: 1199, priceId: "price_1UICitLjoFSWfKc7PYVoJ5hj" },
-  enterprise: { name: "Enterprise", quota: 25000, priceCents: 2999 },
+  free: { name: "Free", quota: 32000, priceCents: 0 },
+  median: { name: "Median", quota: 82000, priceCents: 299, priceId: "price_1UICicLjoFSWfKc7s3edXQzs" },
+  pro: { name: "Pro", quota: 112000, priceCents: 1199, priceId: "price_1UICitLjoFSWfKc7PYVoJ5hj" },
+  enterprise: { name: "Enterprise", quota: 142000, priceCents: 2999 },
 };
 
 export const PLAN_ORDER = ["free", "median", "pro", "enterprise"] as const;
 
-/** Length of the Pro trial, and the plan it grants. */
-export const TRIAL_DAYS = 15;
+/** Length of a paid-plan trial, and the plans eligible to grant one. */
+export const TRIAL_DAYS = 17;
 export const TRIAL_PLAN = "pro";
+export const TRIAL_PLANS = ["median", "pro"] as const;
 
 export const TRIAL_MS = TRIAL_DAYS * 24 * 60 * 60 * 1000;
+
+/**
+ * Which plan a row is trialling, falling back to the default.
+ *
+ * A trial is stored by writing the trial plan into the row's `plan` column, so
+ * the stored plan is the trial plan while it runs; anything outside the trial
+ * set (a stale row, a plan edited mid-trial) falls back to the default.
+ */
+export function trialPlanName(plan: string | null | undefined): string {
+  const p = (plan || "").toLowerCase();
+  return (TRIAL_PLANS as readonly string[]).includes(p) ? p : TRIAL_PLAN;
+}
 
 /**
  * Look up a plan, case-insensitively.
@@ -124,8 +138,8 @@ export function effectiveQuota(account: Pick<AccountState, "quota_override" | "q
   // A plan label the ladder does not know (e.g. "PAYG") falls back to the free
   // allowance in planQuota. That collapse is correct for open signups but wrong
   // for accounts an operator has already given an explicit quota_monthly: an
-  // unknown label must not silently shrink their allowance to 2,000. Known
-  // plans keep the ladder authoritative -- quota_monthly stays decorative.
+  // unknown label must not silently shrink their allowance to the free tier.
+  // Known plans keep the ladder authoritative -- quota_monthly stays decorative.
   if (!def) return account.quota_monthly != null ? account.quota_monthly : PLANS.free.quota;
   return def.quota;
 }
@@ -143,8 +157,10 @@ export type AccountRow = Record<string, unknown>;
 export function resolveTrial(account: AccountState): { plan: string; trialExpired: boolean; expired: boolean } {
   if (!account.trial_ends_at) return { plan: account.plan, trialExpired: false, expired: false };
   if (account.trial_ends_at > now()) {
-    // Trial still running: the trial plan wins even if the row says otherwise.
-    return { plan: TRIAL_PLAN, trialExpired: false, expired: false };
+    // Trial still running: it grants whichever paid plan the row is on. The
+    // stored plan is the trial plan (written when the trial was claimed), so
+    // read it back rather than assuming the default.
+    return { plan: trialPlanName(account.plan), trialExpired: false, expired: false };
   }
   return { plan: "free", trialExpired: true, expired: true };
 }
