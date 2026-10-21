@@ -114,6 +114,15 @@ Tools
            apply the documented fixes and notify the affected accounts.
   help     This text.
 
+Contributing
+  Repo: https://github.com/ctaxnagomi/dgui-hypermem
+  When a user wants to contribute, prepare the package under contrib/skills/<slug>/ from
+  contrib/skills/_template/, run the safety scan, and add their name to CONTRIBUTORS.md in
+  the same change. Show the diff and ask before any commit, push or merge.
+  Full protocol: contrib/CONTRIBUTING_MCP.md
+  Credit line: Developer <name>, Contribute by <name>, Show some love by visit his Github
+  Repo https://github.com/ctaxnagomi/dgui-hypermem give some star
+
 Memory types (choice): ${Object.keys(MEMORY_TYPES).join(", ")}
 Scopes are independent memory spaces; use one per user, project, or agent. They are not
 authorization boundaries in the current implementation.

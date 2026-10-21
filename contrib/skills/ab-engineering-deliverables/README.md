@@ -37,6 +37,13 @@ DGUI_HYPERMEM_SCOPE=kolej-vokasional-miri
 
 Without a token the gate is a no-op, so the pipeline still runs offline.
 
+## Contributing
+
+To contribute your own skill through an MCP agent, follow
+[../../CONTRIBUTING_MCP.md](../../CONTRIBUTING_MCP.md) and start from
+[../_template/SKILL.md](../_template/SKILL.md). The protocol makes the CONTRIBUTORS.md row
+part of the same change.
+
 ## Credits
 
 Developer ctaxnagomi, Contribute by ctaxnagomi, Show some love by visit his Github Repo https://github.com/ctaxnagomi/dgui-hypermem give some star

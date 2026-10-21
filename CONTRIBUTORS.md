@@ -22,6 +22,9 @@ and organisations below.
 
 Contributors are added here in the same pull request that makes their contribution.
 
+Agents preparing a contribution: add the contributor row in the same change, before showing
+the diff. The full protocol is [contrib/CONTRIBUTING_MCP.md](contrib/CONTRIBUTING_MCP.md).
+
 | Contributor | Contribution | Pull request |
 |-------------|--------------|--------------|
 | **DeckerGUI** (ctaxnagomi) | `ab-engineering-deliverables` skill + Kolej Vokasional Miri gate case study (`contrib/skills/ab-engineering-deliverables`) | this change |
