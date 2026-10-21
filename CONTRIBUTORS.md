@@ -24,6 +24,7 @@ Contributors are added here in the same pull request that makes their contributi
 
 | Contributor | Contribution | Pull request |
 |-------------|--------------|--------------|
+| **DeckerGUI** (ctaxnagomi) | `ab-engineering-deliverables` skill + Kolej Vokasional Miri gate case study (`contrib/skills/ab-engineering-deliverables`) | this change |
 | _(you?)_ | See [CONTRIBUTING.md](CONTRIBUTING.md) to get started. | |
 
 > *Jev*, *System One*, and the *Choice / Noul / Score* primitives are **TypeSafe AI**'s and
