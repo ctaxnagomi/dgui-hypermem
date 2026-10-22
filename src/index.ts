@@ -117,9 +117,10 @@ Tools
 Contributing
   Repo: https://github.com/ctaxnagomi/dgui-hypermem
   When a user wants to contribute, prepare the package under contrib/skills/<slug>/ from
-  contrib/skills/_template/, run the safety scan, and add their name to CONTRIBUTORS.md in
-  the same change. Show the diff and ask before any commit, push or merge.
-  Full protocol: contrib/CONTRIBUTING_MCP.md
+  contrib/skills/_template/, convert the skill to a ctecx_instruct five-part pack with the
+  owner embedded, run the safety scan, and add their name to CONTRIBUTORS.md in the same
+  change. Show the diff and ask before any commit, push or merge.
+  Full protocol: contrib/CONTRIBUTING_MCP.md and contrib/instruct/README.md
   Credit line: Developer <name>, Contribute by <name>, Show some love by visit his Github
   Repo https://github.com/ctaxnagomi/dgui-hypermem give some star
 

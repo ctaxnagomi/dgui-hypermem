@@ -44,6 +44,10 @@ To contribute your own skill through an MCP agent, follow
 [../_template/SKILL.md](../_template/SKILL.md). The protocol makes the CONTRIBUTORS.md row
 part of the same change.
 
+This skill also ships as a `ctecx_instruct@1` pack at
+[../../instruct/packs/ctecx-ab-engineering-deliverables-001/](../../instruct/packs/ctecx-ab-engineering-deliverables-001/)
+with the owner embedded in all five parts.
+
 ## Credits
 
 Developer ctaxnagomi, Contribute by ctaxnagomi, Show some love by visit his Github Repo https://github.com/ctaxnagomi/dgui-hypermem give some star

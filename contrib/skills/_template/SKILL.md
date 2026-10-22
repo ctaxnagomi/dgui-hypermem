@@ -1,6 +1,8 @@
 ---
 name: your-skill-name
 description: "What this skill does, and when an agent should use it."
+owner: "<name> (@handle), <year>"
+license: MIT
 ---
 
 # Your Skill Name

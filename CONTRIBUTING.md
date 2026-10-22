@@ -60,9 +60,11 @@ An agent connected to the DGUI-HyperMem MCP server should follow
 [contrib/CONTRIBUTING_MCP.md](contrib/CONTRIBUTING_MCP.md). The short version:
 
 1. Prepare the package under `contrib/skills/<slug>/` from `contrib/skills/_template/`.
-2. Run the safety scan: no secrets, tokens or unapproved client data.
-3. Add the contributor row to `CONTRIBUTORS.md` in the same change.
-4. Show `git diff` and ask before any commit, push or merge.
+2. Convert it to a `ctecx_instruct` five-part pack and run `task.sh test`
+   ([contrib/instruct/README.md](contrib/instruct/README.md)).
+3. Run the safety scan: no secrets, tokens or unapproved client data.
+4. Add the contributor row to `CONTRIBUTORS.md` in the same change.
+5. Show `git diff` and ask before any commit, push or merge.
 
 The contributor row is part of the contribution, not an afterthought. If the row is missing,
 the change is not ready to show.

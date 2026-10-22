@@ -1,6 +1,8 @@
 ---
 name: ab-engineering-deliverables
 description: "Two-role A/B pipeline that turns a site sketch or plan into engineering drawings, priced invoices and print-ready bilingual PDF packs, with optional DGUI HyperMem / JEV gating. Use for gate, fence, fabrication or small-works costing deliverables."
+owner: "wan mohd azizi bin wan hosen, ctaxnagomi, est 2024"
+license: MIT
 ---
 
 # A/B Engineering Deliverables
