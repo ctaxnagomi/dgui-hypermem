@@ -24,6 +24,7 @@ Contributors are added here in the same pull request that makes their contributi
 
 | Contributor | Contribution | Pull request |
 |-------------|--------------|--------------|
+| **ctaxnagomi** | Article Writing Dual Column Arxiv-LaTex format skill (dual-column DOCX academic style, KD Square Article, CTECX Article, keyword weaving, glossary, free automation patterns) | |
 | _(you?)_ | See [CONTRIBUTING.md](CONTRIBUTING.md) to get started. | |
 
 > *Jev*, *System One*, and the *Choice / Noul / Score* primitives are **TypeSafe AI**'s and
