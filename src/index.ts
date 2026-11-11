@@ -18,6 +18,7 @@ import {
   addMemory,
   forgetMemories,
   listMemories,
+  getMemory,
   listQuotaNotices,
   profile,
   recordQuotaNotice,
@@ -95,6 +96,7 @@ Tools
            and can supersede a nearby memory when it detects a contradiction.
   search   Hybrid recall: vector + keyword candidates, fused, then JEV re-ranked.
   list     Browse recent memories in a scope.
+  get      Fetch a single memory by its id.
   profile  Summarise a scope: counts by type, top tags, average salience.
   suggest  Get triggers/suggestions: detect repeats, related memories, gen_idle candidates.
   forget   Delete by id, by search query, or everything in a scope.
@@ -394,6 +396,53 @@ function buildServer(env: Env, ctx: McpCtx = {}): McpServer {
   );
 
   server.registerTool(
+    "get",
+    {
+      title: "Get memory",
+      description: "Fetch a single memory by its id. Returns the full memory, or null if not found.",
+      inputSchema: {
+        id: z.string().describe("Memory id to fetch."),
+      },
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        openWorldHint: false,
+        idempotentHint: true,
+      },
+    },
+    async (args) => {
+      try {
+        const memory = await getMemory(env, args.id);
+        if (!memory) return fail("not found");
+        return ok({
+          id: memory.id,
+          scope: memory.scope,
+          content: memory.content,
+          memory_type: memory.memory_type,
+          tags: memory.tags,
+          salience: memory.salience,
+          durable: memory.durable,
+          confidence: memory.confidence,
+          source: memory.source,
+          status: memory.status,
+          superseded_by: memory.superseded_by,
+          access_count: memory.access_count,
+          created_at: memory.created_at,
+          updated_at: memory.updated_at,
+          provider: memory.provider,
+          origin_system: memory.origin_system,
+          corpus_type: memory.corpus_type,
+          client_id: memory.client_id,
+          user_id: memory.user_id,
+          metadata: memory.metadata,
+        });
+      } catch (err) {
+        return fail(String(err));
+      }
+    },
+  );
+
+  server.registerTool(
     "profile",
     {
       title: "Memory profile",
@@ -684,6 +733,12 @@ async function handleRest(request: Request, env: Env, path: string): Promise<Res
   // Admin APIs are only reachable on the admin hostname. On the public host
   // they return 404 so the admin surface is not guessable there.
   const ADMIN_HOST = env.ADMIN_HOST || "hmem-admin.deckergui.my";
+  // Local dev only. `wrangler dev` rewrites the request host to the Worker's
+  // first route, so hostname checks cannot match locally; DEV_ADMIN is set in
+  // .dev.vars (or via --var) and never exists in the deployed environment.
+  const DEV_ADMIN_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]"]);
+  const devAdmin = (env as any).DEV_ADMIN === "1";
+  const isAdminHost = (hostname: string) => devAdmin || hostname === ADMIN_HOST || DEV_ADMIN_HOSTS.has(hostname);
   const ADMIN_API = new Set([
     "/api/admin/login",
     "/api/admin/tokens",
@@ -708,8 +763,18 @@ async function handleRest(request: Request, env: Env, path: string): Promise<Res
     "/api/setup-dataset",
     "/api/technician_check",
   ]);
-  if (ADMIN_API.has(path) && url.hostname !== ADMIN_HOST) {
+  if (ADMIN_API.has(path) && !isAdminHost(url.hostname)) {
     return json({ error: "not found" }, { status: 404, headers: CORS });
+  }
+
+  // /api/memory/:id shorthand -> fetch a single memory by id.
+  if (path.startsWith("/api/memory/")) {
+    const id = decodeURIComponent(path.slice("/api/memory/".length));
+    if (id) {
+      const memory = await getMemory(env, id);
+      if (!memory) return json({ error: "not found" }, { status: 404, headers: CORS });
+      return json(memory, { headers: CORS });
+    }
   }
 
   switch (path) {
@@ -742,6 +807,13 @@ async function handleRest(request: Request, env: Env, path: string): Promise<Res
       return json(await listMemories(env, { scope, limit: body.limit, type: body.type ?? null, status: body.status ?? null }), {
         headers: CORS,
       });
+    case "/api/get": {
+      const id = body.id || url.searchParams.get("id");
+      if (!id) return json({ error: "id required" }, { status: 400, headers: CORS });
+      const memory = await getMemory(env, String(id));
+      if (!memory) return json({ error: "not found" }, { status: 404, headers: CORS });
+      return json(memory, { headers: CORS });
+    }
     case "/api/profile":
       return json(await profile(env, scope), { headers: CORS });
     case "/api/forget":
@@ -1754,7 +1826,13 @@ export default {
     // door; the public hostname redirects /admin here and refuses the admin
     // API routes outright (404, so scanners cannot distinguish them).
     const ADMIN_HOST = env.ADMIN_HOST || "hmem-admin.deckergui.my";
-    const onAdminHost = url.hostname === ADMIN_HOST;
+    // See the note on isAdminHost above: wrangler dev rewrites the host, so a
+    // dev-only env flag (never set in production) is what makes the admin board
+    // reachable at http://127.0.0.1:<port>/ without the real hostname.
+    const DEV_ADMIN_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]"]);
+    const onAdminHost = (env as any).DEV_ADMIN === "1"
+      || url.hostname === ADMIN_HOST
+      || DEV_ADMIN_HOSTS.has(url.hostname);
 
     if (path === "/") {
       return new Response(onAdminHost ? ADMIN_HTML : LANDING_HTML, {

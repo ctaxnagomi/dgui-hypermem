@@ -371,6 +371,8 @@ POST /revoke       token revocation (RFC 7009)</code></pre>
           <tr><td><code>/add</code></td><td><span class="method post">POST</span></td><td><code>content</code>, <code>scope</code>, <code>tags</code>, <code>source</code></td><td>Add or update a scoped memory</td></tr>
           <tr><td><code>/search</code></td><td><span class="method post">POST</span></td><td><code>query</code>, <code>scope</code>, <code>limit</code>, <code>type</code>, <code>durable_only</code></td><td>Hybrid search</td></tr>
           <tr><td><code>/list</code></td><td><span class="method post">POST</span></td><td><code>scope</code>, <code>limit</code>, <code>type</code>, <code>status</code></td><td>List memories</td></tr>
+          <tr><td><code>/get</code></td><td><span class="method get">GET</span></td><td><code>id</code> (path or query)</td><td>Fetch a single memory by id</td></tr>
+          <tr><td><code>/memory/:id</code></td><td><span class="method get">GET</span></td><td>Memory id in path</td><td>Fetch a single memory by id</td></tr>
           <tr><td><code>/profile</code></td><td><span class="method post">POST</span></td><td><code>scope</code></td><td>Summarize a scope</td></tr>
           <tr><td><code>/forget</code></td><td><span class="method post">POST</span></td><td><code>ids</code>, <code>query</code>, <code>scope</code>, or <code>all</code></td><td>Delete memories</td></tr>
           <tr><td><code>/verify-token</code></td><td><span class="method get">GET</span></td><td>Bearer token</td><td>Validate a token</td></tr>

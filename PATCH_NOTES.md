@@ -4,6 +4,23 @@ Postponed work and known issues, carried forward between releases.
 
 ---
 
+## Added: get memory by id (11 Nov 2026)
+
+**Feature.** Fetch a single memory by its id, instead of only by search or list.
+
+- MCP tool `get` with input `id` returns the full memory or `not found`.
+- REST: `GET /api/get?id=<id>`, `POST /api/get` with `{ "id": "..." }`, and
+  `GET /api/memory/:id` shorthand. All return the memory JSON or 404.
+- `getMemory` already existed in `src/store.ts`; this change exposes it on the
+  MCP and REST surfaces.
+- `help` and the landing-page route table updated.
+- Read-only and idempotent; no writes, no JEV calls.
+
+**Why.** Clients that hold a memory id (from `add`, `search` or `list`) can now
+retrieve that exact memory without re-running a search or scanning a scope.
+
+---
+
 ## Fixed: "create key" said nothing, generic passkey, usage reset, monthly rollover (9 Oct 2026)
 
 **The reported symptom.** Creating a token with a new email appeared to do
