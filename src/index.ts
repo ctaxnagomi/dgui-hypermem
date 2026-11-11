@@ -1807,7 +1807,7 @@ export default {
         endpoints: {
           docs: "/docs",
           mcp: "/mcp",
-          rest: ["/api/add", "/api/search", "/api/list", "/api/profile", "/api/forget", "/api/sync_jev", "/api/sync_embed_corpus", "/api/jev_queue_stats", "/api/request-token", "/api/check-star", "/api/disable-token", "/api/check-quota", "/api/verify-token", "/api/setup-dataset", "/api/enterprise-inquiry", "/api/create-checkout-session", "/api/stripe-webhook", "/api/admin/tokens", "/api/admin/stats", "/api/admin/logs", "/api/admin/toggle-train", "/api/admin/update-quota", "/api/admin/reset-usage", "/api/admin/clock", "/api/admin/visits", "/api/admin/activity", "/api/visitor", "/api/solution-signal"],
+          rest: ["/api/add", "/api/search", "/api/list", "/api/get", "/api/profile", "/api/forget", "/api/sync_jev", "/api/sync_embed_corpus", "/api/jev_queue_stats", "/api/request-token", "/api/check-star", "/api/disable-token", "/api/check-quota", "/api/verify-token", "/api/setup-dataset", "/api/enterprise-inquiry", "/api/create-checkout-session", "/api/stripe-webhook", "/api/admin/tokens", "/api/admin/stats", "/api/admin/logs", "/api/admin/toggle-train", "/api/admin/update-quota", "/api/admin/reset-usage", "/api/admin/clock", "/api/admin/visits", "/api/admin/activity", "/api/visitor", "/api/solution-signal"],
         },
       });
     }

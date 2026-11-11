@@ -4,6 +4,18 @@ Postponed work and known issues, carried forward between releases.
 
 ---
 
+## Security: dependency vulnerabilities fixed (11 Nov 2026)
+
+**npm audit**: 0 vulnerabilities after this change (was 12: 7 high, 5 moderate).
+
+- `@modelcontextprotocol/sdk` 1.30.0 -> 1.32.2 (5 advisories: OAuth credential leak, task/session binding, cross-origin redirect, memory exhaustion, bearer token confusion).
+- `zod` 3.25.76 -> 4.6.7 (memory exhaustion on oversized constrained collections). Major bump; all `z.*` usage in `src/index.ts` is compatible.
+- `wrangler` 4.131.1 -> 4.160.1, `miniflare`, `sharp`, `undici`, `hono`, `@hono/node-server`, `qs`, `ip-address`, `fast-uri`, `body-parser` updated transitively.
+
+**Verified.** `npm audit` reports 0 vulnerabilities; `tsc --noEmit` passes; `npm run dev` boots.
+
+---
+
 ## Added: get memory by id (11 Nov 2026)
 
 **Feature.** Fetch a single memory by its id, instead of only by search or list.
