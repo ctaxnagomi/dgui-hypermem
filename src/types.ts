@@ -13,6 +13,7 @@ export interface Env {
   MCP_TOKEN?: string;
   HF_TOKEN?: string;
   HF_DATASET?: string;
+  HF_EMBED_DATASET?: string;
   PASSKEY?: string;
   MASTER_PASSKEY?: string;
   ADMIN_PASSKEY_2?: string;

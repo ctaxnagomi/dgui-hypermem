@@ -14,6 +14,24 @@ export async function sha256(input: string): Promise<string> {
   return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
+/**
+ * Stable, redaction-safe attribution tag for a credential owner (tagID).
+ *
+ * The training corpus must be able to say *which* MCP user contributed a row
+ * without publishing anything that identifies them: tagID is the truncated
+ * SHA-256 of the token owner's email, prefixed `u_`. It is deterministic (the
+ * same email always yields the same tag), contains no email-shaped material
+ * (no `@`, no domain, hex only), and therefore survives every redaction rule
+ * in redact.ts byte-identically. Accounts with no email (master token) yield
+ * null and are untagged by design; untagged rows are ineligible for the
+ * embedding corpus (see RULESET_TRAIN_CORPUS.md).
+ */
+export async function tagIdFor(email: string | null | undefined): Promise<string | null> {
+  if (!email || !email.trim()) return null;
+  const digest = await sha256(email.trim().toLowerCase());
+  return `u_${digest.slice(0, 16)}`;
+}
+
 export function normalizeContent(text: string): string {
   return text.replace(/\r\n/g, "\n").replace(/\s+/g, " ").trim().toLowerCase();
 }

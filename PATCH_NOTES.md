@@ -30,6 +30,293 @@ in stored memory content:
 
 ---
 
+## Security: dependency vulnerabilities fixed (11 Nov 2026)
+
+**npm audit**: 0 vulnerabilities after this change (was 12: 7 high, 5 moderate).
+
+- `@modelcontextprotocol/sdk` 1.30.0 -> 1.32.2 (5 advisories: OAuth credential leak, task/session binding, cross-origin redirect, memory exhaustion, bearer token confusion).
+- `zod` 3.25.76 -> 4.6.7 (memory exhaustion on oversized constrained collections). Major bump; all `z.*` usage in `src/index.ts` is compatible.
+- `wrangler` 4.131.1 -> 4.160.1, `miniflare`, `sharp`, `undici`, `hono`, `@hono/node-server`, `qs`, `ip-address`, `fast-uri`, `body-parser` updated transitively.
+
+**Verified.** `npm audit` reports 0 vulnerabilities; `tsc --noEmit` passes; `npm run dev` boots.
+
+---
+
+## Added: get memory by id (11 Nov 2026)
+
+**Feature.** Fetch a single memory by its id, instead of only by search or list.
+
+- MCP tool `get` with input `id` returns the full memory or `not found`.
+- REST: `GET /api/get?id=<id>`, `POST /api/get` with `{ "id": "..." }`, and
+  `GET /api/memory/:id` shorthand. All return the memory JSON or 404.
+- `getMemory` already existed in `src/store.ts`; this change exposes it on the
+  MCP and REST surfaces.
+- `help` and the landing-page route table updated.
+- Read-only and idempotent; no writes, no JEV calls.
+
+**Why.** Clients that hold a memory id (from `add`, `search` or `list`) can now
+retrieve that exact memory without re-running a search or scanning a scope.
+
+---
+
+## Fixed: "create key" said nothing, generic passkey, usage reset, monthly rollover (9 Oct 2026)
+
+**The reported symptom.** Creating a token with a new email appeared to do
+nothing. The backend was healthy: `POST /api/request-token` returned a token and
+it verified at the current free allowance (32,000 requests). The bug was on the
+client.
+
+**Landing token form (`src/landing.ts`).** Both error branches of
+`requestToken()` wrote the message into `#crm-status-text` and then set
+`#crm-status` to `display:none` -- hiding the element that carried the message.
+Every failure (invalid passkey, invalid email, user limit) therefore looked like
+a dead button: the form just reappeared. The status panel now stays visible on
+error.
+
+**Generic passkey.** The token form shows and prefills `0866` once the terms are
+accepted, with a note that it is a generic passkey shared by all DGUI HyperMem
+users. The live `PASSKEY` secret is set to `0866` as well; displaying a value
+the server does not accept is the bug the user hit ("invalid passkey" for
+`0866`).
+
+**Monthly rollover was not persisted.** `checkAndTrackUsage` reset only the
+in-memory `used = 0` when the 30-day window elapsed, then the increment wrote
+`requests_used` back to the exhausted count -- so the account was re-blocked on
+its very next call. The rollover now persists `requests_used = 0` with a fresh
+window.
+
+**Admin usage Reset.** Each active account row gains a **Reset** action beside
+Revoke/Quota, backed by `POST /api/admin/reset-usage` (admin host,
+`adminGate`). It zeroes `requests_used` with a new 30-day window; plan and
+wallet are untouched. The owner account `ctaxnagomi@gmail.com` was reset and its
+`/mcp` round-trip confirmed (12 tools).
+
+**Verified.** `tsc --noEmit`; `eval-request-token.mjs`, `eval-scroll.mjs`,
+`eval-cap.mjs` (15/15). Live: passkey `0866` issues a token, a fresh token
+answers `initialize`/`tools/list`, and `/api/admin/reset-usage` 404s on the
+public host while the admin host enforces `adminGate`.
+
+Deployed `646e2814`; the `PASSKEY` secret was then set.
+
+---
+
+## Changed: plan quotas raised, trial widened to 17 days on Median and Pro (8 Oct 2026)
+
+The plan ladder in `src/billing.ts` is the single source of truth for
+enforcement, the pricing page, the docs, and upgrade copy, so all of these move
+together:
+
+| Plan | Old quota | New quota |
+| --- | --- | --- |
+| Free | 2,000 | **32,000** |
+| Median | 8,500 | **82,000** |
+| Pro | 15,000 | **112,000** |
+| Enterprise | 25,000 | **142,000** |
+
+- **Trial** — `TRIAL_DAYS` 15 → **17**, and both **Median and Pro** are now
+  trial-eligible (`TRIAL_PLANS`). `/api/start-trial` takes an optional `plan`
+  (validated against `TRIAL_PLANS`, defaults to Pro), writes that plan into the
+  row, and reports it back; the pricing page offers the trial button on both
+  cards. `resolveTrial` reads the trial plan back from the row via
+  `trialPlanName()` instead of assuming the old constant.
+- **New-account rows** — `handleRequestToken` and OAuth `findOrCreateAccount`
+  wrote a hardcoded `quota_monthly = 5600`; both now bind `planQuota("free")`,
+  so a fresh row matches the ladder instead of advertising a stale value.
+- **Reporting** — `billingSummary`, `/api/check-quota`, and `/api/verify-token`
+  now report `effectiveQuota()` (override, else ladder) rather than reading the
+  stored reporting column directly, so a plan change is visible without a write.
+- **Migration `0014_quota_ladder_v2.sql`** realigns the stored `quota_monthly`
+  reporting column for the four ladder plans where no override exists, and
+  mirrors overrides; unknown-plan rows (e.g. PAYG) keep their bespoke value.
+  Enforcement already follows the ladder in code, so this migration is for
+  consistent reporting, not for the gate.
+
+- **Tests** — `billing_test.ts` (9 checks) and `technician_test.ts` (21 checks)
+  updated to the new ladder; `billing_flow_test.py` updated for the live E2E
+  assertions. `eval-request-token.mjs` asserts a fresh row carries 32,000, not
+  the legacy 5,600.
+
+---
+
+## Added: technician JEV agent (8 Oct 2026)
+
+`src/technician.ts` — a corpus-backed diagnostic sweep surfaced two ways:
+
+- **MCP tool `technician_check`** (owner/master token only — an account token
+  must not be able to enumerate the fleet; it is rejected).
+- **REST `/api/technician_check`** (admin host, `adminGate` passkey + TOTP),
+  mirroring the tool so curl/automation can drive the sweep.
+
+The technician debugs **from the solution corpus**: the checklist is the set of
+active `solution`-type memories in the store (the same rows the daily embed
+ingest publishes), matched by rule tag. Every finding carries the `solution_doc_id`
+that prescribes it, so the owner can cross-reference the corpus entry.
+
+Signatures evaluated (all pure in `diagnoseAccount`, none invented locally):
+
+- `quota.plan_outside_ladder` (e.g. PAYG) — typed quota with no override on a
+  non-ladder plan; the gate collapses the account to the Free allowance.
+- `quota.raised_but_not_enforced` — ladder plan whose `quota_monthly` exceeds
+  its plan quota with no override (pre-fix admin writes).
+- `quota.near_exhaustion` / `quota.exhausted` — ≥90% / at-cap with an empty
+  pay-as-you-go wallet (→ next request 429s).
+
+Fixes are **opt-in** (`apply_fixes: true`): the sweep mirrors `quota_monthly`
+into `quota_override` for the two fixable signatures, then records a
+`service_notice` to each affected account carrying the corpus protocol —
+self-hosters apply the fix in their deployment, hosted users contact the owner.
+A plain run is read-only.
+
+- **Tests** — `technician_test.ts` added (21 checks). Run with
+  `npx tsx technician_test.ts`.
+
+---
+
+## Fixed: admin Quota button ignored on PAYG / non-ladder plans (7 Oct 2026)
+
+The Quota button (`/api/admin/update-quota`) wrote only `quota_monthly`, but
+the enforcement gate reads `effectiveQuota()` (src/billing.ts) — `quota_override`
+first, then the plan ladder. `quota_monthly` alone never decided the allowance.
+For a plan label the ladder does not know (e.g. `PAYG`, "Pay As You Go") the
+ladder lookup collapsed to the Free allowance (2,000), so a typed quota like
+100,000 "updated" but was silently ignored and the account 429'd well past
+its effective cap.
+
+- **`handleUpdateQuota`** now mirrors the typed `quota_monthly` into
+  `quota_override` on the same UPDATE, so what the admin sets is what is
+  enforced (this is the mechanism docs.ts already advertised).
+- **`effectiveQuota`** falls back to the stored `quota_monthly` when the plan
+  label is unknown instead of collapsing to the Free ladder — belt-and-braces
+  for rows edited outside the admin UI. Known ladder plans still resolve
+  through the ladder (`quota_monthly` stays decorative there).
+- **Tests** — `billing_test.ts` added (9 checks: ladder plans, case
+  insensitivity, override-wins, PAYG honors `quota_monthly`, unknown plan
+  without a stored quota falls back to Free, `planQuota` itself still
+  collapses). Run with `npx tsx billing_test.ts`.
+
+---
+
+## Embed-corpus daily ingest (7 Oct 2026)
+
+The embed corpus (`ctaxnagomi/dgui-hypermem-embed-corpus`) gets its
+daily-ingest code (`src/corpus.ts`), implementing RULESET_TRAIN_CORPUS.md
+§3.2/§3.3:
+
+- **Select** — active memories with a derived `tag_id` (latest analyze row per
+  memory via `json_extract(payload,'$.tag_id')` on `jev_examples`), filtered to
+  accounts opted in (`tokens.train_with_all = 1`, mirroring the admin
+  toggle-train flag).
+- **Gate (fail-closed)** — blocked-content patterns (shared with `addMemory`
+  via `findBlockedPattern` in `src/store.ts`) drop the row entirely; W1–W3
+  secrets are redacted from the published text. A redaction change invalidates
+  the live vector, so changed rows are re-embedded rather than reusing the
+  stale vector.
+- **Embed** — reuses the live 768-d Vectorize vector when the published text
+  is byte-identical to what was embedded; otherwise re-embeds via
+  `@cf/baai/bge-base-en-v1.5`. Missing/undersized vectors fail closed (row not
+  published this pass, retried next daily run).
+- **Dedup** — `doc_id = mem_<memory id>` upsert: identical text is skipped,
+  changed text replaces in place, `mem_<uuid>` is never duplicated.
+- **Write (single writer)** — gated on `HF_TOKEN` like Train; new cron
+  `17 3 * * *` (daily 03:17 UTC) alongside the hourly `17 * * * *`, dispatched
+  in the scheduled handler on `event.cron`; `sync_embed_corpus` MCP tool +
+  `/api/sync_embed_corpus` for manual runs.
+- **Env/config** — `HF_EMBED_DATASET` var added (default
+  `ctaxnagomi/dgui-hypermem-embed-corpus`).
+- **Tests** — `corpus_test.ts` (32 checks) covering repo resolution, the
+  redaction gate, row shape, dedup/upsert, and metadata totals. Redact 64/64,
+  tagID 19/19 stay green. Run with `npx tsx corpus_test.ts` (Node
+  `--experimental-strip-types` cannot follow the source modules' extensionless
+  relative imports on this Node version; the RULESET test note was corrected
+  to match).
+
+**Known write-path gaps (not this patch).** `queries.jsonl` / `train.jsonl`
+remain schema-complete but empty by design: search events carry no `tag_id`,
+and rerank rows drop candidate ids in `buildRerankRow` (state candidates are
+`{index, memory: content}` without ids), so faithful query→doc pairs cannot be
+reconstructed from persisted state yet. Wiring those files needs an events/
+state change first; recorded here so the gap is explicit.
+
+---
+
+## Ruleset v1.0.1: GitHub / repository operations require user permission (7 Oct 2026)
+
+`DGUI_HMEM_RULESET` bumped 1.0.0 → 1.0.1. Both ruleset forms (HMEM §8
+compliance contract for harnesses; SDK Important Details) and the executable
+`DGUI_HMEM_RULESET_INSTRUCT` pack now carry the same clause:
+
+- `commit`, `push`, `pull`, PR creation, `merge`, and `reset` against any
+  repository happen only with the owner's explicit permission **for that
+  operation**.
+- **Merging always requires asking the owner first** — a standing push/merge
+  permission does not waive confirm-before-each-merge.
+- Template zip rebuilt (`build_instruct_pack.py --template`); leak check
+  passes (`NONE`).
+
+---
+
+## Fixed: stale OpenAI submission URL, setup-token logging; token-wan.md moved (7 Oct 2026)
+
+- **Stale OpenAI URL.** The OpenAI Plugins submission checklist told the portal
+  to use `https://dgui-hypermem.ctaxnagomi.workers.dev/mcp`, which 404s since
+  the account migration. It now points at the production endpoint
+  `https://dgui-hmem.deckergui.my/mcp`.
+- **Setup-token logging.** `/api/setup-dataset` no longer records an HF-token
+  prefix in the CRM audit log — the `dataset_setup` entry stores only the
+  dataset name. The rest of the setup path (`handleRequestToken` actions etc.)
+  already logged generic action strings only, so no token material ever reaches
+  a log now. Docs and the deployment-audit note updated accordingly
+  (setup-token logging removed from known gaps).
+- **token-wan.md moved** out of the repo root into the migration bundle
+  directory (`hmem-migration/`, not a git repository). It remains untracked,
+  gitignored, and never committed; the `.gitignore` entry stays as a defensive
+  net.
+- No pipeline or training-governance surface changed; `DGUI_HMEM_RULESET`
+  policy is unaffected.
+
+---
+
+## Training governance: tagID attribution, ruleset templates, embedding corpus skeleton (7 Oct 2026)
+
+Training/corpus governance patch. Every queued and published JEV row is now
+attributable to the MCP user who triggered it, without publishing anything
+identifiable.
+
+- **tagID** — `tag_id` field added to `JevExampleRow` and stamped server-side on
+  `add` / `search` (rerank) / supersede rows from the credential owner's email:
+  `u_` + first-16-hex of SHA-256 (lowercased). Threaded through the MCP
+  handlers and the REST `/api/add` + `/api/search` paths; master-token and
+  unauthenticated traffic stays untagged (`null`). `tag_id` is an identity
+  field in `scrubJevRow`, so it round-trips byte-identically and is never
+  redacted. New rows carry it going forward; already-published rows are left
+  untouched (no backfill churn).
+- **Ruleset artefacts** — commit-safe *template* forms only, under
+  `ruleset/templates/`:
+  - `DGUI_HMEM_RULESET.template.md` — per-user contract: strict data-flow
+    pipeline, training-only scope, air-gap walls W1–W9, tagID, opt-in consent,
+    owner-gated DeckerGUI SDK.
+  - `DGUI_HMEM_RULESET_INSTRUCT` pack (ctecx_instruct@1, five parts) + zip —
+    executable harness contract (agentic tools, `tool_calls`, html2canvas +
+    compactDOM token reduction, Playwright/BrowserOS neo), JEV driven by an
+    owner-minted key injected at runtime only.
+  - `DECKERGUI_SDK_RULESET.template.md` — owner-only SDK config (same
+    ctecx_instruct@1 shape), never distributed to MCP users.
+  - Concrete grant versions (paths, key name) are **gitignored, owner-local**
+    by policy: nothing with a real path/email/key is ever committed.
+- **Pipeline spec** — `RULESET_TRAIN_CORPUS.md` at repo root documents both
+  corpora: Train (`DGUI_HYPERMEM-JEV`, tagID now in every row) and the new
+  Embed corpus in embedding-model format, with gates, single-writer rule,
+  air-gap guarantees, and the intended daily-ingest schedule.
+- **HuggingFace corpus** — `ctaxnagomi/dgui-hypermem-embed-corpus` created
+  (public). Schema-complete and empty: corpus.jsonl / queries.jsonl /
+  train.jsonl + metadata.json + dataset card. Ingestion code ships later per
+  `RULESET_TRAIN_CORPUS.md` §3.2; until then the format is the contract.
+- **Tests** — `tagid_test.ts` (19 checks; run with `npx tsx tagid_test.ts`),
+  alongside `redact_test.ts`. `typecheck` clean.
+feat/embed-corpus-ingest
+
+---
+
 ## Moved: production account migration to wan.mohd.azizi.seggaf — DEPLOYED (30 Sep 2026)
 
 dgui-hypermem now runs from the **wan.mohd.azizi.seggaf** Cloudflare account
@@ -163,7 +450,7 @@ plain GET.
 ### OpenAI submission checklist (user-actionable, at submission time)
 
 1. In the portal choose **With MCP → Universal**; enter the production URL
-   `https://dgui-hypermem.ctaxnagomi.workers.dev/mcp`.
+   `https://dgui-hmem.deckergui.my/mcp`.
 2. Complete the domain-verification challenge — place the token OpenAI
    generates at `/.well-known/openai-apps-challenge` (set `OPENAI_APPS_CHALLENGE`).
 3. Provide reviewer demo credentials (an MCP token via the normal
@@ -574,7 +861,6 @@ Now capped at 64,000 characters.
 
 ## Outstanding security work
 
-- **Setup-token logging.** Tokens are written to logs on the setup path.
 - **Incomplete migrations.** `migrations/0001_init.sql` … `0006_logs.sql` do not
   fully reproduce the live schema, so clean self-host installs remain broken.
   `schema.sql` in the migration bundle is the authoritative version.
@@ -586,6 +872,8 @@ Now capped at 64,000 characters.
   and hiding it raises the bar but does not fix the model. This now also gates
   the OAuth consent flow, so it is worth more attention than before. A per-user
   invitation or email magic-link flow would be the real answer.
-- **Credential in the working tree.** `token-wan.md` holds a Cloudflare API
-  token in plaintext. It is untracked and gitignored (`.gitignore:23`) and has
-  never been committed, but it should not sit at the repo root.
+- **Credential in the working tree — resolved (7 Oct).** `token-wan.md` held a
+  Cloudflare API token in plaintext at the repo root. It was untracked and
+  gitignored and has never been committed; it is now moved out of the repo root
+  into the migration bundle directory (`hmem-migration/`, outside any git
+  repository). The `.gitignore` entry stays as a defensive net.

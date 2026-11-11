@@ -93,6 +93,8 @@ export interface AddInput {
   client_id?: string | null;
   user_id?: string | null;
   metadata?: any;
+  /** Attribution tag of the calling credential owner (`u_<hex>`, see `tagIdFor`). */
+  tag_id?: string | null;
 }
 
 export interface AddResult {
@@ -100,6 +102,62 @@ export interface AddResult {
   analysis: MemoryAnalysis;
   created: boolean;
   superseded: { id: string; content: string; probability: number }[];
+  /**
+   * Whether the Vectorize index accepted the embedding.
+   *
+   * Always true on a healthy system. It goes false only when D1 has already
+   * committed the row and the index write failed after retries — a genuinely
+   * partitioned backend. The row is NOT lost in that case: `memories_fts` is
+   * maintained by a D1 trigger in the same transaction as the row, so keyword
+   * recall still finds it. Only semantic recall is degraded until an index
+   * reconciliation runs.
+   *
+   * Reported rather than thrown, because the inverse is worse: throwing here
+   * tells the client the write failed when D1 accepted it, so a caller that
+   * retries creates a duplicate and a caller that does not believes data it
+   * actually has was dropped.
+   */
+  indexed: boolean;
+}
+
+/**
+ * Upsert a single memory into Vectorize, retrying once, never throwing.
+ *
+ * Returns false only when both attempts failed. Callers must treat false as
+ * "the index is behind", not "the write failed" — see AddResult.indexed.
+ */
+async function indexMemory(env: Env, entry: { id: string; values: number[]; metadata: Record<string, unknown> }): Promise<boolean> {
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      await env.VECTORIZE.upsert([entry as never]);
+      return true;
+    } catch (err) {
+      console.error(`vector index upsert failed (attempt ${attempt + 1}) for ${entry.id}:`, String(err));
+    }
+  }
+  return false;
+}
+
+// Harmful content patterns checked at write time (and re-checked at ingest):
+// secrets, CVE references, gRPC threats, pornography, CSAM indicators. Kept as a
+// module-level list so the embedding-corpus ingest can apply the same gate
+// (RULESET_TRAIN_CORPUS.md §3.3: redaction fail-closed for Train + Embed).
+const BLOCKED_PATTERNS = [
+  /\b(?:sk_live_|rk_live_|pk_live_|sk_test_|rk_test_|pk_test_)\w+/i,  // Stripe keys
+  /\b(?:ghp_|gho_|ghu_|ghs_|ghr_)\w+/i,                               // GitHub tokens
+  /\b(?:AKIA[0-9A-Z]{16})\b/,                                           // AWS keys
+  /\b(?:-----BEGIN (?:RSA |EC )?PRIVATE KEY-----)/i,                     // Private keys
+  /\b(?:cve-\d{4}-\d{4,7})\b/i,                                          // CVE exploit references
+  /(?:underage|minor\s+(?:girl|boy|child)|preteen|cp\s+(?:content|collection))/i, // CSAM indicators
+  /(?:child\s+(?:porn|abuse|exploit)|loli|shota)/i,                      // Prohibited content
+];
+
+/** First blocked pattern matched by `content`, or null. Shared by addMemory and the embed ingest gate. */
+export function findBlockedPattern(content: string): RegExp | null {
+  for (const pattern of BLOCKED_PATTERNS) {
+    if (pattern.test(content)) return pattern;
+  }
+  return null;
 }
 
 export async function addMemory(env: Env, input: AddInput): Promise<AddResult> {
@@ -108,20 +166,8 @@ export async function addMemory(env: Env, input: AddInput): Promise<AddResult> {
   if (!content) throw new Error("content must not be empty");
 
   // Block harmful content patterns (secrets, CVE exploits, gRPC threats, pornography, CSAM)
-  const lower = content.toLowerCase();
-  const blockedPatterns = [
-    /\b(?:sk_live_|rk_live_|pk_live_|sk_test_|rk_test_|pk_test_)\w+/i,  // Stripe keys
-    /\b(?:ghp_|gho_|ghu_|ghs_|ghr_)\w+/i,                               // GitHub tokens
-    /\b(?:AKIA[0-9A-Z]{16})\b/,                                           // AWS keys
-    /\b(?:-----BEGIN (?:RSA |EC )?PRIVATE KEY-----)/i,                     // Private keys
-    /\b(?:cve-\d{4}-\d{4,7})\b/i,                                          // CVE exploit references
-    /(?:underage|minor\s+(?:girl|boy|child)|preteen|cp\s+(?:content|collection))/i, // CSAM indicators
-    /(?:child\s+(?:porn|abuse|exploit)|loli|shota)/i,                      // Prohibited content
-  ];
-  for (const pattern of blockedPatterns) {
-    if (pattern.test(content)) {
-      throw new Error("memory content rejected: prohibited pattern detected");
-    }
+  if (findBlockedPattern(content)) {
+    throw new Error("memory content rejected: prohibited pattern detected");
   }
 
   const tags = parseTags(input.tags);
@@ -198,23 +244,30 @@ export async function addMemory(env: Env, input: AddInput): Promise<AddResult> {
       .run();
   }
 
-  await env.VECTORIZE.upsert([
-    {
-      id,
-      values: vector,
-      metadata: {
-        scope,
-        memory_type: analysis.memory_type,
-        status,
-        salience: analysis.salience ?? 2,
-      },
+  // D1 has committed. From here on nothing may fail the request, because the
+  // row is durable and reachable through memories_fts regardless: a CP system
+  // answers from its source of truth, and D1 is that source. The index is an
+  // accelerator, so a partition degrades semantic recall but does not make the
+  // write "not happened".
+  //
+  // One retry, then report rather than throw. Throwing would tell the caller
+  // the write failed while D1 holds it — a client that then retries creates a
+  // duplicate, and a client that does not believes real data was rejected.
+  const indexed = await indexMemory(env, {
+    id,
+    values: vector,
+    metadata: {
+      scope,
+      memory_type: analysis.memory_type,
+      status,
+      salience: analysis.salience ?? 2,
     },
-  ]);
+  });
 
   if (analysis.provider !== "off") {
     await enqueueJevExample(
       env,
-      buildAnalyzeRow(env, { memory_id: id, scope, content, analysis, source: input.source ?? null, created_at: timestamp }),
+      buildAnalyzeRow(env, { memory_id: id, scope, content, analysis, source: input.source ?? null, created_at: timestamp, tag_id: input.tag_id ?? null }),
     );
   }
 
@@ -234,12 +287,18 @@ export async function addMemory(env: Env, input: AddInput): Promise<AddResult> {
           .first<MemoryRow>();
         if (!row) continue;
         const probability = await supersedeScore(env, row.content, content);
-        await enqueueJevExample(env, buildSupersedeRow(env, { existing: row.content, incoming: content, probability, scope, created_at: timestamp }));
+        await enqueueJevExample(env, buildSupersedeRow(env, { existing: row.content, incoming: content, probability, scope, created_at: timestamp, tag_id: input.tag_id ?? null }));
         if (probability >= SUPERSEDE_THRESHOLD) {
           await env.DB.prepare(`UPDATE memories SET status = 'superseded', superseded_by = ?, updated_at = ? WHERE id = ?`)
             .bind(id, now(), row.id)
             .run();
-          await env.VECTORIZE.deleteByIds([row.id]);
+          // D1 has marked the row superseded, so searchMemories' authoritative
+          // read-back already excludes it. Failing to drop the vector leaves
+          // harmless index cruft, not a resurrected memory — so swallow it
+          // rather than abandoning the remaining contradiction matches.
+          await env.VECTORIZE.deleteByIds([row.id]).catch((err: unknown) =>
+            console.error("vector delete failed after supersede:", String(err)),
+          );
           superseded.push({ id: row.id, content: row.content, probability });
           await logEvent(env, scope, "supersede", { memoryId: row.id, detail: { superseded_by: id, probability } });
         }
@@ -252,7 +311,7 @@ export async function addMemory(env: Env, input: AddInput): Promise<AddResult> {
   const memory = await getMemory(env, id);
   if (!memory) throw new Error("failed to persist memory");
   await logEvent(env, scope, existing ? "update" : "add", { memoryId: id, detail: { memory_type: analysis.memory_type } });
-  return { memory, analysis, created: !existing, superseded };
+  return { memory, analysis, created: !existing, superseded, indexed };
 }
 
 // ---------------------------------------------------------------- read path
@@ -263,6 +322,8 @@ export interface SearchOptions {
   type?: string | null;
   durableOnly?: boolean;
   useJev?: boolean;
+  /** Attribution tag of the calling credential owner (`u_<hex>`, see `tagIdFor`). */
+  tag_id?: string | null;
 }
 
 function tokenize(query: string): string[] {
@@ -508,6 +569,7 @@ export async function searchMemories(env: Env, query: string, options: SearchOpt
         scores: jevScores,
         provider: resolveMode(env),
         scope,
+        tag_id: options.tag_id ?? null,
       }),
     );
   }
@@ -666,6 +728,12 @@ export async function forgetMemories(
   await env.DB.prepare(`UPDATE memories SET status = 'deleted', updated_at = ? WHERE id IN (${ph})`)
     .bind(now(), ...ids)
     .run();
+  // Deliberately swallowed, and it must stay that way. D1 is the consistency
+  // authority: searchMemories generates candidates (including any stale vector
+  // this failure leaves behind) and then re-reads D1, dropping everything not
+  // status='active'. A dead row therefore cannot be served even while its vector
+  // lingers. Throwing would report a deletion as failed when it has in fact
+  // taken effect for every read path that matters.
   await env.VECTORIZE.deleteByIds(ids).catch((err: unknown) => console.error("vector delete failed:", String(err)));
   await logEvent(env, scope, "forget", { detail: { ids } });
   return { forgotten: ids.length, ids };

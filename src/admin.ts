@@ -305,7 +305,8 @@ const LINK_BTN = 'background:none;border:0;padding:0;color:var(--accent-cyan);fo
 function actionsHtml(t){
   if(t.status!=='active') return '';
   return '<button type="button" style="'+LINK_BTN+'" onclick="revoke(\\''+esc(t.email)+'\\')">Revoke</button>' +
-         '<button type="button" style="'+LINK_BTN+';margin-left:6px" onclick="editQuota(\\''+esc(t.email)+'\\','+t.quota_monthly+',\\''+esc(t.plan||'free')+'\\')">Quota</button>';
+         '<button type="button" style="'+LINK_BTN+';margin-left:6px" onclick="editQuota(\\''+esc(t.email)+'\\','+t.quota_monthly+',\\''+esc(t.plan||'free')+'\\')">Quota</button>' +
+         '<button type="button" style="'+LINK_BTN+';margin-left:6px" onclick="resetUsage(\\''+esc(t.email)+'\\')">Reset</button>';
 }
 const PLAN_COLORS={free:'#7d8187',median:'#00f0ff',pro:'#f59e0b',enterprise:'#ec4899'};
 function planDisplay(t){
@@ -491,6 +492,13 @@ function editQuota(email,currentQuota,currentPlan){
   if(plan===null) return;
   fetch('/api/admin/update-quota',{method:'POST',headers:getApiHeaders(),body:JSON.stringify({email,passkey:cp,session:adminSession,quota_monthly:parseInt(quota),plan})})
   .then(r=>r.json()).then(d=>{if(d.error){if(d.error==='totp_required')alert('2FA required. Please re-login.');else alert(d.error);}else alert('Updated');login()});
+}
+async function resetUsage(email){
+  if(!confirm('Reset usage for '+email+'? Plan and wallet are unchanged.')) return;
+  const r=await fetch('/api/admin/reset-usage',{method:'POST',headers:getApiHeaders(),body:JSON.stringify({email,passkey:cp,session:adminSession})});
+  const d=await r.json();
+  if(d.error){if(d.error==='totp_required')alert('2FA required. Please re-login.');else alert(d.error);return;}
+  await login();
 }
 function esc(s){return s.replace(/[&<>"]/g,function(m){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]})}
 </script>

@@ -43,6 +43,17 @@ For MCP testing, clients must send `Accept: application/json, text/event-stream`
 4. **Attribute upstream.** TypeSafe AI attribution stays intact.
 5. **One thing per pull request.**
 
+## Contributor identity (name and uid)
+
+Record the contributor's name and uid in every contribution:
+
+- In `CONTRIBUTORS.md`: `**Name** (@handle)` plus what they did.
+- In DGUI-HyperMem memories: set `client_id` and/or `user_id` to the contributor's uid
+  (for example `ctaxnagomi`) when calling `add`, so the corpus attributes the work.
+- In a `ctecx_instruct` pack: keep the original owner line in all five parts.
+
+The project owner's uid is `ctaxnagomi`.
+
 ## How to become a contributor
 
 1. Fork the repo and branch: `git checkout -b my-change`.
@@ -53,6 +64,21 @@ For MCP testing, clients must send `Accept: application/json, text/event-stream`
 5. Commit, push, open a PR: what changed, why, and how you verified it.
 
 Your name appears in `CONTRIBUTORS.md` once merged.
+
+## Contributing through an MCP agent
+
+An agent connected to the DGUI-HyperMem MCP server should follow
+[contrib/CONTRIBUTING_MCP.md](contrib/CONTRIBUTING_MCP.md). The short version:
+
+1. Prepare the package under `contrib/skills/<slug>/` from `contrib/skills/_template/`.
+2. Convert it to a `ctecx_instruct` five-part pack and run `task.sh test`
+   ([contrib/instruct/README.md](contrib/instruct/README.md)).
+3. Run the safety scan: no secrets, tokens or unapproved client data.
+4. Add the contributor row to `CONTRIBUTORS.md` in the same change.
+5. Show `git diff` and ask before any commit, push or merge.
+
+The contributor row is part of the contribution, not an afterthought. If the row is missing,
+the change is not ready to show.
 
 ## Pull request checklist
 

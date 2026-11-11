@@ -18,6 +18,7 @@ import {
   addMemory,
   forgetMemories,
   listMemories,
+  getMemory,
   listQuotaNotices,
   profile,
   recordQuotaNotice,
@@ -35,7 +36,9 @@ import {
 import { getSuggestions } from "./suggest";
 import { MEMORY_TYPES, resolveMode } from "./jev";
 import { flushJevExamples, jevQueueStats } from "./dataset";
-import { json, logCrmAction, now, timeSafeEqual, uuid } from "./util";
+import { ingestEmbedCorpus } from "./corpus";
+import { runTechnicianCheck } from "./technician";
+import { json, logCrmAction, now, tagIdFor, timeSafeEqual, uuid } from "./util";
 import { checkPasskey, extractToken, resolveCredential, type Credential } from "./auth";
 import {
   createAdminSession,
@@ -55,9 +58,9 @@ import {
   ACCOUNT_COLUMNS,
   effectiveQuota,
   PAYG_MICRO_PER_REQUEST,
-  TRIAL_PLAN,
   planQuota,
   resolveTrial,
+  trialPlanName,
   upgradeOptions,
   type AccountState,
 } from "./billing";
@@ -93,18 +96,35 @@ Tools
            and can supersede a nearby memory when it detects a contradiction.
   search   Hybrid recall: vector + keyword candidates, fused, then JEV re-ranked.
   list     Browse recent memories in a scope.
+  get      Fetch a single memory by its id.
   profile  Summarise a scope: counts by type, top tags, average salience.
   suggest  Get triggers/suggestions: detect repeats, related memories, gen_idle candidates.
   forget   Delete by id, by search query, or everything in a scope.
   sync_jev_dataset
            Flush queued JEV decisions to the configured training dataset (also runs hourly).
+  sync_embed_corpus
+           Ingest active memories into the embedding corpus (also runs daily).
   jev_queue_stats
            Show how many JEV examples are queued, uploaded, or failed, and the target dataset.
   quota_notices
            Account notices, e.g. an administrator changing your monthly quota. New
            notices also ride along on the response of your next call, under a
            "quota_notice" key, so you learn about a quota change without asking.
+  technician_check
+           Owner-only: corpus-backed diagnostic sweep. Lists accounts matching
+           known issue signatures from the solution corpus, with the option to
+           apply the documented fixes and notify the affected accounts.
   help     This text.
+
+Contributing
+  Repo: https://github.com/ctaxnagomi/dgui-hypermem
+  When a user wants to contribute, prepare the package under contrib/skills/<slug>/ from
+  contrib/skills/_template/, convert the skill to a ctecx_instruct five-part pack with the
+  owner embedded, run the safety scan, and add their name to CONTRIBUTORS.md in the same
+  change. Show the diff and ask before any commit, push or merge.
+  Full protocol: contrib/CONTRIBUTING_MCP.md and contrib/instruct/README.md
+  Credit line: Developer <name>, Contribute by <name>, Show some love by visit his Github
+  Repo https://github.com/ctaxnagomi/dgui-hypermem give some star
 
 Memory types (choice): ${Object.keys(MEMORY_TYPES).join(", ")}
 Scopes are independent memory spaces; use one per user, project, or agent. They are not
@@ -224,6 +244,8 @@ function buildServer(env: Env, ctx: McpCtx = {}): McpServer {
           user_id: args.user_id,
           metadata: args.metadata,
           checkContradictions: args.check_contradictions,
+          // tagID: attribute this memory's JEV rows (Train) to the calling user.
+          tag_id: await tagIdFor(ctx.email),
         });
         return ok({
           id: result.memory.id,
@@ -269,6 +291,8 @@ function buildServer(env: Env, ctx: McpCtx = {}): McpServer {
           limit: args.limit,
           type: args.type ?? null,
           durableOnly: args.durable_only,
+          // tagID: attribute this search's rerank JEV row (Train) to the calling user.
+          tag_id: await tagIdFor(ctx.email),
         });
         return ok({
           query: args.query,
@@ -364,6 +388,53 @@ function buildServer(env: Env, ctx: McpCtx = {}): McpServer {
             status: m.status,
             created_at: m.created_at,
           })),
+        });
+      } catch (err) {
+        return fail(String(err));
+      }
+    },
+  );
+
+  server.registerTool(
+    "get",
+    {
+      title: "Get memory",
+      description: "Fetch a single memory by its id. Returns the full memory, or null if not found.",
+      inputSchema: {
+        id: z.string().describe("Memory id to fetch."),
+      },
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        openWorldHint: false,
+        idempotentHint: true,
+      },
+    },
+    async (args) => {
+      try {
+        const memory = await getMemory(env, args.id);
+        if (!memory) return fail("not found");
+        return ok({
+          id: memory.id,
+          scope: memory.scope,
+          content: memory.content,
+          memory_type: memory.memory_type,
+          tags: memory.tags,
+          salience: memory.salience,
+          durable: memory.durable,
+          confidence: memory.confidence,
+          source: memory.source,
+          status: memory.status,
+          superseded_by: memory.superseded_by,
+          access_count: memory.access_count,
+          created_at: memory.created_at,
+          updated_at: memory.updated_at,
+          provider: memory.provider,
+          origin_system: memory.origin_system,
+          corpus_type: memory.corpus_type,
+          client_id: memory.client_id,
+          user_id: memory.user_id,
+          metadata: memory.metadata,
         });
       } catch (err) {
         return fail(String(err));
@@ -469,6 +540,32 @@ function buildServer(env: Env, ctx: McpCtx = {}): McpServer {
   );
 
   server.registerTool(
+    "sync_embed_corpus",
+    {
+      title: "Sync embed corpus",
+      description: "Ingest active memories into the ctaxnagomi/dgui-hypermem-embed-corpus HuggingFace dataset (also runs on a daily schedule).",
+      inputSchema: {
+        limit: z.number().int().min(1).max(500).optional().describe("Max memories to ingest this call (default 200)."),
+      },
+      annotations: {
+        // Uploads corpus rows to the external HF repo and rewrites metadata.json
+        // there; not read-only, and an external side effect.
+        readOnlyHint: false,
+        destructiveHint: false,
+        openWorldHint: true,
+        idempotentHint: false,
+      },
+    },
+    async (args) => {
+      try {
+        return ok(await ingestEmbedCorpus(env, args.limit));
+      } catch (err) {
+        return fail(String(err));
+      }
+    },
+  );
+
+  server.registerTool(
     "jev_queue_stats",
     {
       title: "JEV queue stats",
@@ -541,6 +638,39 @@ function buildServer(env: Env, ctx: McpCtx = {}): McpServer {
     },
   );
 
+  server.registerTool(
+    "technician_check",
+    {
+      title: "Technician check",
+      description:
+        "Owner-only corpus-backed diagnostic sweep: lists accounts matching known issue signatures from the solution corpus, and optionally applies the documented fixes (quota_override mirror) and notifies affected accounts.",
+      inputSchema: {
+        apply_fixes: z.boolean().optional().describe("Apply the corpus-prescribed fixes to affected accounts and notify them (default false: read-only sweep)."),
+        email: z.string().optional().describe("Restrict the sweep to one account email."),
+      },
+      annotations: {
+        // Reads every account row and, only when apply_fixes is set, writes
+        // quota_override and queues notices. Owner-only (master token).
+        readOnlyHint: false,
+        destructiveHint: false,
+        openWorldHint: false,
+        idempotentHint: true,
+      },
+    },
+    async (args: { apply_fixes?: boolean; email?: string }) => {
+      // The sweep reads every account in the store; the master token alone is
+      // the owner. An account token must not be able to enumerate the fleet.
+      if (ctx.email) {
+        return fail("technician_check is owner-only; use the master token.");
+      }
+      try {
+        return ok(await runTechnicianCheck(env, { apply_fixes: args.apply_fixes, email: args.email }));
+      } catch (err) {
+        return fail(String(err));
+      }
+    },
+  );
+
   return server;
 }
 
@@ -588,15 +718,34 @@ async function handleRest(request: Request, env: Env, path: string): Promise<Res
   const url = new URL(request.url);
   const scope = body.scope || url.searchParams.get("scope") || undefined;
 
+  // tagID for REST callers (see util.tagIdFor). handleRest receives the request,
+  // not the credential the gate resolved, so the bearer credential is resolved
+  // once more only on the two routes that enqueue training rows. Master-token
+  // and unauthenticated traffic yield null -> untagged, by design.
+  const requestTagId = async (): Promise<string | null> => {
+    try {
+      return await tagIdFor(credentialEmail(await resolveCredential(env, request)));
+    } catch {
+      return null;
+    }
+  };
+
   // Admin APIs are only reachable on the admin hostname. On the public host
   // they return 404 so the admin surface is not guessable there.
   const ADMIN_HOST = env.ADMIN_HOST || "hmem-admin.deckergui.my";
+  // Local dev only. `wrangler dev` rewrites the request host to the Worker's
+  // first route, so hostname checks cannot match locally; DEV_ADMIN is set in
+  // .dev.vars (or via --var) and never exists in the deployed environment.
+  const DEV_ADMIN_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]"]);
+  const devAdmin = (env as any).DEV_ADMIN === "1";
+  const isAdminHost = (hostname: string) => devAdmin || hostname === ADMIN_HOST || DEV_ADMIN_HOSTS.has(hostname);
   const ADMIN_API = new Set([
     "/api/admin/login",
     "/api/admin/tokens",
     "/api/admin/logs",
     "/api/admin/toggle-train",
     "/api/admin/update-quota",
+    "/api/admin/reset-usage",
     "/api/admin/clock",
     "/api/admin/stats",
     // These two were added without joining this set, so they were the only admin
@@ -612,9 +761,20 @@ async function handleRest(request: Request, env: Env, path: string): Promise<Res
     "/api/admin/device/verify",
     "/api/admin/devices",
     "/api/setup-dataset",
+    "/api/technician_check",
   ]);
-  if (ADMIN_API.has(path) && url.hostname !== ADMIN_HOST) {
+  if (ADMIN_API.has(path) && !isAdminHost(url.hostname)) {
     return json({ error: "not found" }, { status: 404, headers: CORS });
+  }
+
+  // /api/memory/:id shorthand -> fetch a single memory by id.
+  if (path.startsWith("/api/memory/")) {
+    const id = decodeURIComponent(path.slice("/api/memory/".length));
+    if (id) {
+      const memory = await getMemory(env, id);
+      if (!memory) return json({ error: "not found" }, { status: 404, headers: CORS });
+      return json(memory, { headers: CORS });
+    }
   }
 
   switch (path) {
@@ -629,7 +789,7 @@ async function handleRest(request: Request, env: Env, path: string): Promise<Res
     case "/api/admin/devices":
       return adminJson(await handleAdminDevices(env, body, url, request));
     case "/api/add":
-      return json(await addMemory(env, { content: body.content, scope, tags: body.tags, source: body.source, provider: body.provider, origin_system: body.origin_system, corpus_type: body.corpus_type, client_id: body.client_id, user_id: body.user_id, metadata: body.metadata }), {
+      return json(await addMemory(env, { content: body.content, scope, tags: body.tags, source: body.source, provider: body.provider, origin_system: body.origin_system, corpus_type: body.corpus_type, client_id: body.client_id, user_id: body.user_id, metadata: body.metadata, tag_id: await requestTagId() }), {
         headers: CORS,
       });
     case "/api/search":
@@ -639,6 +799,7 @@ async function handleRest(request: Request, env: Env, path: string): Promise<Res
           limit: body.limit ? Number(body.limit) : undefined,
           type: body.type ?? null,
           durableOnly: body.durable_only,
+          tag_id: await requestTagId(),
         }),
         { headers: CORS },
       );
@@ -646,6 +807,13 @@ async function handleRest(request: Request, env: Env, path: string): Promise<Res
       return json(await listMemories(env, { scope, limit: body.limit, type: body.type ?? null, status: body.status ?? null }), {
         headers: CORS,
       });
+    case "/api/get": {
+      const id = body.id || url.searchParams.get("id");
+      if (!id) return json({ error: "id required" }, { status: 400, headers: CORS });
+      const memory = await getMemory(env, String(id));
+      if (!memory) return json({ error: "not found" }, { status: 404, headers: CORS });
+      return json(memory, { headers: CORS });
+    }
     case "/api/profile":
       return json(await profile(env, scope), { headers: CORS });
     case "/api/forget":
@@ -654,6 +822,8 @@ async function handleRest(request: Request, env: Env, path: string): Promise<Res
       });
     case "/api/sync_jev":
       return json(await flushJevExamples(env, body.limit ? Number(body.limit) : undefined), { headers: CORS });
+    case "/api/sync_embed_corpus":
+      return json(await ingestEmbedCorpus(env, body.limit ? Number(body.limit) : undefined), { headers: CORS });
     case "/api/jev_queue_stats":
       return json(await jevQueueStats(env, scope), { headers: CORS });
     case "/api/request-token":
@@ -670,6 +840,8 @@ async function handleRest(request: Request, env: Env, path: string): Promise<Res
       return adminJson(await handleToggleTrain(env, body, request, url));
     case "/api/admin/update-quota":
       return adminJson(await handleUpdateQuota(env, body, request, url));
+    case "/api/admin/reset-usage":
+      return adminJson(await handleResetUsage(env, body, request, url));
     case "/api/admin/clock":
       return adminJson(await handleAdminClock(env, body, request, url));
     case "/api/visitor":
@@ -701,6 +873,8 @@ async function handleRest(request: Request, env: Env, path: string): Promise<Res
       return json(await handleBillingSummary(env, body, request), { headers: CORS });
     case "/api/admin/stats":
       return adminJson(await handleAdminStats(env, body, url, request));
+    case "/api/technician_check":
+      return adminJson(await handleTechnicianCheck(env, body, url, request));
     default:
       return json({ error: "not found" }, { status: 404, headers: CORS });
   }
@@ -971,7 +1145,17 @@ async function handleUpdateQuota(env: Env, body: Record<string, any>, request?: 
   if (!before) return { error: "account not found" };
   const updates: string[] = [];
   const params: any[] = [];
-  if (quota_monthly !== undefined) { updates.push("quota_monthly = ?"); params.push(quota_monthly); }
+  if (quota_monthly !== undefined) {
+    // The enforcement gate reads effectiveQuota(), which consults quota_override
+    // first and the plan ladder second -- quota_monthly alone never decides the
+    // allowance. Mirror the typed value into quota_override so what the admin
+    // sets here is what is enforced, for laddered and non-laddered (e.g. "PAYG")
+    // plans alike. This is the regression documented in PATCH_NOTES: the Quota
+    // button used to write only quota_monthly, which PAYG accounts silently
+    // ignored (collapsing to the free allowance).
+    updates.push("quota_monthly = ?", "quota_override = ?");
+    params.push(quota_monthly, quota_monthly);
+  }
   if (plan !== undefined) { updates.push("plan = ?"); params.push(plan); }
   if (!updates.length) return { error: "nothing to update" };
   updates.push("updated_at = ?"); params.push(now()); params.push(email);
@@ -1012,9 +1196,53 @@ async function handleUpdateQuota(env: Env, body: Record<string, any>, request?: 
   return { email, quota_monthly: newQuota, plan: newPlan, status: "updated", notified: false };
 }
 
+/**
+ * Admin-only: zero the current window's usage for an account.
+ *
+ * The monthly counter is the thing that blocks a user; the plan and the wallet
+ * are untouched. Setting requests_used = 0 with a fresh +30d window is exactly
+ * the state a successful rollover produces, so an admin reset is a month early
+ * rather than a special case the quota gate has to understand.
+ */
+async function handleResetUsage(env: Env, body: Record<string, any>, request?: Request, url?: URL): Promise<Record<string, any>> {
+  const { email } = body;
+  if (!email) return { error: "email required" };
+  const auth = await adminGate(env, request || new Request("https://dummy"), body, url || new URL("https://dummy"));
+  if (!auth.ok) {
+    if (auth.reason === "totp_required") return { error: "totp_required" };
+    return { error: "unauthorized" };
+  }
+  const now_ = now();
+  const resetAt = now_ + 30 * 86400 * 1000;
+  const result = await env.DB.prepare(
+    "UPDATE tokens SET requests_used = 0, requests_reset_at = ?, updated_at = ? WHERE email = ?",
+  )
+    .bind(resetAt, now_, email)
+    .run();
+  if (Number(result?.meta?.changes ?? 0) === 0) return { error: "account not found" };
+  return { email, requests_used: 0, requests_reset_at: resetAt, status: "reset" };
+}
+
 // Thousands separator for notice text, so "5600" does not read as noise.
 function quotaMonthly(n: number): string {
   return Number(n).toLocaleString("en-US");
+}
+
+/**
+ * Corpus-backed technician sweep (owner surface). Mirrors the MCP
+ * `technician_check` tool behind the admin gate, so the REST caller can be a
+ * curl/automation client with a passkey instead of the master MCP token.
+ */
+async function handleTechnicianCheck(env: Env, body: Record<string, any>, url?: URL, request?: Request): Promise<Record<string, any>> {
+  const auth = await adminGate(env, request || new Request("https://dummy"), body, url || new URL("https://dummy"));
+  if (!auth.ok) {
+    if (auth.reason === "totp_required") return { error: "totp_required" };
+    return { error: "unauthorized" };
+  }
+  return await runTechnicianCheck(env, {
+    apply_fixes: body.apply_fixes === true || body.apply_fixes === 1,
+    email: typeof body.email === "string" && body.email ? body.email : undefined,
+  });
 }
 
 async function handleAdminClock(env: Env, body: Record<string, any>, request?: Request, url?: URL): Promise<Record<string, any>> {
@@ -1234,8 +1462,8 @@ async function handleRequestToken(env: Env, body: Record<string, any>, request: 
   const token = uuid();
   const tcValue = tc_agreed === true || tc_agreed === 1 ? 1 : 0;
   await Promise.all([
-    env.DB.prepare("INSERT INTO tokens (id, email, github_username, status, token, plan, quota_monthly, tc_agreed, created_at, updated_at) VALUES (?, ?, ?, 'active', ?, 'free', 5600, ?, ?, ?)")
-      .bind(uuid(), email, email, token, tcValue, now(), now()).run(),
+    env.DB.prepare("INSERT INTO tokens (id, email, github_username, status, token, plan, quota_monthly, tc_agreed, created_at, updated_at) VALUES (?, ?, ?, 'active', ?, 'free', ?, ?, ?, ?)")
+      .bind(uuid(), email, email, token, planQuota("free"), tcValue, now(), now()).run(),
     logCrmAction(env, email, isMaster ? "token_master_created" : "token_created", "new token via CRM", request),
   ]);
   return { status: "active", token, train_with_all: true, tc_agreed: true };
@@ -1336,7 +1564,7 @@ async function handleCheckQuota(env: Env, request: Request): Promise<Record<stri
     resets_at: resetAt,
     usage_30d: user30d?.c || 0,
     usage_year: userYear?.c || 0,
-    trial: row.trial_ends_at ? { active: row.trial_ends_at > now_, ends_at: row.trial_ends_at, plan: TRIAL_PLAN } : null,
+    trial: row.trial_ends_at ? { active: row.trial_ends_at > now_, ends_at: row.trial_ends_at, plan: trialPlanName(row.plan) } : null,
     payg: {
       // Remaining wallet, and what that buys at the current per-request rate.
       credits_usd: creditsMicro / 1_000_000,
@@ -1356,10 +1584,13 @@ async function handleVerifyToken(env: Env, request: Request): Promise<Record<str
   const mcpToken = env.MCP_TOKEN;
   if (mcpToken && token === mcpToken) return { valid: true, type: "mcp_token", note: "global MCP token" };
   try {
-    const row = await env.DB.prepare("SELECT email, status, quota_monthly, requests_used, tc_agreed, created_at FROM tokens WHERE token = ?").bind(token).first<{ email: string; status: string; quota_monthly: number; requests_used: number; tc_agreed: number; created_at: number }>();
+    const row = await env.DB.prepare("SELECT email, status, plan, quota_monthly, quota_override, requests_used, tc_agreed, created_at FROM tokens WHERE token = ?").bind(token).first<{ email: string; status: string; plan: string; quota_monthly: number; quota_override: number | null; requests_used: number; tc_agreed: number; created_at: number }>();
     if (!row) return { valid: false, error: "token not found in database" };
     if (row.status !== "active") return { valid: false, error: `token status is '${row.status}' (not active)` };
-    const quotaOk = (row.requests_used || 0) < (row.quota_monthly || 1000);
+    // Report the allowance the gate actually enforces (override, else ladder)
+    // rather than the stored reporting column, so a plan change is reflected.
+    const quota = effectiveQuota(row, row.plan);
+    const quotaOk = (row.requests_used || 0) < quota;
     return {
       valid: true,
       email: row.email,
@@ -1367,7 +1598,7 @@ async function handleVerifyToken(env: Env, request: Request): Promise<Record<str
       tc_agreed: !!row.tc_agreed,
       quota_ok: quotaOk,
       requests_used: row.requests_used,
-      quota_monthly: row.quota_monthly,
+      quota_monthly: quota,
       type: "crm_token",
     };
   } catch (e: any) {
@@ -1423,8 +1654,9 @@ async function handleSetupDataset(env: Env, body: Record<string, any>, request?:
     });
     if (test.status === 401) return { error: "invalid HF token or token lacks access to this dataset" };
     // Store in env for future syncs — we'll save to D1 for now
+    // No token material is logged: the audit row records the dataset only.
     await env.DB.prepare("INSERT INTO crm_logs (email, action, detail, device, created_at) VALUES (?, ?, ?, ?, ?)")
-      .bind("admin", "dataset_setup", `dataset: ${dataset_name}, token: ${hf_token.substring(0, 8)}...`, "setup-page", now()).run();
+      .bind("admin", "dataset_setup", `dataset: ${dataset_name} (validated)`, "setup-page", now()).run();
     return { ok: true, dataset: dataset_name, note: "configured for future syncs. Use /api/sync_jev to push." };
   } catch (e: any) {
     return { error: `HF API error: ${e.message}` };
@@ -1494,6 +1726,12 @@ async function checkAndTrackUsage(env: Env, request: Request, credential: Creden
   if (!resetAt || now_ > resetAt) {
     used = 0;
     resetAt = now_ + 30 * 86400 * 1000;
+    // Persist the rollover. Relying on the local `used = 0` alone left the
+    // exhausted count in the row: the increment below writes requests_used back
+    // to the old value, so the account is re-blocked on its very next call.
+    await env.DB.prepare("UPDATE tokens SET requests_used = 0, requests_reset_at = ? WHERE id = ?")
+      .bind(resetAt, account.id)
+      .run();
   }
   const maxQuota = effectiveQuota(account, effectivePlan);
 
@@ -1569,7 +1807,7 @@ export default {
         endpoints: {
           docs: "/docs",
           mcp: "/mcp",
-          rest: ["/api/add", "/api/search", "/api/list", "/api/profile", "/api/forget", "/api/sync_jev", "/api/jev_queue_stats", "/api/request-token", "/api/check-star", "/api/disable-token", "/api/check-quota", "/api/verify-token", "/api/setup-dataset", "/api/enterprise-inquiry", "/api/create-checkout-session", "/api/stripe-webhook", "/api/admin/tokens", "/api/admin/stats", "/api/admin/logs", "/api/admin/toggle-train", "/api/admin/update-quota", "/api/admin/clock", "/api/admin/visits", "/api/admin/activity", "/api/visitor", "/api/solution-signal"],
+          rest: ["/api/add", "/api/search", "/api/list", "/api/get", "/api/profile", "/api/forget", "/api/sync_jev", "/api/sync_embed_corpus", "/api/jev_queue_stats", "/api/request-token", "/api/check-star", "/api/disable-token", "/api/check-quota", "/api/verify-token", "/api/setup-dataset", "/api/enterprise-inquiry", "/api/create-checkout-session", "/api/stripe-webhook", "/api/admin/tokens", "/api/admin/stats", "/api/admin/logs", "/api/admin/toggle-train", "/api/admin/update-quota", "/api/admin/reset-usage", "/api/admin/clock", "/api/admin/visits", "/api/admin/activity", "/api/visitor", "/api/solution-signal"],
         },
       });
     }
@@ -1588,7 +1826,13 @@ export default {
     // door; the public hostname redirects /admin here and refuses the admin
     // API routes outright (404, so scanners cannot distinguish them).
     const ADMIN_HOST = env.ADMIN_HOST || "hmem-admin.deckergui.my";
-    const onAdminHost = url.hostname === ADMIN_HOST;
+    // See the note on isAdminHost above: wrangler dev rewrites the host, so a
+    // dev-only env flag (never set in production) is what makes the admin board
+    // reachable at http://127.0.0.1:<port>/ without the real hostname.
+    const DEV_ADMIN_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]"]);
+    const onAdminHost = (env as any).DEV_ADMIN === "1"
+      || url.hostname === ADMIN_HOST
+      || DEV_ADMIN_HOSTS.has(url.hostname);
 
     if (path === "/") {
       return new Response(onAdminHost ? ADMIN_HTML : LANDING_HTML, {
@@ -1702,6 +1946,7 @@ export default {
   "/api/admin/logs",
   "/api/admin/toggle-train",
   "/api/admin/update-quota",
+  "/api/admin/reset-usage",
   "/api/admin/clock",
   "/api/admin/visits",
   "/api/admin/activity",
@@ -1783,7 +2028,16 @@ export default {
     return json({ error: "not found" }, { status: 404 });
   },
 
-  async scheduled(_event: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
+  async scheduled(event: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
+    // Two crons share this handler; `event.cron` tells them apart.
+    if (event.cron === "17 3 * * *") {
+      ctx.waitUntil(
+        ingestEmbedCorpus(env, 200)
+          .then((r) => console.log("embed sync:", JSON.stringify(r)))
+          .catch((err) => console.error("embed sync failed:", String(err))),
+      );
+      return;
+    }
     ctx.waitUntil(
       flushJevExamples(env, 200)
         .then((r) => console.log("jev sync:", JSON.stringify(r)))

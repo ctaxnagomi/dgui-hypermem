@@ -1,0 +1,44 @@
+{
+  "format_version": "ctecx_instruct@1",
+  "task_id": "ctecx-ab-engineering-deliverables-001",
+  "owner": "wan mohd azizi bin wan hosen, ctaxnagomi, est 2024",
+  "format_owner": "wan mohd azizi bin wan hosen, ctaxnagomi, est 2024",
+  "created": "2026-10-22",
+  "status": "open",
+  "params": {
+    "skill": "ab-engineering-deliverables",
+    "source": "contrib/skills/ab-engineering-deliverables",
+    "license": "MIT"
+  },
+  "tags": [
+    "skill",
+    "contribution",
+    "ab-engineering-deliverables"
+  ],
+  "parts": [
+    "INSTRUCT.md",
+    "task.sh",
+    "task.sql",
+    "task.json",
+    "task.assembly"
+  ],
+  "manifest": [
+    {
+      "path": "INSTRUCT.md",
+      "sha256": "8d1db6083da34502addbb974fccfa15673f2f1fbd7dbe1b30baec2888280e02c"
+    },
+    {
+      "path": "task.sh",
+      "sha256": "4335725ccbcab9a7318d2306b8118d9e66f69ca1804defed0b74b7f8990b0be1"
+    },
+    {
+      "path": "task.sql",
+      "sha256": "98e22ab94128bde60546dd6f1b14818b33fb075bd9ec3745a771246ef8c78940"
+    },
+    {
+      "path": "task.assembly",
+      "sha256": "4bd39bca5e4deacd046f6dddcb62baf6e072113b4842709bdbbeaf1531d9193f"
+    }
+  ],
+  "_note": "task.json is excluded from its own manifest (a file cannot hash itself)."
+}

@@ -1,0 +1,117 @@
+; task.assembly - ctecx_instruct plan part
+; owner: wan mohd azizi bin wan hosen, ctaxnagomi, est 2024
+; format: ctecx_instruct@1 - wan mohd azizi bin wan hosen, ctaxnagomi, est 2024
+; task_id: ctecx-ab-engineering-deliverables-001
+; The build written as a program listing. Mnemonics:
+;   MOV  assign/place           CALL invoke (command, function, tool)
+;   PUSH record/append          CMP  compare/assert
+;   JZ   branch on condition    JMP  unconditional next
+;   HLT  halt stage             RET  finish / return state
+;
+; :SEGMENTS   labelled stages that mirror INSTRUCT.md steps
+; :REGISTERS  current task state, tracked like machine registers
+
+; ---------------- SEGMENT .stage.init ----------------
+    MOV    status,        "open"
+    PUSH   task_audit,    { action: "opened" }
+    CALL   task.sql       ; ensure agent_memory + task_meta exist
+; verify: task_meta row exists
+    CMP    EXISTS(task_meta), 1
+    JZ     .fail_missing_task_meta
+
+; ---------------- SEGMENT .stage.step_1 ----------------
+    ; INSTRUCT step 1: **Decode the sketch (B).** `pipeline/agent_b_design/sketch_analyze.py` sends the image to
+    CALL   step_1
+    PUSH   task_audit,    { action: "step_done", step: 1 }
+    CMP    exit_code, 0
+    JZ     .fail_step_1
+
+; ---------------- SEGMENT .stage.step_2 ----------------
+    ; INSTRUCT step 2: **Pricebook first (A).** All rates live in `config/miri_prices.json` with `source` and
+    CALL   step_2
+    PUSH   task_audit,    { action: "step_done", step: 2 }
+    CMP    exit_code, 0
+    JZ     .fail_step_2
+
+; ---------------- SEGMENT .stage.step_3 ----------------
+    ; INSTRUCT step 3: **Takeoff then estimate (A).** `steel_calculator.takeoff(plan)` returns kg, weld metres and
+    CALL   step_3
+    PUSH   task_audit,    { action: "step_done", step: 3 }
+    CMP    exit_code, 0
+    JZ     .fail_step_3
+
+; ---------------- SEGMENT .stage.step_4 ----------------
+    ; INSTRUCT step 4: **Invoices (A).** `gate_invoice.py` emits `INV-001.json` and `INV-002.json` and a master
+    CALL   step_4
+    PUSH   task_audit,    { action: "step_done", step: 4 }
+    CMP    exit_code, 0
+    JZ     .fail_step_4
+
+; ---------------- SEGMENT .stage.step_5 ----------------
+    ; INSTRUCT step 5: **Drawings (B).** `entrance_plan.py` draws the plan with label lanes at fixed heights so no
+    CALL   step_5
+    PUSH   task_audit,    { action: "step_done", step: 5 }
+    CMP    exit_code, 0
+    JZ     .fail_step_5
+
+; ---------------- SEGMENT .stage.step_6 ----------------
+    ; INSTRUCT step 6: **Pack HTML (B).** `pack_pdf.py` builds the print sheets: cover, plan, INV-001, INV-002,
+    CALL   step_6
+    PUSH   task_audit,    { action: "step_done", step: 6 }
+    CMP    exit_code, 0
+    JZ     .fail_step_6
+
+; ---------------- SEGMENT .stage.step_7 ----------------
+    ; INSTRUCT step 7: **Print.** Do not add a PDF library. Print the HTML with Chrome through the browser tool:
+    CALL   step_7
+    PUSH   task_audit,    { action: "step_done", step: 7 }
+    CMP    exit_code, 0
+    JZ     .fail_step_7
+
+; ---------------- SEGMENT .stage.step_8 ----------------
+    ; INSTRUCT step 8: **Verify before you show it.** Render every page with pymupdf and look at it:
+    CALL   step_8
+    PUSH   task_audit,    { action: "step_done", step: 8 }
+    CMP    exit_code, 0
+    JZ     .fail_step_8
+
+; ---------------- SEGMENT .stage.step_9 ----------------
+    ; INSTRUCT step 9: **Gate with JEV (optional).** Before publishing totals, ask `rcc_hall` for a risk verdict
+    CALL   step_9
+    PUSH   task_audit,    { action: "step_done", step: 9 }
+    CMP    exit_code, 0
+    JZ     .fail_step_9
+
+; ---------------- SEGMENT .stage.verify ----------------
+    CALL   task.sh test
+    CMP    hash(manifest), task.json.manifest
+    JZ     .fail_manifest
+
+; ---------------- SEGMENT .stage.close ----------------
+    MOV    status,        "closed"
+    PUSH   task_audit,    { action: "closed" }
+    RET    { task_id, status: "closed" }
+
+; ---------------- HANDLERS ----------------
+.fail_missing_task_meta:
+    HLT   "agent_memory/task_meta missing"
+.fail_step_1:
+    HLT   "step 1 failed"
+.fail_step_2:
+    HLT   "step 2 failed"
+.fail_step_3:
+    HLT   "step 3 failed"
+.fail_step_4:
+    HLT   "step 4 failed"
+.fail_step_5:
+    HLT   "step 5 failed"
+.fail_step_6:
+    HLT   "step 6 failed"
+.fail_step_7:
+    HLT   "step 7 failed"
+.fail_step_8:
+    HLT   "step 8 failed"
+.fail_step_9:
+    HLT   "step 9 failed"
+.fail_manifest:
+    HLT   "manifest hash mismatch"

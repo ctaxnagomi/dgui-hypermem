@@ -40,3 +40,10 @@ Thumbs.db
 .idea/
 .vscode/
 token-wan.md
+
+# Concrete training-governance grants — owner-only, never commit.
+# Templates (placeholder-form) are the committed equivalents: ruleset/templates/
+ruleset/DGUI_HMEM_RULESET.md
+ruleset/DECKERGUI_SDK_RULESET.md
+ruleset/DGUI_HMEM_RULESET_INSTRUCT/
+ruleset/DGUI_HMEM_RULESET_INSTRUCT.zip
