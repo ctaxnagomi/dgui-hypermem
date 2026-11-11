@@ -27,7 +27,8 @@ the diff. The full protocol is [contrib/CONTRIBUTING_MCP.md](contrib/CONTRIBUTIN
 
 | Contributor | Contribution | Pull request |
 |-------------|--------------|--------------|
-| **DeckerGUI** (ctaxnagomi) | `ab-engineering-deliverables` skill + Kolej Vokasional Miri gate case study (`contrib/skills/ab-engineering-deliverables`) | this change |
+| **DeckerGUI** (ctaxnagomi) | `ab-engineering-deliverables` skill + gate case study (`contrib/skills/ab-engineering-deliverables`) | this change |
+| **ctaxnagomi** | Article Writing Dual Column Arxiv-LaTex format skill (dual-column DOCX academic style, KD Square Article, CTECX Article, keyword weaving, glossary, free automation patterns) | |
 | _(you?)_ | See [CONTRIBUTING.md](CONTRIBUTING.md) to get started. | |
 
 > *Jev*, *System One*, and the *Choice / Noul / Score* primitives are **TypeSafe AI**'s and
