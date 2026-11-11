@@ -102,12 +102,27 @@ npx wrangler deploy
 
 ### Wire it into an MCP client
 
+#### Hermes (agent)
+```json
+{
+  "mcp_servers": {
+    "dgui-hypermem": {
+      "url": "https://dgui-hmem.deckergui.my/mcp",
+      "headers": {
+        "Authorization": "Bearer ${DGUI_HYPERMEM_TOKEN}"
+      }
+    }
+  }
+}
+```
+
+#### OpenCode
 ```jsonc
 {
   "mcp": {
     "dgui-hypermem": {
       "type": "remote",
-      "url": "https://dgui-hypermem.<your-subdomain>.workers.dev/mcp",
+      "url": "https://dgui-hmem.deckergui.my/mcp",
       "enabled": true,
       "headers": { "Authorization": "Bearer {env:DGUI_HYPERMEM_TOKEN}" }
     }
@@ -161,6 +176,25 @@ DGUI-HyperMem is a **DeckerGUI** project.
 
 Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md); contributors are listed
 in [CONTRIBUTORS.md](CONTRIBUTORS.md).
+
+### Contributing through an MCP agent
+
+An agent connected to the DGUI-HyperMem MCP server can prepare a contribution end to end.
+Follow [contrib/CONTRIBUTING_MCP.md](contrib/CONTRIBUTING_MCP.md):
+
+1. Prepare the package under `contrib/skills/<slug>/` from `contrib/skills/_template/`.
+2. Convert the skill to a `ctecx_instruct@1` five-part pack and run `task.sh test`
+   (see [contrib/instruct/README.md](contrib/instruct/README.md)).
+3. Run the safety scan: no secrets, tokens or unapproved client data.
+4. Add the contributor row to `CONTRIBUTORS.md` in the same change, recording the
+   contributor's name and uid (for example `ctaxnagomi`).
+5. Show `git diff` and ask before any commit, push or merge.
+
+### Contributor identity
+
+Every contribution and memory should carry the contributor's name and uid so the corpus
+can attribute work correctly. Use `client_id` / `user_id` on `add` and the row in
+`CONTRIBUTORS.md`. The project owner's uid is `ctaxnagomi`.
 
 ## License
 

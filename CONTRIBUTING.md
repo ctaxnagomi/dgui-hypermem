@@ -43,6 +43,17 @@ For MCP testing, clients must send `Accept: application/json, text/event-stream`
 4. **Attribute upstream.** TypeSafe AI attribution stays intact.
 5. **One thing per pull request.**
 
+## Contributor identity (name and uid)
+
+Record the contributor's name and uid in every contribution:
+
+- In `CONTRIBUTORS.md`: `**Name** (@handle)` plus what they did.
+- In DGUI-HyperMem memories: set `client_id` and/or `user_id` to the contributor's uid
+  (for example `ctaxnagomi`) when calling `add`, so the corpus attributes the work.
+- In a `ctecx_instruct` pack: keep the original owner line in all five parts.
+
+The project owner's uid is `ctaxnagomi`.
+
 ## How to become a contributor
 
 1. Fork the repo and branch: `git checkout -b my-change`.
