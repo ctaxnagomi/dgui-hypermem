@@ -1,0 +1,22 @@
+name: dgui-hypermem
+display_name: DGUI-HyperMem
+description: "Hybrid long-term memory provider with JEV reasoning. Vector + FTS5 recall, automatic cross-session capture, and native tools."
+repo: https://github.com/ctaxnagomi/hermes-dgui-hypermem
+sha: 2f3974ab999e49e732034d82e8dc5caadc96645f
+version: "1.0.0"
+requires_hermes: ">=0.21.5"
+tags:
+  - memory
+  - mcp
+  - hybrid
+  - recall
+  - context
+  - knowledge
+capabilities:
+  - tools
+  - hooks
+requires_env:
+  - DGUI_HYPERMEM_TOKEN
+readme: README.md
+homepage: https://dgui-hmem.deckergui.my
+license: MIT

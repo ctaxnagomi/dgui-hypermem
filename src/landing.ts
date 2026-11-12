@@ -11,7 +11,7 @@ export const LANDING_HTML = `<!DOCTYPE html>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no">
-<title>DGUI-HyperMem — Hybrid Memory MCP Server</title>
+<title>DGUI-HyperMem - Hybrid Memory MCP Server</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M50 8C30 8 14 24 14 44c0 8 2.5 15.5 7 21.5v16c0 3.5 3 6.5 6.5 6.5h45c3.5 0 6.5-3 6.5-6.5v-16c4.5-6 7-13.5 7-21.5C86 24 70 8 50 8z' fill='%2300f0ff' opacity='0.15'/%3E%3Cpath d='M50 14C32 14 18 28 18 46s7 20 10 23v14c0 3 2 5 5 5h34c3 0 5-2 5-5V69c3-3 10-8 10-23S68 14 50 14z' fill='none' stroke='%2300f0ff' stroke-width='2'/%3E%3Cpath d='M50 28c-8 0-15 4-18 10h5c2-3 6-5 13-5s11 2 13 5h5c-3-6-10-10-18-10z' fill='%2300f0ff' opacity='0.6'/%3E%3C/svg%3E">
 <link rel="icon" type="image/png" sizes="48x48" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M50 8C30 8 14 24 14 44c0 8 2.5 15.5 7 21.5v16c0 3.5 3 6.5 6.5 6.5h45c3.5 0 6.5-3 6.5-6.5v-16c4.5-6 7-13.5 7-21.5C86 24 70 8 50 8z' fill='%2300f0ff' opacity='0.15'/%3E%3Cpath d='M50 14C32 14 18 28 18 46s7 20 10 23v14c0 3 2 5 5 5h34c3 0 5-2 5-5V69c3-3 10-8 10-23S68 14 50 14z' fill='none' stroke='%2300f0ff' stroke-width='2'/%3E%3Cpath d='M50 28c-8 0-15 4-18 10h5c2-3 6-5 13-5s11 2 13 5h5c-3-6-10-10-18-10z' fill='%2300f0ff' opacity='0.6'/%3E%3C/svg%3E">
 <link rel="apple-touch-icon" sizes="180x180" href="/icon-180.png">
@@ -33,17 +33,16 @@ export const LANDING_HTML = `<!DOCTYPE html>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 <style>
 :root{--bg-deep:#080d18;--bg-primary:#0e1526;--bg-surface:#151f35;--bg-surface-2:#1c2942;--accent-cyan:#22c7dc;--accent-cyan-deep:#00a3b3;--blue:#3e7fbd;--blue-soft:#5b87ac;--accent:#f4f8fc;--text-secondary:#b7c4d6;--text-muted:#9aadc6;--border:rgba(255,255,255,.12);--border-glass:rgba(255,255,255,.10);--border-accent:rgba(34,199,220,.5);--glass:rgba(21,31,53,.62);--glass-strong:rgba(14,21,38,.92);--shadow:0 18px 50px -12px rgba(0,0,0,.65);}
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-html{background:var(--bg-deep);background-image:linear-gradient(165deg,#0a1020 0%,#101a30 42%,#0c1424 100%);background-attachment:fixed}html,body{height:100%;width:100%;font-family:'Inter',sans-serif;color:var(--accent);-webkit-font-smoothing:antialiased;overflow-x:hidden;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:none;touch-action:manipulation}body{background:transparent}
-/* Atmospheric background. Layer stack mirrors the reference schematic: a
-   static base gradient, a right-drifting layer, a left-drifting layer,
-   then content above. Photographic layers become radial gradients so the
-   page stays cheap to paint. Negative z-index keeps them behind flow. */
-body::before,body::after{content:'';position:fixed;inset:-22%;z-index:-1;pointer-events:none;will-change:transform}
-body::before{background:radial-gradient(38% 38% at 28% 30%,rgba(62,127,189,.40),transparent 70%),radial-gradient(34% 34% at 72% 62%,rgba(29,95,150,.34),transparent 70%);animation:drift-right 48s linear infinite}
-body::after{background:radial-gradient(42% 42% at 72% 24%,rgba(34,199,220,.15),transparent 70%),radial-gradient(36% 36% at 24% 76%,rgba(91,135,172,.22),transparent 70%);animation:drift-left 64s linear infinite}
-@keyframes drift-right{0%{transform:translate3d(-6%,0,0) scale(1)}100%{transform:translate3d(6%,0,0) scale(1.08)}}
-@keyframes drift-left{0%{transform:translate3d(6%,-2%,0) scale(1.06)}100%{transform:translate3d(-6%,2%,0) scale(1)}}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{background:var(--bg-deep);background-image:linear-gradient(165deg,#0a1020 0%,#101a30 42%,#0c1424 100%);background-attachment:fixed}html,body{height:100%;width:100%;font-family:'Space Grotesk',sans-serif;color:var(--accent);-webkit-font-smoothing:antialiased;overflow-x:hidden;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:none;touch-action:manipulation}body{background:transparent;position:relative}
+/* Hero background animation - looping gradient layers */
+body::before,body::after{content:'';position:fixed;inset:-40%;z-index:-2;pointer-events:none;will-change:transform}
+body::before{background:radial-gradient(45% 45% at 25% 35%,rgba(62,127,189,.45),transparent 70%),radial-gradient(40% 40% at 75% 65%,rgba(29,95,150,.38),transparent 70%);animation:drift-right 60s ease-in-out infinite alternate}
+body::after{background:radial-gradient(48% 48% at 70% 20%,rgba(34,199,220,.18),transparent 70%),radial-gradient(42% 42% at 30% 80%,rgba(91,135,172,.26),transparent 70%);animation:drift-left 75s ease-in-out infinite alternate}
+@keyframes drift-right{0%{transform:translate3d(-10%, -5%, 0) scale(1)}50%{transform:translate3d(5%, 8%, 0) scale(1.12)}100%{transform:translate3d(10%, -3%, 0) scale(1.05)}}
+@keyframes drift-left{0%{transform:translate3d(12%, 6%, 0) scale(1.08)}50%{transform:translate3d(-4%, -10%, 0) scale(1)}100%{transform:translate3d(-12%, 4%, 0) scale(1.14)}}
+body::before,body::after{-webkit-animation-fill-mode:both;animation-fill-mode:both}
+@media(max-width:768px){body::before,body::after{inset:-60%;animation-duration:45s}}
 @media(prefers-reduced-motion:reduce){body::before,body::after{animation:none}}
 ::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--border-glass);border-radius:10px}
 nav{display:flex;align-items:center;justify-content:space-between;padding:16px 24px;padding-top:calc(16px + env(safe-area-inset-top,0px));border-bottom:1px solid var(--border-glass);background:rgba(10,16,30,.72);backdrop-filter:blur(14px) saturate(140%);-webkit-backdrop-filter:blur(14px) saturate(140%);position:sticky;top:0;z-index:100}
@@ -65,7 +64,7 @@ nav{display:flex;align-items:center;justify-content:space-between;padding:16px 2
 .crm-section{padding:30px 24px 60px}
 .crm-form-wrap{position:relative;min-height:360px}
 .crm-card{background:var(--glass);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);box-shadow:var(--shadow);max-width:520px;margin:24px auto;padding:32px;border:1px solid var(--border-glass);border-radius:12px;transition:all .5s cubic-bezier(.16,1,.3,1)}
-.crm-card input{width:100%;padding:12px 16px;margin-bottom:12px;background:rgba(8,13,24,.55);border:1px solid var(--border-glass);border-radius:8px;color:var(--accent);font-family:Inter,sans-serif;font-size:14px;outline:none;transition:border-color .2s}
+.crm-card input{width:100%;padding:12px 16px;margin-bottom:12px;background:rgba(8,13,24,.55);border:1px solid var(--border-glass);border-radius:8px;color:var(--accent);font-family:'Space Grotesk',sans-serif;font-size:14px;outline:none;transition:border-color .2s}
 .crm-card input:focus{border-color:var(--accent-cyan)}
 .crm-card .btn-primary{width:100%;margin-top:8px}
 .status-line{padding:12px 16px;background:rgba(8,13,24,.55);border:1px solid var(--border-glass);border-radius:8px;font-size:14px;color:var(--text-secondary);margin-bottom:16px;font-family:JetBrains Mono,monospace}
@@ -181,9 +180,9 @@ footer p{font-size:14px;color:var(--text-muted)}footer a{color:var(--accent-cyan
 .lamp.lit{color:#fbbf24;background:rgba(251,191,36,.10);border-color:rgba(251,191,36,.45);box-shadow:0 0 0 1px rgba(251,191,36,.18),0 0 26px -4px rgba(251,191,36,.55)}
 .lamp.checking{color:var(--accent-cyan)}
 .lamp-form{grid-column:1/-1;display:flex;gap:8px}
-.lamp-form input{flex:1;padding:12px 14px;background:rgba(8,13,24,.55);border:1px solid var(--border-glass);border-radius:8px;color:var(--text-primary);font-family:Inter,sans-serif;font-size:14px;outline:none}
+.lamp-form input{flex:1;padding:12px 14px;background:rgba(8,13,24,.55);border:1px solid var(--border-glass);border-radius:8px;color:var(--text-primary);font-family:'Space Grotesk',sans-serif;font-size:14px;outline:none}
 .lamp-form input:focus{border-color:var(--accent-cyan)}
-.lamp-form button{padding:12px 18px;background:var(--accent-cyan);color:#04121a;border:none;border-radius:8px;font-family:Inter,sans-serif;font-size:14px;font-weight:500;cursor:pointer;display:flex;align-items:center;gap:7px;white-space:nowrap}
+.lamp-form button{padding:12px 18px;background:var(--accent-cyan);color:#04121a;border:none;border-radius:8px;font-family:'Space Grotesk',sans-serif;font-size:14px;font-weight:500;cursor:pointer;display:flex;align-items:center;gap:7px;white-space:nowrap}
 .lamp-form button:hover{background:var(--accent-cyan-deep)}
 .lamp-form button:disabled{opacity:.55;cursor:not-allowed}
 .lamp-result{grid-column:1/-1;font-size:12px;color:var(--text-muted);line-height:1.6;display:none}
@@ -209,7 +208,7 @@ footer p{font-size:14px;color:var(--text-muted)}footer a{color:var(--accent-cyan
 .enterprise-section{padding:30px 24px 60px}
 .enterprise-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px;max-width:900px;margin:32px auto 0;padding:0 24px}
 .enterprise-info p{font-size:14px;color:var(--text-secondary);line-height:1.6;margin-bottom:12px}
-.enterprise-form input,.enterprise-form textarea{width:100%;padding:12px 16px;margin-bottom:12px;background:rgba(8,13,24,.55);border:1px solid var(--border-glass);border-radius:8px;color:var(--accent);font-family:Inter,sans-serif;font-size:14px;outline:none;transition:border-color .2s}
+.enterprise-form input,.enterprise-form textarea{width:100%;padding:12px 16px;margin-bottom:12px;background:rgba(8,13,24,.55);border:1px solid var(--border-glass);border-radius:8px;color:var(--accent);font-family:'Space Grotesk',sans-serif;font-size:14px;outline:none;transition:border-color .2s}
 .enterprise-form input:focus,.enterprise-form textarea:focus{border-color:var(--accent-cyan)}
 .enterprise-form textarea{min-height:100px;resize:vertical}
 @media(max-width:768px){
@@ -240,7 +239,7 @@ footer p{font-size:14px;color:var(--text-muted)}footer a{color:var(--accent-cyan
 <section class="hero">
 <div class="caption-mono"><i class="fas fa-brain"></i> DGUI-HYPERMEM</div>
 <h1>Memory that<br>remembers right.</h1>
-<p>A self-hosted hybrid memory MCP server for AI agents — fusing vector search, full-text search, and a JEV reasoning layer that curates every memory.</p>
+<p>A self-hosted hybrid memory MCP server for AI agents - fusing vector search, full-text search, and a JEV reasoning layer that curates every memory.</p>
 <div class="hero-actions">
 <a href="#crm" class="btn-primary"><i class="fas fa-key"></i> Get Token</a>
 <a href="https://github.com/ctaxnagomi/dgui-hypermem" class="btn-outline"><i class="fab fa-github"></i> GitHub</a>
@@ -250,7 +249,7 @@ footer p{font-size:14px;color:var(--text-muted)}footer a{color:var(--accent-cyan
 <section style="padding:40px 24px;text-align:center">
 <div style="font-family:JetBrains Mono,monospace;font-size:12px;color:var(--accent-cyan);letter-spacing:1.5px;text-transform:uppercase;font-weight:600;margin-bottom:8px">For Everyone</div>
 <h2 style="font-size:28px;font-weight:300;margin-bottom:16px;letter-spacing:-0.5px">Built for agents,<br>used by humans.</h2>
-<p style="font-size:15px;color:var(--text-secondary);max-width:600px;margin:0 auto 32px;line-height:1.6">AI need memory to work for you. DGUI-HyperMem gives every agent instant recall — no training, no setup.</p>
+<p style="font-size:15px;color:var(--text-secondary);max-width:600px;margin:0 auto 32px;line-height:1.6">AI need memory to work for you. DGUI-HyperMem gives every agent instant recall - no training, no setup.</p>
 <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;max-width:700px;margin:0 auto 40px">
 <div style="background:var(--glass);border:1px solid var(--border);border-radius:10px;padding:14px 10px;font-size:13px;color:var(--text-secondary)">Developer</div>
 <div style="background:var(--glass);border:1px solid var(--border);border-radius:10px;padding:14px 10px;font-size:13px;color:var(--text-secondary)">Engineer</div>
@@ -435,7 +434,7 @@ footer p{font-size:14px;color:var(--text-muted)}footer a{color:var(--accent-cyan
 <div class="live-track" id="live-track"><div class="live-inner" id="live-inner"></div></div>
 </div>
 <div class="container" style="max-width:1200px;margin:0 auto;padding:0 24px">
-<p>DGUI-HyperMem — a <a href="https://deckergui.my">DeckerGUI</a> project</p>
+<p>DGUI-HyperMem - a <a href="https://deckergui.my">DeckerGUI</a> project</p>
 <div class="footer-links">
 <a href="/docs"><i class="fas fa-book"></i> How to Use</a>
 <a href="/privacy"><i class="fas fa-shield-alt"></i> Privacy</a>
